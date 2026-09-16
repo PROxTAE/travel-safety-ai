@@ -27,3 +27,5 @@ git checkout dev
 git pull
 git checkout -b feature/ชื่องานของคุณ
 ```
+
+<!-- ทดสอบว่า feature/* push ได้ -->
