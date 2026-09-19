@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TransportStatus",
+  "description": "Status of one scheduled service. ON_TIME requires real-time evidence inside the configured freshness window; the absence of a disruption alert is UNKNOWN, not ON_TIME.",
+  "type": "object",
+  "required": [
+    "id",
+    "mode",
+    "operator",
+    "service_number",
+    "origin_stop",
+    "destination_stop",
+    "scheduled_departure",
+    "estimated_departure",
+    "scheduled_arrival",
+    "estimated_arrival",
+    "status",
+    "delay_minutes",
+    "cancellation",
+    "quality",
+    "source"
+  ],
+  "properties": {
+    "id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "mode": { "$ref": "enums.schema.json#/$defs/TravelMode" },
+    "operator": { "type": ["string", "null"], "maxLength": 256 },
+    "service_number": { "type": ["string", "null"], "maxLength": 64 },
+    "origin_stop": { "$ref": "#/$defs/StopRef" },
+    "destination_stop": { "$ref": "#/$defs/StopRef" },
+    "scheduled_departure": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "estimated_departure": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "scheduled_arrival": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "estimated_arrival": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "status": { "$ref": "enums.schema.json#/$defs/TransportStatusCode" },
+    "delay_minutes": { "type": ["integer", "null"] },
+    "cancellation": {
+      "oneOf": [{ "$ref": "#/$defs/Cancellation" }, { "type": "null" }]
+    },
+    "quality": { "$ref": "data-quality.schema.json" },
+    "source": { "$ref": "source-provenance.schema.json" }
+  },
+  "$defs": {
+    "StopRef": {
+      "title": "StopRef",
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "stop_id": { "type": ["string", "null"], "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 256 },
+        "coordinates": {
+          "oneOf": [
+            { "$ref": "geojson.schema.json#/$defs/Point" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "Cancellation": {
+      "title": "Cancellation",
+      "type": "object",
+      "required": ["cancelled"],
+      "properties": {
+        "cancelled": { "type": "boolean" },
+        "reason": { "type": ["string", "null"], "maxLength": 512 },
+        "announced_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" }
+      }
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LocationRef",
+  "description": "A place resolved by a real geocoding provider. An assessment may only be started when both origin and destination have confirmed_by_user = true. Exact coordinates are personal data: keep them only as long as the trip and consent require, and never write them to logs or traces.",
+  "type": "object",
+  "required": ["display_name", "coordinates", "provider", "confirmed_by_user"],
+  "properties": {
+    "place_id": {
+      "description": "Provider-scoped place identifier. Null when the user dropped a pin instead of choosing a suggestion.",
+      "type": ["string", "null"],
+      "maxLength": 256
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "coordinates": { "$ref": "geojson.schema.json#/$defs/Point" },
+    "country_code": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/CountryCode" },
+        { "type": "null" }
+      ]
+    },
+    "admin1": {
+      "description": "First-level administrative area as the provider names it.",
+      "type": ["string", "null"],
+      "maxLength": 256
+    },
+    "timezone": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Timezone" },
+        { "type": "null" }
+      ]
+    },
+    "provider": {
+      "description": "Geocoding provider key, or user_pin when the coordinates came from the map rather than a provider.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,63}$"
+    },
+    "confirmed_by_user": {
+      "description": "True once the user has seen the pin on the map and accepted it.",
+      "type": "boolean"
+    }
+  }
+}

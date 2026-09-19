@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DataQuality",
+  "description": "Quality envelope attached to every canonical record. The score never replaces the flags: a consumer that reads score alone and ignores flags is non-conforming.",
+  "type": "object",
+  "required": ["status", "score", "flags", "formula_version"],
+  "properties": {
+    "status": { "$ref": "enums.schema.json#/$defs/DataStatus" },
+    "score": { "$ref": "primitives.schema.json#/$defs/UnitInterval" },
+    "flags": {
+      "type": "array",
+      "items": { "$ref": "enums.schema.json#/$defs/QualityFlag" },
+      "default": []
+    },
+    "coverage": {
+      "description": "Share of the requested area and time window the source actually covers.",
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/UnitInterval" },
+        { "type": "null" }
+      ]
+    },
+    "completeness": {
+      "description": "Share of required fields the provider supplied.",
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/UnitInterval" },
+        { "type": "null" }
+      ]
+    },
+    "freshness_seconds": {
+      "description": "Age of the underlying observation at generation time. Null when the source publishes no observation time.",
+      "type": ["integer", "null"],
+      "minimum": 0
+    },
+    "conflicts": {
+      "description": "Conflicting values seen for the same fact across sources.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/QualityConflict" },
+      "default": []
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 512 },
+      "default": []
+    },
+    "formula_version": {
+      "description": "Version of the scoring formula and weights that produced score.",
+      "$ref": "primitives.schema.json#/$defs/SemVer"
+    }
+  },
+  "$defs": {
+    "QualityConflict": {
+      "title": "QualityConflict",
+      "type": "object",
+      "required": ["field_path", "source_ids"],
+      "properties": {
+        "field_path": { "type": "string", "maxLength": 256 },
+        "source_ids": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "primitives.schema.json#/$defs/Uuid" }
+        },
+        "resolution": {
+          "type": ["string", "null"],
+          "enum": [
+            "HIGHEST_AUTHORITY",
+            "MOST_RECENT",
+            "MOST_CONSERVATIVE",
+            "UNRESOLVED",
+            null
+          ]
+        }
+      }
+    }
+  }
+}

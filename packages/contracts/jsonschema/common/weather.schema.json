@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Weather",
+  "description": "Canonical weather records. A value the provider did not supply is null and carries a quality flag: it is never substituted with 0, because 0 mm of rain and unknown rain are different facts.",
+  "$defs": {
+    "WeatherForecastPoint": {
+      "title": "WeatherForecastPoint",
+      "type": "object",
+      "required": [
+        "id",
+        "location",
+        "valid_at",
+        "temperature_c",
+        "apparent_temperature_c",
+        "precipitation_mm",
+        "precipitation_probability",
+        "snowfall_cm",
+        "wind_speed_kmh",
+        "wind_gust_kmh",
+        "visibility_m",
+        "weather_code",
+        "severity",
+        "quality",
+        "source"
+      ],
+      "properties": {
+        "id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        "location": { "$ref": "geojson.schema.json#/$defs/Point" },
+        "valid_at": {
+          "description": "Instant this forecast point describes.",
+          "$ref": "primitives.schema.json#/$defs/Timestamp"
+        },
+        "temperature_c": { "type": ["number", "null"] },
+        "apparent_temperature_c": { "type": ["number", "null"] },
+        "precipitation_mm": { "type": ["number", "null"], "minimum": 0 },
+        "precipitation_probability": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "snowfall_cm": { "type": ["number", "null"], "minimum": 0 },
+        "wind_speed_kmh": { "type": ["number", "null"], "minimum": 0 },
+        "wind_gust_kmh": { "type": ["number", "null"], "minimum": 0 },
+        "visibility_m": { "type": ["number", "null"], "minimum": 0 },
+        "weather_code": {
+          "description": "WMO weather interpretation code as published by the provider.",
+          "type": ["integer", "null"]
+        },
+        "severity": { "$ref": "enums.schema.json#/$defs/Severity" },
+        "quality": { "$ref": "data-quality.schema.json" },
+        "source": { "$ref": "source-provenance.schema.json" }
+      }
+    },
+    "WeatherObservation": {
+      "title": "WeatherObservation",
+      "description": "A measurement already taken, as opposed to a forecast. observed_at on the source is authoritative for freshness.",
+      "type": "object",
+      "required": [
+        "id",
+        "location",
+        "observed_at",
+        "temperature_c",
+        "precipitation_mm",
+        "wind_speed_kmh",
+        "weather_code",
+        "severity",
+        "quality",
+        "source"
+      ],
+      "properties": {
+        "id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        "location": { "$ref": "geojson.schema.json#/$defs/Point" },
+        "observed_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+        "temperature_c": { "type": ["number", "null"] },
+        "apparent_temperature_c": { "type": ["number", "null"] },
+        "precipitation_mm": { "type": ["number", "null"], "minimum": 0 },
+        "wind_speed_kmh": { "type": ["number", "null"], "minimum": 0 },
+        "wind_gust_kmh": { "type": ["number", "null"], "minimum": 0 },
+        "visibility_m": { "type": ["number", "null"], "minimum": 0 },
+        "weather_code": { "type": ["integer", "null"] },
+        "severity": { "$ref": "enums.schema.json#/$defs/Severity" },
+        "quality": { "$ref": "data-quality.schema.json" },
+        "source": { "$ref": "source-provenance.schema.json" }
+      }
+    }
+  }
+}

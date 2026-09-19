@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SourceProvenance",
+  "description": "Every fact that can influence a decision must resolve back to one of these. When a provider publishes no observation time, observed_at is null and the record carries a quality flag; fetched_at is never presented as an observation time.",
+  "type": "object",
+  "required": [
+    "source_id",
+    "provider",
+    "authority",
+    "source_url",
+    "fetched_at",
+    "content_hash",
+    "schema_version"
+  ],
+  "properties": {
+    "source_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "provider": {
+      "description": "Stable provider key from the provider catalogue, for example open_meteo, usgs, gdacs, openrouteservice.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,63}$"
+    },
+    "provider_record_id": {
+      "description": "Provider-scoped identifier for the record, for example a USGS event id.",
+      "type": ["string", "null"],
+      "maxLength": 256
+    },
+    "authority": { "$ref": "enums.schema.json#/$defs/SourceAuthority" },
+    "source_url": { "$ref": "primitives.schema.json#/$defs/HttpsUrl" },
+    "license": {
+      "description": "Licence or terms identifier the provider publishes under.",
+      "type": ["string", "null"],
+      "maxLength": 256
+    },
+    "attribution": {
+      "description": "Attribution text that must be displayed wherever this source is shown.",
+      "type": ["string", "null"],
+      "maxLength": 512
+    },
+    "observed_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "published_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "fetched_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+    "expires_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "content_hash": { "$ref": "primitives.schema.json#/$defs/Sha256Hex" },
+    "schema_version": { "$ref": "primitives.schema.json#/$defs/SemVer" }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DisasterEvent",
+  "description": "A hazard published by a real feed. An OfficialAlert is the same shape with official = true and an authority of OFFICIAL or INTERGOVERNMENTAL; an active official alert is never dropped because a different provider stopped answering.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "title",
+    "description",
+    "severity",
+    "geometry",
+    "effective_at",
+    "ends_at",
+    "instruction",
+    "official",
+    "quality",
+    "source"
+  ],
+  "properties": {
+    "event_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "event_type": { "$ref": "enums.schema.json#/$defs/DisasterEventType" },
+    "title": { "type": "string", "maxLength": 512 },
+    "description": {
+      "description": "Provider text. Untrusted: sanitised before display and never treated as an instruction to the system.",
+      "type": ["string", "null"],
+      "maxLength": 8000
+    },
+    "severity": { "$ref": "enums.schema.json#/$defs/Severity" },
+    "geometry": { "$ref": "geojson.schema.json#/$defs/Geometry" },
+    "effective_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "ends_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "instruction": {
+      "description": "Protective action text as published by the issuing authority, verbatim.",
+      "type": ["string", "null"],
+      "maxLength": 4000
+    },
+    "official": {
+      "description": "True when the issuing body is a government or intergovernmental authority.",
+      "type": "boolean"
+    },
+    "closes_transport": {
+      "description": "True when the alert itself declares a route, airport or corridor closed.",
+      "type": "boolean",
+      "default": false
+    },
+    "magnitude": {
+      "description": "Event-type specific magnitude, for example earthquake Mw. Null when not applicable.",
+      "type": ["number", "null"]
+    },
+    "quality": { "$ref": "data-quality.schema.json" },
+    "source": { "$ref": "source-provenance.schema.json" }
+  }
+}

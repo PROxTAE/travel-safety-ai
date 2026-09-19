@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SharedEnums",
+  "description": "Controlled vocabularies shared by every service (00_API_AND_DATA_CONTRACTS.md section 2). Unknown provider values MUST be mapped to the UNKNOWN member where one exists; services MUST NOT invent new members.",
+  "$defs": {
+    "RiskLevel": {
+      "title": "RiskLevel",
+      "type": "string",
+      "enum": ["LOW", "MEDIUM", "HIGH", "UNKNOWN"]
+    },
+    "ActionCode": {
+      "title": "ActionCode",
+      "description": "The only four actions the product may recommend. Locked by the decision engine before any LLM call.",
+      "type": "string",
+      "enum": ["NORMAL", "CHANGE_ROUTE", "DELAY", "AVOID"]
+    },
+    "RunStatus": {
+      "title": "RunStatus",
+      "type": "string",
+      "enum": ["QUEUED", "RUNNING", "NEEDS_INPUT", "COMPLETED", "PARTIAL", "FAILED", "CANCELLED"]
+    },
+    "TravelMode": {
+      "title": "TravelMode",
+      "type": "string",
+      "enum": ["FLIGHT", "TRAIN", "BUS", "CAR", "WALK", "BICYCLE", "MULTIMODAL"]
+    },
+    "DataStatus": {
+      "title": "DataStatus",
+      "type": "string",
+      "enum": ["FRESH", "STALE", "UNAVAILABLE", "CONFLICTING", "PARTIAL"]
+    },
+    "Severity": {
+      "title": "Severity",
+      "type": "string",
+      "enum": ["INFO", "MINOR", "MODERATE", "SEVERE", "EXTREME", "UNKNOWN"]
+    },
+    "SourceAuthority": {
+      "title": "SourceAuthority",
+      "type": "string",
+      "enum": ["OFFICIAL", "INTERGOVERNMENTAL", "LICENSED_PROVIDER", "COMMUNITY", "UNKNOWN"]
+    },
+    "FeedbackCategory": {
+      "title": "FeedbackCategory",
+      "type": "string",
+      "enum": ["HELPFUL", "INCORRECT", "STALE", "UNSAFE", "ROUTE_ISSUE", "SOURCE_ISSUE", "OTHER"]
+    },
+    "ConsentType": {
+      "title": "ConsentType",
+      "type": "string",
+      "enum": ["LOCATION_ONCE", "LOCATION_LIVE", "ALERT_NOTIFICATION", "ANALYTICS", "EMERGENCY_PROFILE"]
+    },
+    "DeliveryChannel": {
+      "title": "DeliveryChannel",
+      "type": "string",
+      "enum": ["IN_APP", "EMAIL", "SMS", "PUSH"]
+    },
+    "ProviderKind": {
+      "title": "ProviderKind",
+      "type": "string",
+      "enum": ["GEOCODING", "WEATHER", "ROUTE", "FLIGHT", "TRANSIT", "DISASTER", "EMERGENCY_DIRECTORY"]
+    },
+    "QualityFlag": {
+      "title": "QualityFlag",
+      "type": "string",
+      "enum": ["MISSING", "STALE", "CONFLICTING", "INFERRED", "INCOMPLETE", "OUTSIDE_COVERAGE"]
+    },
+    "TransportStatusCode": {
+      "title": "TransportStatusCode",
+      "description": "ON_TIME requires real-time evidence. Absence of an alert MUST NOT be reported as ON_TIME.",
+      "type": "string",
+      "enum": ["ON_TIME", "DELAYED", "CANCELLED", "DISRUPTED", "UNKNOWN"]
+    },
+    "DisasterEventType": {
+      "title": "DisasterEventType",
+      "type": "string",
+      "enum": [
+        "EARTHQUAKE",
+        "CYCLONE",
+        "STORM",
+        "FLOOD",
+        "WILDFIRE",
+        "VOLCANO",
+        "LANDSLIDE",
+        "EXTREME_TEMPERATURE",
+        "HEALTH",
+        "TRANSPORT_CLOSURE",
+        "OTHER"
+      ]
+    },
+    "RouteLabel": {
+      "title": "RouteLabel",
+      "type": "string",
+      "enum": ["ORIGINAL", "RECOMMENDED", "FASTEST", "LOWEST_RISK", "ALTERNATIVE"]
+    },
+    "RunStage": {
+      "title": "RunStage",
+      "description": "Controlled progress stages surfaced over SSE (00_API_AND_DATA_CONTRACTS.md section 6).",
+      "type": "string",
+      "enum": [
+        "VALIDATING",
+        "FETCHING_EXTERNAL_DATA",
+        "INTEGRATING_DATA",
+        "ASSESSING_RISK",
+        "RETRIEVING_GUIDANCE",
+        "EVALUATING_ROUTES",
+        "MAKING_DECISION",
+        "EXPLAINING",
+        "FORMATTING_RESPONSE"
+      ]
+    },
+    "ErrorCode": {
+      "title": "ErrorCode",
+      "description": "Stable error codes. Adding a member is a minor contract change; removing or renaming one is breaking.",
+      "type": "string",
+      "enum": [
+        "VALIDATION_ERROR",
+        "AUTHENTICATION_REQUIRED",
+        "FORBIDDEN",
+        "NOT_FOUND",
+        "CONFLICT",
+        "IDEMPOTENCY_CONFLICT",
+        "RATE_LIMITED",
+        "DEPENDENCY_TIMEOUT",
+        "DEPENDENCY_UNAVAILABLE",
+        "INSUFFICIENT_EVIDENCE",
+        "UNSUPPORTED_COVERAGE",
+        "POLICY_VALIDATION_FAILED",
+        "INTERNAL_ERROR"
+      ]
+    },
+    "TripStatus": {
+      "title": "TripStatus",
+      "type": "string",
+      "enum": ["DRAFT", "PLANNED", "ACTIVE", "COMPLETED", "CANCELLED", "DELETED"]
+    },
+    "EmergencyServiceType": {
+      "title": "EmergencyServiceType",
+      "type": "string",
+      "enum": [
+        "GENERAL_EMERGENCY",
+        "POLICE",
+        "AMBULANCE",
+        "FIRE",
+        "TOURIST_POLICE",
+        "COAST_GUARD",
+        "POISON_CONTROL",
+        "EMBASSY",
+        "HOSPITAL",
+        "DISASTER_HOTLINE"
+      ]
+    },
+    "SafetyLayer": {
+      "title": "SafetyLayer",
+      "description": "Layers requestable from the public safety map endpoint.",
+      "type": "string",
+      "enum": ["WEATHER", "DISASTER", "TRANSPORT", "OFFICIAL_ALERT"]
+    },
+    "SubscriptionStatus": {
+      "title": "SubscriptionStatus",
+      "type": "string",
+      "enum": ["ACTIVE", "PAUSED", "CANCELLED", "EXPIRED"]
+    },
+    "DeletionStatus": {
+      "title": "DeletionStatus",
+      "description": "Reported by soft-delete endpoints; purge happens asynchronously across owned schemas.",
+      "type": "string",
+      "enum": ["PENDING", "IN_PROGRESS", "COMPLETED", "FAILED"]
+    }
+  }
+}

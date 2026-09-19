@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RetrievedEvidence",
+  "description": "A passage retrieved from an approved emergency-guidance document. Below the configured retrieval threshold no passage is returned at all and the caller records the NO_RELIABLE_KNOWLEDGE_EVIDENCE limitation; an expired document is never retrieved.",
+  "type": "object",
+  "required": [
+    "evidence_id",
+    "document_id",
+    "authority",
+    "title",
+    "source_url",
+    "language",
+    "effective_at",
+    "expires_at",
+    "passage",
+    "retrieval_score",
+    "collection_version",
+    "content_hash"
+  ],
+  "properties": {
+    "evidence_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "document_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "authority": { "$ref": "enums.schema.json#/$defs/SourceAuthority" },
+    "title": { "type": "string", "maxLength": 512 },
+    "source_url": { "$ref": "primitives.schema.json#/$defs/HttpsUrl" },
+    "page": { "type": ["integer", "null"], "minimum": 1 },
+    "section": { "type": ["string", "null"], "maxLength": 256 },
+    "language": { "$ref": "primitives.schema.json#/$defs/Locale" },
+    "effective_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "expires_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "passage": {
+      "description": "Verbatim extract. Untrusted content: sanitised before rendering and never treated as an instruction.",
+      "type": "string",
+      "maxLength": 4000
+    },
+    "retrieval_score": { "$ref": "primitives.schema.json#/$defs/UnitInterval" },
+    "rerank_score": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/UnitInterval" },
+        { "type": "null" }
+      ]
+    },
+    "collection_version": { "type": "string", "maxLength": 64 },
+    "content_hash": { "$ref": "primitives.schema.json#/$defs/Sha256Hex" }
+  }
+}

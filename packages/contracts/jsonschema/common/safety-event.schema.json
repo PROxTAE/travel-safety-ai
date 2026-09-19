@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SafetyEvent",
+  "description": "Map-sized summary of one hazard for the safety map. It is a projection of a canonical DisasterEvent or weather window: enough to draw a marker and open a detail panel, with the freshness the UI is required to show, and never a substitute for the full record.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "layer",
+    "event_type",
+    "title",
+    "severity",
+    "geometry",
+    "official",
+    "valid_from",
+    "valid_to",
+    "quality",
+    "source"
+  ],
+  "properties": {
+    "event_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "layer": { "$ref": "enums.schema.json#/$defs/SafetyLayer" },
+    "event_type": { "$ref": "enums.schema.json#/$defs/DisasterEventType" },
+    "title": { "type": "string", "maxLength": 512 },
+    "severity": { "$ref": "enums.schema.json#/$defs/Severity" },
+    "geometry": { "$ref": "geojson.schema.json#/$defs/Geometry" },
+    "official": { "type": "boolean" },
+    "valid_from": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "valid_to": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "detail_url": {
+      "description": "Relative public API path for the full canonical record.",
+      "type": ["string", "null"],
+      "maxLength": 512
+    },
+    "quality": { "$ref": "data-quality.schema.json" },
+    "source": { "$ref": "source-provenance.schema.json" }
+  }
+}
