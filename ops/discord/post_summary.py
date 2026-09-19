@@ -85,7 +85,9 @@ def main():
         return
 
     me = api.me()["id"]
-    mine = [m for m in api.get(f"/channels/{channel}/messages?limit=100") if m["author"]["id"] == me]
+    # only this script's own posts (footer marker) - leave other bot posts in the channel alone (e.g. the dependency diagram)
+    mine = [m for m in api.get(f"/channels/{channel}/messages?limit=100")
+            if m["author"]["id"] == me and "ภาพรวมโปรเจกต์" in ((m.get("embeds") or [{}])[0].get("footer") or {}).get("text", "")]
     if mine:
         if not a.replace:
             raise SystemExit(f"the bot already has {len(mine)} post(s) in #{doc['channel']} - use --replace to redo")
