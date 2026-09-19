@@ -14,20 +14,25 @@ Design rules (from IMPLEMENTATION_PLANS/03_TRAVEL_AI_AGENT_IMPLEMENTATION.md):
 NOTE: TravelRequest / LocationRef below are minimal local re-declarations of
 the shared contract so this module is self-contained for Phase 0/1. Once
 `packages/contracts/generated/python` exists (after @02-api merges the
-contract), replace these two classes with an import from there instead of
+contract), replace these classes with an import from there instead of
 keeping a second copy, per the "generate once, don't hand-copy" rule in the
 contracts doc.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
 from enum import StrEnum
-from typing import Any
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ConfigDict
-
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 # ---------------------------------------------------------------------------
 # Shared enums (mirrors 00_API_AND_DATA_CONTRACTS.md section 2 verbatim —
@@ -119,14 +124,33 @@ class GraphStage(StrEnum):
 # ---------------------------------------------------------------------------
 
 
+class GeoPoint(BaseModel):
+    """GeoJSON Point (RFC 7946): coordinates = (longitude, latitude)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["Point"] = "Point"
+    coordinates: tuple[float, float]
+
+    @field_validator("coordinates")
+    @classmethod
+    def _check_lon_lat_range(cls, value: tuple[float, float]) -> tuple[float, float]:
+        longitude, latitude = value
+        if not -180.0 <= longitude <= 180.0:
+            raise ValueError("longitude must be within [-180, 180]")
+        if not -90.0 <= latitude <= 90.0:
+            raise ValueError("latitude must be within [-90, 90]")
+        return value
+
+
 class LocationRef(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     place_id: str
     display_name: str
-    # GeoJSON Point: coordinates = [longitude, latitude]
-    coordinates: dict[str, Any]
-    country_code: str
+    coordinates: GeoPoint
+    # ISO-3166-1 alpha-2, uppercase
+    country_code: Annotated[str, Field(pattern=r"^[A-Z]{2}$")]
     admin1: str | None = None
     timezone: str
     provider: str
@@ -139,7 +163,7 @@ class TravelPreferences(BaseModel):
     prefer_safer_route: bool = True
     prefer_lower_cost: bool = False
     prefer_lower_emissions: bool = False
-    max_extra_duration_minutes: int | None = None
+    max_extra_duration_minutes: int | None = Field(default=None, ge=0)
     avoid_tolls: bool = False
     accessibility: list[str] = Field(default_factory=list)
 
@@ -154,14 +178,21 @@ class TravelRequest(BaseModel):
     conversation_id: UUID | None = None
     origin: LocationRef
     destination: LocationRef
-    departure_time: datetime
-    return_time: datetime | None = None
+    # Timezone-aware: the contract sends an offset (e.g. +07:00) with every time.
+    departure_time: AwareDatetime
+    return_time: AwareDatetime | None = None
     travel_modes: list[TravelMode] = Field(min_length=1)
     preferences: TravelPreferences = Field(default_factory=TravelPreferences)
     question: str | None = Field(default=None, max_length=2000)
     locale: str
     timezone: str
     live_location_consent_id: UUID | None = None
+
+    @model_validator(mode="after")
+    def _return_after_departure(self) -> Self:
+        if self.return_time is not None and self.return_time <= self.departure_time:
+            raise ValueError("return_time must be later than departure_time")
+        return self
 
 
 # ---------------------------------------------------------------------------
@@ -229,22 +260,30 @@ class ControlSection(BaseModel):
 
     step_count / tool_call_count / token_usage / estimated_cost are compared
     against MAX_AGENT_STEPS / MAX_TOOL_CALLS / MAX_LLM_CALLS /
-    MAX_ESTIMATED_COST_USD on every node transition (see tool_io_matrix.md
-    section 3). This is what guarantees "no unlimited loop".
+    MAX_ESTIMATED_COST_USD on every node transition (plan section "Budgets
+    and stop conditions"). This is what guarantees "no unlimited loop".
+
+    `errors` holds stable error codes only (never raw provider messages).
     """
 
     model_config = ConfigDict(extra="forbid")
 
     status: RunStatus = RunStatus.QUEUED
     errors: list[str] = Field(default_factory=list)
-    step_count: int = 0
-    tool_call_count: int = 0
-    token_usage: int = 0
-    estimated_cost: float = 0.0
-    started_at: datetime
-    deadline_at: datetime
+    step_count: int = Field(default=0, ge=0)
+    tool_call_count: int = Field(default=0, ge=0)
+    token_usage: int = Field(default=0, ge=0)
+    estimated_cost: float = Field(default=0.0, ge=0.0)
+    started_at: AwareDatetime
+    deadline_at: AwareDatetime
     cancelled: bool = False
     remaining_budget: dict[str, int] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _deadline_after_start(self) -> Self:
+        if self.deadline_at <= self.started_at:
+            raise ValueError("deadline_at must be later than started_at")
+        return self
 
 
 class VersionsSection(BaseModel):
