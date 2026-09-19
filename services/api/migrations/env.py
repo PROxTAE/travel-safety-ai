@@ -21,6 +21,9 @@ from sqlalchemy import engine_from_config, pool
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+# Importing the models is what puts them on Base.metadata. Without this line autogenerate sees an
+# empty metadata and proposes dropping every table it finds in the database.
+from app.db import models  # noqa: F401
 from app.db.base import BOOKKEEPING_SCHEMA, OWNED_SCHEMAS, Base
 from app.settings import get_settings
 
@@ -40,9 +43,14 @@ VERSION_TABLE_SCHEMA = BOOKKEEPING_SCHEMA
 def include_object(
     obj: object, name: str | None, type_: str, reflected: bool, compare_to: object
 ) -> bool:
-    """Ignore anything outside `identity` and `travel`."""
-    schema = getattr(obj, "schema", None)
-    if type_ == "table" and schema is not None:
+    """Ignore anything outside `identity` and `travel`.
+
+    A table reflected from `public` arrives with `schema` set to None, not "public", so treating
+    None as "ours" would sweep up PostGIS. Autogenerate then proposes dropping `spatial_ref_sys`,
+    which is how a migration takes out the spatial reference system for the whole database.
+    """
+    if type_ == "table":
+        schema = getattr(obj, "schema", None)
         return schema in OWNED_SCHEMAS
     return True
 

@@ -4,6 +4,18 @@ A model that is not imported by the time `migrations/env.py` reads `Base.metadat
 autogenerate, which then cheerfully produces a migration that drops it.
 """
 
-from app.db.models.identity import UserProfile
+from app.db.models.identity import (
+    AuditLogEntry,
+    Consent,
+    DataSubjectRequest,
+    EmergencyProfile,
+    UserProfile,
+)
 
-__all__ = ["UserProfile"]
+__all__ = [
+    "AuditLogEntry",
+    "Consent",
+    "DataSubjectRequest",
+    "EmergencyProfile",
+    "UserProfile",
+]
