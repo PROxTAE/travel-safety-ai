@@ -12,7 +12,7 @@
 
 project:
   name: SafetyTravel Assistant
-  repo_slug: Mrbeer19/travel-safety-ai       # https://github.com/Mrbeer19/travel-safety-ai
+  repo_slug: PROxTAE/travel-safety-ai       # https://github.com/PROxTAE/travel-safety-ai
   default_branch: main
   plans_dir: IMPLEMENTATION_PLANS
   contract_paths:                            # ไฟล์ที่ถือเป็น "contract" — แตะแล้วต้องแจ้ง @everyone
@@ -31,7 +31,7 @@ lead_role:
   modules: ["00"]        # branch infra/00-... / chore/00-... → ping lead
   color: 0xFF8A1F        # orange
   hoist: true
-  github: proxtae285     # GitHub username ของหัวหน้า (จาก git config ของเครื่องนี้ — แก้ได้)
+  github: PROxTAE     # GitHub username ของหัวหน้า (จาก git config ของเครื่องนี้ — แก้ได้)
 
 # --------------------------------------------------------------------------
 # Workstreams: 8 คน = 8 module ตาม IMPLEMENTATION_PLANS (คนที่ N ทำ module 0N)

@@ -66,7 +66,7 @@ cp .env.example .env          # ใส่ DISCORD_BOT_TOKEN และ GUILD_ID
    python post_assignment.py                     # ปักหมุด 3 ข้อความ/ห้อง, รันซ้ำ = แก้ของเดิม (assignment.yaml)
    ```
    `draw.py` ใช้ member search แทน list ถ้ายังไม่เปิด Server Members Intent · `--seed N` ให้ผลซ้ำได้ · `--exclude <username>` ตัดคนออก · `--no-assign` แค่โชว์
-3. Repo ทีม: https://github.com/Mrbeer19/travel-safety-ai (public, `main`) — push โฟลเดอร์นี้ตาม `IMPLEMENTATION_PLANS/00_GIT_DOCKER_DELIVERY_RULES.md` §1
+3. Repo ทีม: https://github.com/PROxTAE/travel-safety-ai (public, `main`) — push โฟลเดอร์นี้ตาม `IMPLEMENTATION_PLANS/00_GIT_DOCKER_DELIVERY_RULES.md` §1
 4. ใส่ GitHub username ทุกคนใน `config.yaml` (`github:`) — เช็กก่อนด้วย `gh api users/<ชื่อ>` (ห้ามมี `_`)
    ```bash
    python gen_github.py          # → .github/CODEOWNERS

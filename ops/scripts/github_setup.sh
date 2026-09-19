@@ -3,7 +3,7 @@
 #
 #   1. push Discord ids / webhook URLs from ops/discord/out/discord-ids.json into Actions secrets+variables
 #   2. repo settings: squash-merge only, auto-delete head branches
-#   3. branch protection on main per IMPLEMENTATION_PLANS/00_GIT_DOCKER_DELIVERY_RULES.md §1
+#   3. ruleset 'protect-main' per IMPLEMENTATION_PLANS/00_GIT_DOCKER_DELIVERY_RULES.md §1 (repo uses Rulesets, not classic protection)
 #
 # Usage:
 #   bash ops/scripts/github_setup.sh <owner>/<repo> [--codeowners] [--checks "lint,typecheck,unit"]
@@ -11,7 +11,7 @@
 #   --codeowners   also require CODEOWNERS review. Turn this on ONLY after every member has
 #                  accepted the collaborator invite and CODEOWNERS has real usernames.
 #   --checks       comma-separated required status-check names (job names from the CI workflow).
-#                  Leave it out until the CI workflow exists, otherwise no PR can merge.
+#                  Default: ci (the job in .github/workflows/ci.yml).
 #
 # Needs: gh (logged in as an admin of the repo), jq, python3
 set -euo pipefail
@@ -60,26 +60,31 @@ gh api -X PATCH "repos/${REPO}" --silent \
   -F delete_branch_on_merge=true -F squash_merge_commit_title=PR_TITLE -F squash_merge_commit_message=PR_BODY
 echo "  squash-only, auto-delete branches"
 
-echo "== 3) Branch protection: main"
-CHECKS_JSON="$(python3 -c 'import json,sys; s=sys.argv[1]; print(json.dumps([c.strip() for c in s.split(",") if c.strip()]))' "${CHECKS}")"
+echo "== 3) Branch protection: main (Ruleset 'protect-main')"
+CHECKS_JSON="$(python3 -c 'import json,sys; s=sys.argv[1]; print(json.dumps([{"context": c.strip()} for c in s.split(",") if c.strip()] or [{"context": "ci"}]))' "${CHECKS}")"
+RULESET_ID="$(gh api "repos/${REPO}/rulesets" --jq '.[] | select(.name=="protect-main") | .id')"
 jq -nc --argjson checks "${CHECKS_JSON}" --argjson co "${CODEOWNERS}" '{
-  required_status_checks: (if ($checks|length) > 0 then {strict: true, contexts: $checks} else null end),
-  enforce_admins: true,
-  required_pull_request_reviews: {
-    required_approving_review_count: 1,
-    dismiss_stale_reviews: true,
-    require_code_owner_reviews: $co,
-    require_last_push_approval: true
-  },
-  restrictions: null,
-  required_linear_history: true,
-  allow_force_pushes: false,
-  allow_deletions: false,
-  required_conversation_resolution: true
-}' | gh api -X PUT "repos/${REPO}/branches/main/protection" --input - --silent
-echo "  1 approval (2 for safety-critical = reviewer discipline, see rules §1), dismiss stale, no force-push/delete,"
-echo "  enforce_admins ON (lead cannot push to main either), conversation resolution, linear history"
-echo "  code owner reviews: ${CODEOWNERS}   required checks: ${CHECKS:-<none yet>}"
+  name: "protect-main", target: "branch", enforcement: "active",
+  conditions: {ref_name: {include: ["refs/heads/main"], exclude: []}},
+  bypass_actors: [],
+  rules: [
+    {type: "deletion"}, {type: "non_fast_forward"}, {type: "required_linear_history"},
+    {type: "pull_request", parameters: {
+        required_approving_review_count: 1, dismiss_stale_reviews_on_push: true,
+        require_code_owner_review: $co, require_last_push_approval: true,
+        required_review_thread_resolution: true, allowed_merge_methods: ["squash"]}},
+    {type: "required_status_checks", parameters: {
+        strict_required_status_checks_policy: true, do_not_enforce_on_create: false,
+        required_status_checks: $checks}}
+  ]}' > "${TMPDIR:-/tmp}/protect-main.json"
+if [ -n "${RULESET_ID}" ]; then
+  gh api -X PUT "repos/${REPO}/rulesets/${RULESET_ID}" --input "${TMPDIR:-/tmp}/protect-main.json" --silent && echo "  updated ruleset ${RULESET_ID}"
+else
+  gh api -X POST "repos/${REPO}/rulesets" --input "${TMPDIR:-/tmp}/protect-main.json" --silent && echo "  created ruleset"
+fi
+echo "  1 approval (2 for safety-critical = reviewer discipline, see rules §1), dismiss stale, last-push approval, no force-push/delete,"
+echo "  no bypass actors (lead cannot push to main either), conversation resolution, linear history, squash only"
+echo "  code owner reviews: ${CODEOWNERS}   required checks: ${CHECKS:-ci}"
 
 echo
 echo "Done. Test a webhook:  curl -X POST -H 'Content-Type: application/json' -d '{\"content\":\"ทดสอบ webhook\"}' \"\$(jq -r '.webhooks[\"pull-requests\"]' ${IDS})\""

@@ -47,7 +47,7 @@ compose.dev.yaml          override สำหรับพัฒนา (host port,
 ## เริ่มทำงาน (ทุกคน)
 
 ```bash
-git clone https://github.com/Mrbeer19/travel-safety-ai.git
+git clone https://github.com/PROxTAE/travel-safety-ai.git
 cd travel-safety-ai
 cp .env.example .env            # PowerShell: Copy-Item .env.example .env   แล้วเติมค่า required
 docker compose -f compose.yaml -f compose.dev.yaml --profile core up -d --wait
