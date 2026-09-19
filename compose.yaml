@@ -103,6 +103,41 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  api:
+    # Public API (module 02) — the only service the browser talks to besides web.
+    # No host port here: production topology exposes nothing directly. compose.dev.yaml
+    # publishes 8000 for local work.
+    build:
+      context: ./services/api
+      target: runtime
+    profiles: [app]
+    env_file: .env
+    environment:
+      SERVICE_NAME: api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      # Liveness only. Readiness depends on PostgreSQL, Redis and Keycloak; restarting the
+      # container whenever one of those blinks would turn a recoverable outage into a crash loop.
+      # Probe /health/ready separately — the acceptance runbook does.
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=3).status == 200 else 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
   # ---------------------------------------------------------------------------
   # ตัวอย่าง service ของ module (เจ้าของคัดลอกไปเพิ่มใน PR ของตัวเอง แล้วลบคอมเมนต์นี้ออก)
   #
