@@ -1,0 +1,344 @@
+openapi: 3.1.0
+info:
+  title: Smart Travel Risk and Knowledge Internal API
+  version: 1.0.0
+  description: |
+    Internal service contract for route-level risk assessments, approved disaster
+    knowledge retrieval, and route evaluation. This API is not browser-facing.
+    Missing model or knowledge capabilities are reported explicitly and never
+    replaced with fabricated evidence.
+servers:
+  - url: http://risk-knowledge:8004
+    description: Docker internal network
+security:
+  - serviceBearer: []
+tags:
+  - name: health
+    description: Process, dependency readiness, and Prometheus telemetry.
+  - name: risk
+    description: Route-level risk assessment and conservative safety fallback.
+  - name: knowledge
+    description: Retrieval from approved, current, authority-reviewed documents.
+  - name: routes
+    description: Hard constraints, route exposure, and deterministic ranking.
+  - name: evidence
+    description: Consistent combined package for one immutable snapshot.
+  - name: status
+    description: Approved model and knowledge collection lifecycle status.
+paths:
+  /health/live:
+    get:
+      tags: [health]
+      summary: Check process liveness
+      security: []
+      operationId: getLiveness
+      responses:
+        "200":
+          description: Process is running; no dependency check is performed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /health/ready:
+    get:
+      tags: [health]
+      summary: Check service readiness
+      security: []
+      operationId: getReadiness
+      responses:
+        "200":
+          description: Service can respond safely; optional capabilities may be degraded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          description: A critical local dependency or required security configuration is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+  /metrics:
+    get:
+      tags: [health]
+      summary: Export Prometheus metrics
+      security: []
+      operationId: getMetrics
+      responses:
+        "200":
+          description: Prometheus metrics.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /internal/v1/risk/assess:
+    post:
+      tags: [risk]
+      summary: Assess route risk
+      operationId: assessRisk
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/Traceparent"
+        - $ref: "#/components/parameters/ContractVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../jsonschema/risk-knowledge/risk-knowledge-contract.schema.json#/$defs/RiskAssessRequest
+      responses:
+        "200":
+          description: Model assessment or conservative, explicitly degraded fallback assessment.
+          content:
+            application/json:
+              schema:
+                $ref: ../jsonschema/risk-knowledge/risk-knowledge-contract.schema.json#/$defs/RiskAssessResponse
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /internal/v1/knowledge/retrieve:
+    post:
+      tags: [knowledge]
+      summary: Retrieve approved guidance
+      operationId: retrieveKnowledge
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/Traceparent"
+        - $ref: "#/components/parameters/ContractVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../jsonschema/risk-knowledge/risk-knowledge-contract.schema.json#/$defs/KnowledgeRetrieveRequest
+      responses:
+        "200":
+          description: Current approved evidence, or an empty result with an explicit limitation.
+          content:
+            application/json:
+              schema:
+                $ref: ../jsonschema/risk-knowledge/risk-knowledge-contract.schema.json#/$defs/KnowledgeRetrieveResponse
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /internal/v1/routes/evaluate:
+    post:
+      tags: [routes]
+      summary: Evaluate and rank route candidates
+      operationId: evaluateRoutes
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/Traceparent"
+        - $ref: "#/components/parameters/ContractVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../jsonschema/risk-knowledge/risk-knowledge-contract.schema.json#/$defs/RouteEvaluateRequest
+      responses:
+        "200":
+          description: Ranked routes or a non-ranked degraded result that still enforces hard closures.
+          content:
+            application/json:
+              schema:
+                $ref: ../jsonschema/risk-knowledge/risk-knowledge-contract.schema.json#/$defs/RouteEvaluateResponse
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /internal/v1/evidence/package:
+    post:
+      tags: [evidence]
+      summary: Build a consistent evidence package
+      operationId: createEvidencePackage
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/Traceparent"
+        - $ref: "#/components/parameters/ContractVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: ../jsonschema/risk-knowledge/risk-knowledge-contract.schema.json#/$defs/EvidencePackageRequest
+      responses:
+        "200":
+          description: Consistent evidence package for one immutable snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: ../jsonschema/risk-knowledge/risk-knowledge-contract.schema.json#/$defs/EvidencePackageResponse
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "503": { $ref: "#/components/responses/DependencyUnavailable" }
+  /internal/v1/models/current:
+    get:
+      tags: [status]
+      summary: Read current approved model status
+      operationId: getCurrentModel
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/Traceparent"
+        - $ref: "#/components/parameters/ContractVersion"
+      responses:
+        "200":
+          description: Active approved model metadata or explicit UNAVAILABLE state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelStatusEnvelope"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /internal/v1/knowledge/status:
+    get:
+      tags: [status]
+      summary: Read active knowledge collection status
+      operationId: getKnowledgeStatus
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/Traceparent"
+        - $ref: "#/components/parameters/ContractVersion"
+      responses:
+        "200":
+          description: Active collection metadata or explicit UNAVAILABLE state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeStatusEnvelope"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+components:
+  securitySchemes:
+    serviceBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-service-token
+      description: Service credential supplied by the deployment secret manager.
+  parameters:
+    RequestId:
+      name: X-Request-ID
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CorrelationId:
+      name: X-Correlation-ID
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Traceparent:
+      name: traceparent
+      in: header
+      required: true
+      schema:
+        type: string
+        pattern: "^[0-9a-f]{2}-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
+    ContractVersion:
+      name: X-Contract-Version
+      in: header
+      required: true
+      schema:
+        type: string
+        const: "1"
+  responses:
+    BadRequest:
+      description: Request semantics are invalid.
+      content:
+        application/json:
+          schema:
+            $ref: ../jsonschema/risk-knowledge/risk-knowledge-contract.schema.json#/$defs/ErrorEnvelope
+    Unauthorized:
+      description: Missing or invalid service credential.
+      content:
+        application/json:
+          schema:
+            $ref: ../jsonschema/risk-knowledge/risk-knowledge-contract.schema.json#/$defs/ErrorEnvelope
+    ValidationError:
+      description: Body or required headers failed contract validation.
+      content:
+        application/json:
+          schema:
+            $ref: ../jsonschema/risk-knowledge/risk-knowledge-contract.schema.json#/$defs/ErrorEnvelope
+    DependencyUnavailable:
+      description: A required dependency cannot safely fulfill the request.
+      content:
+        application/json:
+          schema:
+            $ref: ../jsonschema/risk-knowledge/risk-knowledge-contract.schema.json#/$defs/ErrorEnvelope
+  schemas:
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [status, service, version]
+      properties:
+        status: { const: ok }
+        service: { const: risk-knowledge }
+        version: { type: string }
+    ComponentReadiness:
+      type: object
+      additionalProperties: false
+      required: [status, critical, detail]
+      properties:
+        status: { enum: [READY, DEGRADED, UNAVAILABLE, WARMING] }
+        critical: { type: boolean }
+        detail: { type: [string, "null"] }
+    ReadinessResponse:
+      type: object
+      additionalProperties: false
+      required: [status, service, components]
+      properties:
+        status: { enum: [ready, degraded, not_ready] }
+        service: { const: risk-knowledge }
+        components:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ComponentReadiness"
+    ModelStatusEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [status, reason, model]
+          properties:
+            status: { enum: [AVAILABLE, DEGRADED, UNAVAILABLE, WARMING] }
+            reason: { type: [string, "null"] }
+            model:
+              oneOf:
+                - $ref: ../jsonschema/risk-knowledge/risk-knowledge-contract.schema.json#/$defs/ModelReference
+                - type: "null"
+        meta:
+          $ref: ../jsonschema/risk-knowledge/risk-knowledge-contract.schema.json#/$defs/StandardMeta
+    KnowledgeStatusEnvelope:
+      type: object
+      additionalProperties: false
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          additionalProperties: false
+          required: [status, reason, collection_version, document_cutoff]
+          properties:
+            status: { enum: [AVAILABLE, DEGRADED, UNAVAILABLE, WARMING] }
+            reason: { type: [string, "null"] }
+            collection_version: { type: [string, "null"] }
+            document_cutoff:
+              oneOf:
+                - type: string
+                  format: date-time
+                - type: "null"
+        meta:
+          $ref: ../jsonschema/risk-knowledge/risk-knowledge-contract.schema.json#/$defs/StandardMeta
