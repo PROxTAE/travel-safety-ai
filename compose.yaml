@@ -1,13 +1,15 @@
 # SafetyTravel Assistant — runtime topology (ดู IMPLEMENTATION_PLANS/00_GIT_DOCKER_DELIVERY_RULES.md §8)
 #
+# infra กลาง (postgres redis qdrant keycloak) ไม่มี profile = ขึ้นเสมอ → `docker compose up -d <service>` ของ module ใดก็ได้
+# จะดึง infra ที่ต้องพึ่งขึ้นมาให้เอง ไม่ต้องใส่ --profile
 # profiles:
-#   core          postgres redis qdrant keycloak                      ← พร้อมใช้แล้ว
 #   app           web api agent external-data data-integration        ← เจ้าของแต่ละ module เพิ่ม service ของตัวเอง
 #                 risk-knowledge decision-engine recommendation          ใน Phase 1 ผ่าน PR (ดูตัวอย่างท้ายไฟล์)
 #   observability otel-collector prometheus grafana                   ← lead
 #
 # ใช้คู่กับ compose.dev.yaml ตอนพัฒนา:
-#   docker compose -f compose.yaml -f compose.dev.yaml --profile core up -d
+#   docker compose -f compose.yaml -f compose.dev.yaml up -d                    # infra กลางอย่างเดียว
+#   docker compose -f compose.yaml -f compose.dev.yaml --profile app up -d      # + service ทุก module
 # ไฟล์นี้เป็น shared surface: แก้แล้วต้องมี lead รีวิว ห้ามใส่ secret จริง ห้ามใส่ host-specific path
 
 name: smart-travel
@@ -15,7 +17,6 @@ name: smart-travel
 services:
   postgres:
     image: postgis/postgis:16-3.4
-    profiles: [core]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-smart_travel}
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
@@ -32,7 +33,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    profiles: [core]
     command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
@@ -45,7 +45,6 @@ services:
 
   qdrant:
     image: qdrant/qdrant:v1.12.4
-    profiles: [core]
     volumes:
       - qdrant-data:/qdrant/storage
     healthcheck:
@@ -57,7 +56,6 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
-    profiles: [core]
     command: ["start-dev", "--import-realm", "--health-enabled=true"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
