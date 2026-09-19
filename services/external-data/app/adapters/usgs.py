@@ -18,7 +18,6 @@ adapter absorbs, each confirmed against a real response:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 from urllib.parse import urlsplit, urlunsplit
@@ -29,6 +28,7 @@ from app.adapters.base import CoverageDecision, ProviderAdapter, ProviderRequest
 from app.domain.canonical import DataQuality
 from app.domain.enums import DataStatus, EventType, QualityFlag
 from app.domain.errors import ProviderError, ProviderErrorCode
+from app.domain.queries import DisasterQuery
 from app.domain.records import DisasterEvent, GeoPoint
 from app.transport.http import ProviderResponse
 
@@ -51,21 +51,6 @@ MAGNITUDE_TIERS: tuple[tuple[float, str], ...] = (
     (2.5, "2.5"),
     (1.0, "1.0"),
 )
-
-
-@dataclass(slots=True)
-class DisasterQuery:
-    """Bounding box, time window and event types to look for.
-
-    `bbox` is `(min_lon, min_lat, max_lon, max_lat)` in GeoJSON order.
-    """
-
-    bbox: tuple[float, float, float, float] | None = None
-    start: datetime | None = None
-    end: datetime | None = None
-    event_types: list[EventType] = field(default_factory=list)
-    # Earthquake-specific; other disaster providers ignore it.
-    min_magnitude: float | None = None
 
 
 class UsgsGeometry(BaseModel):

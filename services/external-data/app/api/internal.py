@@ -17,7 +17,6 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from app.adapters.factory import AdapterRegistry
 from app.adapters.open_meteo_geocoding import GeocodeQuery
 from app.adapters.open_meteo_weather import CoordinateSample, WeatherQuery
-from app.adapters.usgs import DisasterQuery
 from app.api.deps import InternalAuth
 from app.api.envelope import success
 from app.api.schemas import (
@@ -27,6 +26,7 @@ from app.api.schemas import (
 )
 from app.domain.enums import HealthState, ProviderKind, ProviderStatus
 from app.domain.errors import ProviderError, ProviderErrorCode
+from app.domain.queries import DisasterQuery
 from app.observability.logging import get_logger
 from app.observability.metrics import REGISTRY
 from app.providers.registry import ResolvedRegistry
@@ -296,6 +296,7 @@ async def disasters_query(
     events: list[Any] = []
     answered: list[str] = []
     degraded: list[str] = []
+    not_applicable: list[str] = []
     last_error: ProviderError | None = None
 
     # Fan out in parallel (shared context § 7): the sources are independent, so
@@ -309,12 +310,19 @@ async def disasters_query(
     for adapter, result in zip(available, results, strict=True):
         if isinstance(result, ProviderError):
             last_error = result
-            degraded.append(adapter.provider_id)
-            log.warning(
-                "disaster_source_failed",
-                provider=adapter.provider_id,
-                error_code=str(result.code),
-            )
+            if result.code is ProviderErrorCode.OUTSIDE_COVERAGE:
+                # "This source publishes nothing about that" is not a failure.
+                # Counting it as degraded would mark USGS degraded on every
+                # flood query, and a field that is always set stops carrying
+                # information.
+                not_applicable.append(adapter.provider_id)
+            else:
+                degraded.append(adapter.provider_id)
+                log.warning(
+                    "disaster_source_failed",
+                    provider=adapter.provider_id,
+                    error_code=str(result.code),
+                )
         elif isinstance(result, BaseException):
             # Not a provider failure - a bug, or the caller cancelling. Neither
             # should be quietly recorded as "that source is a bit degraded".
@@ -325,6 +333,9 @@ async def disasters_query(
 
     if not answered:
         assert last_error is not None
+        # Every source failing and every source being irrelevant are different
+        # answers: one is "we could not find out", the other is "nobody
+        # publishes this". `last_error` already distinguishes them.
         raise last_error
 
     events.sort(key=lambda event: event.effective_at, reverse=True)
@@ -333,6 +344,8 @@ async def disasters_query(
         {
             "events": [event.model_dump(mode="json") for event in events],
             "sources": answered,
+            # Named so a consumer can tell "nobody asked" from "nobody answered".
+            "sources_not_covering_query": not_applicable,
             "attribution": registry.attributions(answered),
         },
         degraded=degraded,

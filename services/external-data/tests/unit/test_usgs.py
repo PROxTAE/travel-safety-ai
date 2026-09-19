@@ -15,9 +15,10 @@ from typing import Any
 
 import pytest
 
-from app.adapters.usgs import DisasterQuery, UsgsAdapter
+from app.adapters.usgs import UsgsAdapter
 from app.domain.enums import EventType, ProviderStatus, QualityFlag, Severity
 from app.domain.errors import ProviderError, ProviderErrorCode
+from app.domain.queries import DisasterQuery
 from app.providers.registry import Defaults, ResolvedProvider, load_registry
 from app.settings import get_settings
 from app.transport.http import ProviderResponse, ProviderTransport

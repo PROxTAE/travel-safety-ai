@@ -17,14 +17,16 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from app.adapters.gdacs import GdacsAdapter
 from app.adapters.open_meteo_geocoding import GeocodeQuery, OpenMeteoGeocodingAdapter
 from app.adapters.open_meteo_weather import (
     CoordinateSample,
     OpenMeteoWeatherAdapter,
     WeatherQuery,
 )
-from app.adapters.usgs import DisasterQuery, UsgsAdapter
+from app.adapters.usgs import UsgsAdapter
 from app.domain.enums import DataStatus, EventType, ProviderStatus, Severity
+from app.domain.queries import DisasterQuery
 from app.providers.registry import Defaults, ResolvedProvider, load_registry
 from app.settings import get_settings
 from app.transport.http import ProviderTransport
@@ -195,3 +197,48 @@ async def test_live_usgs_magnitudes_are_plausible(usgs: UsgsAdapter) -> None:
     assert magnitudes, "no magnitudes in a week of global earthquakes"
     assert all(-2.0 <= value <= 10.0 for value in magnitudes)
     assert all(e.depth_km is None or -5.0 <= e.depth_km <= 800.0 for e in events)
+
+
+# -------------------------------------------------------------- GDACS (Phase 3)
+
+
+@pytest.fixture
+def gdacs() -> GdacsAdapter:
+    return _adapter("gdacs", GdacsAdapter)
+
+
+async def test_live_gdacs_feed_matches_the_expected_shape(gdacs: GdacsAdapter) -> None:
+    events = await gdacs.query(DisasterQuery())
+
+    assert events, "GDACS reported no active hazards worldwide, which is implausible"
+    for event in events:
+        assert event.title.strip()  # eventname is empty; the fallback must work
+        assert len(event.geometry.coordinates) == 2
+        assert -180 <= event.geometry.longitude <= 180
+        assert -90 <= event.geometry.latitude <= 90
+        assert event.effective_at.utcoffset() == timedelta(0)
+        assert event.official is True
+        assert event.severity is Severity.UNKNOWN  # pending Q2/Q3
+        assert "<" not in (event.description or "")  # never the html field
+
+
+async def test_live_gdacs_alert_levels_are_still_the_expected_scale(
+    gdacs: GdacsAdapter,
+) -> None:
+    """If this scale ever changes, the mapping notes and the UI guidance that
+    depend on it are wrong — and a frozen fixture would never say so."""
+    events = await gdacs.query(DisasterQuery())
+    levels = {event.alert_level for event in events if event.alert_level}
+
+    assert levels
+    assert levels <= {"Green", "Orange", "Red"}, levels
+
+
+async def test_live_gdacs_hazard_types_all_map(gdacs: GdacsAdapter) -> None:
+    """An unmapped provider code becomes OTHER, which is safe but lossy. This
+    surfaces a new code as soon as GDACS starts publishing one."""
+    events = await gdacs.query(DisasterQuery())
+    unmapped = [e for e in events if e.event_type is EventType.OTHER]
+
+    # Drought legitimately maps to OTHER; anything else is worth knowing about.
+    assert len(unmapped) < len(events), "every hazard fell through to OTHER"

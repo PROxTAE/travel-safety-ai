@@ -116,7 +116,7 @@ filtering is client-side and recorded as `OUTSIDE_COVERAGE` with a note; and a
 bbox that crosses the antimeridian is the union of two longitude spans, not one
 range — treating it as `min <= x <= max` silently hides every Pacific hazard.
 
-### 3.2 GDACS — fixture `gdacs/eventlist_eq.json`
+### 3.2 GDACS — fixture `gdacs/eventlist_eq.json` — ✅ implemented (Phase 3)
 
 | Canonical | Provider (`features[].properties.*`) | Note |
 | --- | --- | --- |
@@ -137,6 +137,15 @@ Silently parsing them as local time shifts every GDACS event by the host offset.
 
 `alertlevel` is `Green|Orange|Red` — an alert scale, not the project `Severity`
 enum. It must not be cast directly.
+
+Three further traps found while implementing, none of them in the documentation:
+
+- **`iscurrent` and `istemporary` are strings**, `"false"` not `false`. `bool("false")` is `True`, which is exactly how a closed event gets presented as ongoing.
+- **`eventname` is empty on every record** in the captured feed; `name` is the field that carries a title. The adapter falls back through `eventname` → `name` → `description`.
+- **Depth lives inside the free-text `severitytext`** (`"Magnitude 5M, Depth:10km"`) and nowhere structured. It is not parsed out — a regex over prose is not a foundation for a safety decision — and the text is passed through in `quality.notes` for a human to read.
+
+`glide` is an international disaster identifier shared across agencies, so it is
+the strongest cross-source dedup key GDACS offers.
 
 ### 3.3 NASA EONET — fixture `eonet/events.json`
 

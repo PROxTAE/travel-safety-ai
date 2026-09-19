@@ -9,6 +9,7 @@ instead of a 500.
 from __future__ import annotations
 
 from app.adapters.base import HealthRecorder, ProviderAdapter
+from app.adapters.gdacs import GdacsAdapter
 from app.adapters.open_meteo_geocoding import OpenMeteoGeocodingAdapter
 from app.adapters.open_meteo_weather import OpenMeteoWeatherAdapter
 from app.adapters.usgs import UsgsAdapter
@@ -22,6 +23,7 @@ ADAPTERS: dict[str, type[ProviderAdapter]] = {  # type: ignore[type-arg]
     "open_meteo_geocoding": OpenMeteoGeocodingAdapter,
     "open_meteo_forecast": OpenMeteoWeatherAdapter,
     "usgs_earthquake": UsgsAdapter,
+    "gdacs": GdacsAdapter,
 }
 
 
