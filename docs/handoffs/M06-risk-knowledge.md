@@ -7,11 +7,11 @@
 | Module/owner | Module 06 — Risk and Knowledge Services |
 | Issue/PR | PR not opened; body prepared in `docs/handoffs/M06-risk-knowledge-pr-body.md` |
 | Branch | `contract/06-risk-evidence-route-schema` |
-| Base/final commit SHA | `a814558a89ea3bcd5b8e31bda778cd333233d22f` / implementation head `af53252` (report commit follows) |
-| Date/time/timezone | 2026-09-19 18:21 +07:00 (Asia/Bangkok) |
+| Base/final commit SHA | `29a1798a68f87cb9c1091836377a5a4bb7639d93` / compatibility-fix head `24b2c97` (report refresh commit follows) |
+| Date/time/timezone | 2026-09-20 00:56 +07:00 (Asia/Bangkok) |
 | Reviewers | Required: Team Lead plus contracts/security reviewer; contract consumers: modules 03, 05, and 07 |
 | Contract version | `1.0.0` |
-| Docker image digest/tag | `sta-risk-knowledge:phase1`, `sha256:3b027fa9a52902f9b4df499e6a37137c594a42b1e6f191d1a5272f50b8983983` |
+| Docker image digest/tag | `sta-risk-knowledge:phase1`, `sha256:fe5dcd03100e7f355ebbffe538d3f95c098124d7689272c2f4169fedb323ce6e` |
 | Related model/policy/prompt/collection version | feature `1.0.0`; route policy `1.0.0` pending approval; fallback `fallback-safety-1.0.0`; no active model or collection |
 
 ## 2. Executive summary
@@ -214,7 +214,7 @@ docker compose -f compose.yaml -f compose.dev.yaml --profile app up -d risk-know
 - Port: internal 8004; volumes: read-only model artifacts; PostgreSQL/Qdrant named volumes.
 - Readiness: `200 ready/degraded` when critical DB/auth work; `503 not_ready` when critical dependency/config is unavailable. Liveness checks process only.
 - Limits: 2 CPUs and 2 GiB RAM; load/peak memory not measured in Phase 1.
-- Image: 336,797,536 bytes uncompressed / Scout 77 MB, digest `sha256:3b027fa9...`.
+- Image: 336,796,487 bytes uncompressed / Scout 77 MB, digest `sha256:fe5dcd0...`.
 
 ## 10. Tests and verification
 
@@ -222,7 +222,8 @@ docker compose -f compose.yaml -f compose.dev.yaml --profile app up -d risk-know
 | --- | --- | ---: | ---: | ---: | --- |
 | Format/lint | `docker run --rm sta-risk-knowledge:test ruff check ...` and `ruff format --check ...` | 43 files formatted; lint pass | 0 | 0 | post-rebase run |
 | Type | `docker run --rm sta-risk-knowledge:test mypy app` | 30 source files | 0 | 0 | strict mode |
-| Unit + contract | `docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term` | 35 | 0 | 0 | 90.46% branch-aware coverage; threshold 80% |
+| Unit + contract | `docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term` | 35 | 0 | 0 | 90.47% branch-aware coverage; threshold 80% |
+| Repository CI compatibility | Python 3.11 `py_compile` over `git ls-files '*.py'` | 105 tracked files | 0 | 0 | matches temporary shared workflow interpreter |
 | OpenAPI | `npx --yes @redocly/cli@1.34.5 lint ...` | valid | 0 | 0 | four advisory warnings documented above |
 | Integration | real PostgreSQL/Qdrant containers; migration up/down/up; HTTP/DB smoke | pass | 0 | 0 | revision/ownership/persistence verified |
 | Security/privacy | Gitleaks branch scan; `pip-audit`; Docker Scout | source/deps/actionable image findings pass | 1 upstream-unfixed high | 0 | see Section 12 |
@@ -256,7 +257,7 @@ Not applicable. Phase 0/1 changes no UI-owned path or screen.
 
 Findings:
 
-- Gitleaks `origin/main..HEAD`: 4 commits scanned, no leaks. Targeted uncommitted scans also found no module leaks.
+- Gitleaks `origin/main..HEAD`: post-rebase branch diff scanned after the compatibility fix; no leaks found.
 - `pip-audit`: no known dependency vulnerabilities; the local project itself is correctly skipped because it is not a PyPI package.
 - Docker Scout actionable gate (`--only-fixed`, critical/high): 0 findings.
 - Docker Scout full critical/high scan: 0 critical, **1 high** — `CVE-2026-85091` in Debian 13 `zlib 1:1.3.dfsg+really1.3.1-1`; Scout reports `Fixed version: not fixed`. Merge requires security reviewer disposition; no VEX/exception was invented here.
@@ -271,6 +272,7 @@ Findings:
 | Readiness blocked 42 seconds during paused DB | driver cancellation waited for stalled server | structured readiness log | hard timeout plus skip optional DB probes after critical DB failure | cancelled driver task drains after dependency returns |
 | Initial image had 5 critical/52 high | old Debian/Python and runtime dependencies | Docker Scout | Python 3.12.14/Debian 13 and patched dependency lock | one upstream-unfixed zlib high remains |
 | Test commands were not reproducible in runtime image | production image correctly omitted dev dependencies/contracts | executable-not-found and contract path failures | separate self-contained Docker `test` target with named contract context | test image is intentionally larger than runtime |
+| Temporary shared CI rejected valid Python 3.12 generic syntax | repository workflow compiles every tracked Python file with Python 3.11 | Actions run #29 failed on pre-rebase commit `f6649ab`; local 3.11 compile reproduced the syntax incompatibility | retained the Python 3.12 runtime while expressing the helper with `TypeVar`; all 105 tracked Python files compile on 3.11 | shared workflow still needs Team Lead alignment with the authoritative Python 3.12 standard |
 
 ## 14. Performance and operational behavior
 
@@ -309,14 +311,16 @@ Findings:
 ## 17. Commit and PR inventory
 
 ```text
-64e89a7 feat(contracts): define risk evidence route contract
-3e8cd10 feat(risk): add service registry foundation
-af53252 build(risk): add self-contained test image
+7aebe62 feat(contracts): define risk evidence route contract
+cd706b6 feat(risk): add service registry foundation
+a137463 build(risk): add self-contained test image
+a916443 docs(risk): add phase one handoff evidence
+24b2c97 fix(risk): support repository CI Python version
 ```
 
 - PR review comments resolved: N/A; PR not opened.
 - Required checks: all Phase 0/1 functional checks pass; full image scan has one upstream-unfixed high finding requiring disposition.
-- Rebased on main SHA: `a814558a89ea3bcd5b8e31bda778cd333233d22f` (no-op rebase after fetch).
+- Rebased on main SHA: `29a1798a68f87cb9c1091836377a5a4bb7639d93`; Compose conflicts were resolved by retaining both the merged M04 external-data service and M06 risk-knowledge/MLflow services.
 - Proposed squash title: `feat(risk): establish risk evidence contracts and service foundation`.
 
 ## 18. Rollback and recovery

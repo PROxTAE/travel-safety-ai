@@ -88,13 +88,17 @@ docker run --rm sta-risk-knowledge:test mypy app
   Success: no issues found in 30 source files.
 
 docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term
-  35 passed, 0 failed, 0 skipped; total coverage 90.46% (gate 80%).
+  35 passed, 0 failed, 0 skipped; total coverage 90.47% (gate 80%).
+
+$files = @(git ls-files '*.py')
+docker run --rm -e PYTHONPYCACHEPREFIX=/tmp/pycache -v "H:/travel-safety-ai:/repo:ro" -w /repo python:3.11-slim python -m py_compile $files
+  exit 0; validates compatibility with the temporary repository CI interpreter.
 
 npx --yes @redocly/cli@1.34.5 lint packages/contracts/openapi/internal-risk-knowledge.yaml
   Valid OpenAPI; 4 advisory warnings (license metadata and health/metrics 4xx rule).
 
 docker compose -f compose.yaml -f compose.dev.yaml --profile core --profile app --profile training config --quiet
-  exit 0.
+  exit 0 with ephemeral placeholder values; no `.env` file was retained or committed.
 
 alembic upgrade head -> downgrade base -> upgrade head (as risk_knowledge)
   pass; revision 20260919_0001; 7 knowledge tables including Alembic.
@@ -110,8 +114,8 @@ runtime smoke
 PostgreSQL paused
   liveness 200; readiness 503 not_ready/DATABASE_UNAVAILABLE in 2.027 s.
 
-gitleaks git --log-opts=origin/main..HEAD
-  no leaks found.
+docker run --rm -v "H:/travel-safety-ai:/repo" zricethezav/gitleaks:v8.28.0 git /repo --log-opts="origin/main..HEAD" --no-banner --redact
+  post-rebase branch diff scanned after the compatibility fix; no leaks found.
 
 uv run --frozen --with pip-audit pip-audit
   no known dependency vulnerabilities.
@@ -123,7 +127,7 @@ docker scout cves --only-severity critical,high --exit-code local://sta-risk-kno
   0 critical, 1 high: CVE-2026-85091 in Debian zlib; no fixed version.
 ```
 
-- Runtime image: `sha256:3b027fa9a52902f9b4df499e6a37137c594a42b1e6f191d1a5272f50b8983983`, non-root `app`, read-only, 2 CPU, 2 GiB.
+- Runtime image: `sha256:fe5dcd03100e7f355ebbffe538d3f95c098124d7689272c2f4169fedb323ce6e`, non-root `app`, read-only, 2 CPU, 2 GiB.
 - SBOM: SPDX 2.3 generated successfully, 180 packages; artifact SHA-256 `bea0c0dd9e1668ed506ed3f82e0c8cb253f5ab463bc5421db10c843998b8b926`.
 - UI screenshots/video: N/A; no UI ownership or changes.
 - Sanitized IDs: request `50000000-0000-4000-8000-000000000001`, correlation `...0002`, trace `0123456789abcdef0123456789abcdef`.
