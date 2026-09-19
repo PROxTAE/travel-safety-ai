@@ -144,7 +144,15 @@ class ProviderTransport:
         json_body: Any | None = None,
         headers: dict[str, str] | None = None,
         deadline_seconds: float | None = None,
+        decode_json: bool = True,
     ) -> ProviderResponse:
+        """`decode_json=False` returns the response without parsing a body.
+
+        A health probe asks whether the provider is reachable and answering as
+        documented; whether the body happens to be JSON is a different question,
+        and reporting "schema changed" for an empty 204 would name the wrong
+        problem.
+        """
         if not provider.is_callable:
             raise ProviderError(
                 ProviderErrorCode.PROVIDER_AUTH
@@ -241,7 +249,7 @@ class ProviderTransport:
                     await guards.circuit.on_success()
                     provider_requests.labels(provider=provider.id, outcome="success").inc()
                     return ProviderResponse(
-                        payload=_decode(response, provider.id),
+                        payload=_decode(response, provider.id) if decode_json else None,
                         status_code=response.status_code,
                         headers=dict(response.headers),
                         url=str(response.url),

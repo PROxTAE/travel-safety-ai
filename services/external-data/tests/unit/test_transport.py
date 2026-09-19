@@ -227,3 +227,18 @@ async def test_quota_stays_unknown_when_the_provider_reports_nothing() -> None:
 
     assert transport.guards_for(provider).quota.remaining is None
     await transport.aclose()
+
+
+@respx.mock
+async def test_a_non_json_body_is_fine_when_decoding_is_off() -> None:
+    """A health probe asks whether the provider answered, not what shape its
+    body is. Reporting PROVIDER_SCHEMA_CHANGED for an empty 204 would name the
+    wrong problem."""
+    respx.get(GEOCODE_URL).mock(return_value=httpx.Response(204))
+    transport = _transport()
+
+    response = await transport.request(_provider(), "/v1/search", decode_json=False)
+
+    assert response.status_code == 204
+    assert response.payload is None
+    await transport.aclose()

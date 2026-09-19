@@ -41,6 +41,9 @@ def _env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setenv("POSTGRES_HOST", "127.0.0.1")
     monkeypatch.setenv("POSTGRES_PORT", "1")
     monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:1/0")
+    # The health probe would otherwise call real providers the moment any
+    # TestClient starts. Tests that want it enable it explicitly.
+    monkeypatch.setenv("PROVIDER_HEALTH_PROBE_SECONDS", "0")
     for name in ("ORS_API_KEY", "AMADEUS_CLIENT_ID", "AMADEUS_CLIENT_SECRET"):
         monkeypatch.delenv(name, raising=False)
     get_settings.cache_clear()

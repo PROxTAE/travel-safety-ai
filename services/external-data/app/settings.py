@@ -87,6 +87,14 @@ class Settings(BaseSettings):
         default=None, alias="AMADEUS_CLIENT_SECRET"
     )
 
+    # ------------------------------------------------------ health probing
+    # How often to check each ACTIVE provider's documented health URL. Without
+    # it a provider served entirely from cache never produces an observation
+    # and stays UNKNOWN. 0 disables the probe entirely.
+    provider_health_probe_seconds: float = Field(
+        default=300.0, alias="PROVIDER_HEALTH_PROBE_SECONDS", ge=0.0
+    )
+
     # ------------------------------------------------------------ observability
     otel_exporter_otlp_endpoint: str | None = Field(
         default=None, alias="OTEL_EXPORTER_OTLP_ENDPOINT"

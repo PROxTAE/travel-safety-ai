@@ -229,3 +229,40 @@ def test_readiness_retries_the_mirror_instead_of_waiting_for_a_restart(
     # Once it has succeeded it is not re-run on every probe.
     assert client.get("/health/ready").json()["checks"]["registry_mirror"] == "UP"
     assert repo.syncs == 1
+
+
+def test_the_health_probe_is_off_unless_configured(client: TestClient) -> None:
+    """Tests set the interval to 0; a probe that fired during a test run would
+    call real providers from the test suite."""
+    assert client.app.state.health_probe.enabled is False  # type: ignore[attr-defined]
+
+
+def test_a_probe_observation_reaches_the_health_endpoint(
+    client: TestClient,
+) -> None:
+    """The point of the probe: a provider nothing has called still gets a real
+    reading, instead of answering UNKNOWN forever."""
+    from datetime import UTC, datetime
+
+    class _Row:
+        provider_id = "usgs_earthquake"
+        status = "UP"
+        latency_ms = 42
+        quota_remaining = None
+        checked_at = datetime(2026, 9, 19, 16, tzinfo=UTC)
+        reason = None
+
+    class _RepoWithObservation:
+        async def sync_registry(self, registry: object) -> int:
+            return 9
+
+        async def list_health(self) -> list[object]:
+            return [_Row()]
+
+    client.app.state.repo = _RepoWithObservation()  # type: ignore[attr-defined]
+
+    providers = client.get(HEALTH_PATH, headers=AUTH).json()["data"]["providers"]
+    usgs = next(p for p in providers if p["provider"] == "usgs_earthquake")
+
+    assert usgs["health"] == "UP"
+    assert usgs["last_checked_at"].startswith("2026-09-19T16:00")

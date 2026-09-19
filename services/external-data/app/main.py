@@ -32,6 +32,7 @@ from app.observability.metrics import http_latency, http_requests
 from app.providers.registry import ResolvedRegistry, load_registry
 from app.repositories.db import build_engine, build_session_factory
 from app.repositories.provider_repo import ProviderRepository
+from app.services.health_probe import ProviderHealthProbe
 from app.settings import get_settings
 from app.transport.http import ProviderTransport
 
@@ -112,9 +113,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.warning("registry_sync_failed", error=str(exc))
 
+    app.state.health_probe = ProviderHealthProbe(
+        registry,
+        app.state.transport,
+        app.state.repo,
+        interval_seconds=settings.provider_health_probe_seconds,
+    )
+    app.state.health_probe.start()
+
     try:
         yield
     finally:
+        await app.state.health_probe.stop()
         await app.state.transport.aclose()
         await app.state.redis.aclose()
         await app.state.engine.dispose()
