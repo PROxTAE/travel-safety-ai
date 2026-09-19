@@ -13,10 +13,13 @@ will, which is the whole reason to keep tests that depend on the network.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 
+from app.adapters.eonet import EonetAdapter
 from app.adapters.gdacs import GdacsAdapter
 from app.adapters.open_meteo_geocoding import GeocodeQuery, OpenMeteoGeocodingAdapter
 from app.adapters.open_meteo_weather import (
@@ -33,6 +36,20 @@ from app.transport.http import ProviderTransport
 from tests.conftest import REGISTRY_PATH
 
 pytestmark = pytest.mark.canary
+
+# One live call per distinct question, shared by every test that asks it.
+# Three tests hitting the same free public feed in as many seconds is both
+# impolite and flaky - a canary that fails at random gets ignored, and then it
+# is not a canary any more. A failure here should mean the provider is actually
+# unreachable.
+_LIVE_CACHE: dict[str, list[Any]] = {}
+
+
+async def _once(key: str, fetch: Callable[[], Awaitable[list[Any]]]) -> list[Any]:
+    if key not in _LIVE_CACHE:
+        _LIVE_CACHE[key] = await fetch()
+    return _LIVE_CACHE[key]
+
 
 
 def _adapter(provider_id: str, adapter_class: type):  # type: ignore[type-arg]
@@ -171,7 +188,7 @@ def usgs() -> UsgsAdapter:
 async def test_live_usgs_feed_matches_the_expected_shape(usgs: UsgsAdapter) -> None:
     """Schema drift on a hazard feed is the kind of thing a frozen fixture will
     never tell you about."""
-    events = await usgs.query(DisasterQuery(start=datetime.now(UTC) - timedelta(days=7)))
+    events = await _once("usgs:7d", _usgs_week(usgs))
 
     # A quiet week worldwide is implausible, but assert only what must hold.
     for event in events:
@@ -208,7 +225,7 @@ def gdacs() -> GdacsAdapter:
 
 
 async def test_live_gdacs_feed_matches_the_expected_shape(gdacs: GdacsAdapter) -> None:
-    events = await gdacs.query(DisasterQuery())
+    events = await _once("gdacs:all", lambda: gdacs.query(DisasterQuery()))
 
     assert events, "GDACS reported no active hazards worldwide, which is implausible"
     for event in events:
@@ -227,7 +244,7 @@ async def test_live_gdacs_alert_levels_are_still_the_expected_scale(
 ) -> None:
     """If this scale ever changes, the mapping notes and the UI guidance that
     depend on it are wrong — and a frozen fixture would never say so."""
-    events = await gdacs.query(DisasterQuery())
+    events = await _once("gdacs:all", lambda: gdacs.query(DisasterQuery()))
     levels = {event.alert_level for event in events if event.alert_level}
 
     assert levels
@@ -237,8 +254,65 @@ async def test_live_gdacs_alert_levels_are_still_the_expected_scale(
 async def test_live_gdacs_hazard_types_all_map(gdacs: GdacsAdapter) -> None:
     """An unmapped provider code becomes OTHER, which is safe but lossy. This
     surfaces a new code as soon as GDACS starts publishing one."""
-    events = await gdacs.query(DisasterQuery())
+    events = await _once("gdacs:all", lambda: gdacs.query(DisasterQuery()))
     unmapped = [e for e in events if e.event_type is EventType.OTHER]
 
     # Drought legitimately maps to OTHER; anything else is worth knowing about.
     assert len(unmapped) < len(events), "every hazard fell through to OTHER"
+
+
+# -------------------------------------------------------------- EONET (Phase 3)
+
+
+@pytest.fixture
+def eonet() -> EonetAdapter:
+    return _adapter("nasa_eonet", EonetAdapter)
+
+
+async def test_live_eonet_feed_matches_the_expected_shape(eonet: EonetAdapter) -> None:
+    events = await _once("eonet:open", lambda: eonet.query(DisasterQuery()))
+
+    assert events, "EONET reported no open natural events, which is implausible"
+    for event in events:
+        assert event.title.strip()
+        assert len(event.geometry.coordinates) == 2
+        assert -180 <= event.geometry.longitude <= 180
+        assert -90 <= event.geometry.latitude <= 90
+        assert event.effective_at.utcoffset() == timedelta(0)
+        assert event.ends_at is None  # status=open was requested
+        assert event.severity is Severity.UNKNOWN
+
+
+async def test_live_eonet_position_is_the_latest_track_point(
+    eonet: EonetAdapter,
+) -> None:
+    """The trap this adapter exists for: a tracked storm reported at its first
+    observation is hundreds of kilometres from where it actually is."""
+    events = await eonet.query(DisasterQuery(event_types=[EventType.STORM]))
+
+    for event in events:
+        assert event.source.observed_at is not None
+        # The record describes the latest observation, so that timestamp can
+        # never be older than the moment the event began.
+        assert event.source.observed_at >= event.effective_at
+
+
+async def test_live_eonet_bbox_is_honoured_by_the_provider(
+    eonet: EonetAdapter,
+) -> None:
+    """The bbox parameter is pushed to the provider in its own coordinate
+    order. If that order ever changes, results silently widen - so verify."""
+    box = (-125.0, 32.0, -115.0, 42.0)  # western United States
+    events = await eonet.query(DisasterQuery(bbox=box))
+
+    for event in events:
+        assert box[0] <= event.geometry.longitude <= box[2]
+        assert box[1] <= event.geometry.latitude <= box[3]
+
+
+def _usgs_week(usgs: UsgsAdapter) -> Callable[[], Awaitable[list[Any]]]:
+    """A fixed window, so the two USGS canaries really do ask one question."""
+    start = datetime.now(UTC).replace(minute=0, second=0, microsecond=0) - timedelta(
+        days=7
+    )
+    return lambda: usgs.query(DisasterQuery(start=start))

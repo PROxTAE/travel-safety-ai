@@ -18,8 +18,10 @@ provenance, cache, quota
 | 0 — Provider governance | ✅ |
 | 1 — Service foundation | ✅ |
 | 2 — Geocoding + weather | ✅ |
-| 3 — Disaster sources | 🚧 USGS + GDACS แล้ว · EONET ยังไม่ทำ |
-| 4–7 | ⬜ ยังไม่เริ่ม |
+| 3 — Disaster sources | ✅ USGS + GDACS + EONET + cross-source dedup |
+| 4 — Routing | ⛔ ติด `ORS_API_KEY` |
+| 5 — Transit/flight | ⛔ ติด credential + Lead เลือก region |
+| 6–7 | ⬜ ยังไม่เริ่ม |
 
 ## Endpoint
 
@@ -29,7 +31,7 @@ provenance, cache, quota
 | GET | `/internal/v1/providers/health` | ✅ |
 | POST | `/internal/v1/geocode/search` | ✅ |
 | POST | `/internal/v1/weather/query` | ✅ |
-| POST | `/internal/v1/disasters/query` | ✅ (USGS + GDACS — EONET ตามมาใน PR ถัดไป) |
+| POST | `/internal/v1/disasters/query` | ✅ (USGS + GDACS + EONET) |
 | POST | `/internal/v1/routes/query` · `/places/nearby` | ⬜ Phase 4 (ไม่มี key) |
 | POST | `/internal/v1/transport/query` | ⬜ Phase 5 |
 | POST | `/internal/v1/context/query` | ⬜ Phase 6 |
@@ -55,7 +57,7 @@ provenance, cache, quota
 | Weather | Open-Meteo Forecast | ✅ `ACTIVE` |
 | Earthquake | USGS | ✅ `ACTIVE` + adapter |
 | Multi-hazard | GDACS | ✅ `ACTIVE` + adapter |
-| Natural events | NASA EONET v3 | ⬜ `ACTIVE` แต่ยังไม่มี adapter |
+| Natural events | NASA EONET v3 | ✅ `ACTIVE` + adapter |
 | Road route | openrouteservice | ❌ ไม่มี `ORS_API_KEY` |
 | Emergency POI | openrouteservice POIs | ❌ ไม่มี `ORS_API_KEY` |
 | Flight | Amadeus production | ❌ ไม่มี credential |

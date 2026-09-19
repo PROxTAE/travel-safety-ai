@@ -30,6 +30,7 @@ from app.domain.queries import DisasterQuery
 from app.observability.logging import get_logger
 from app.observability.metrics import REGISTRY
 from app.providers.registry import ResolvedRegistry
+from app.services.dedup import find_duplicate_groups
 from app.settings import get_settings
 
 log = get_logger(__name__)
@@ -340,9 +341,15 @@ async def disasters_query(
 
     events.sort(key=lambda event: event.effective_at, reverse=True)
 
+    # Grouped, never merged: every event is still emitted below. Module 05 owns
+    # the decision about which record of a duplicate pair to believe, and it
+    # cannot make that decision about records it never received.
+    duplicate_groups = find_duplicate_groups(events)
+
     return success(
         {
             "events": [event.model_dump(mode="json") for event in events],
+            "duplicate_groups": [group.as_dict() for group in duplicate_groups],
             "sources": answered,
             # Named so a consumer can tell "nobody asked" from "nobody answered".
             "sources_not_covering_query": not_applicable,

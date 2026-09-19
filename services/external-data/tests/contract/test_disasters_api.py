@@ -4,9 +4,10 @@ The property this file exists to protect: an empty `events` list must mean "no
 hazards were reported", and must never be what a caller sees when the hazard
 sources could not be reached.
 
-Two sources are configured (USGS and GDACS), so these also pin how a partial
-answer is reported — and the difference between a source that failed and a
-source that simply does not publish the hazard being asked about.
+Three sources are configured (USGS, GDACS, EONET), so these also pin how a
+partial answer is reported, the difference between a source that failed and one
+that simply does not publish the hazard being asked about, and that duplicate
+grouping annotates without removing anything.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ AUTH = {"Authorization": f"Bearer {TEST_TOKEN}"}
 PATH = "/internal/v1/disasters/query"
 USGS_URL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
 GDACS_URL = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH"
+EONET_URL = "https://eonet.gsfc.nasa.gov/api/v3/events"
 
 
 @pytest.fixture
@@ -36,21 +38,28 @@ def client() -> Iterator[TestClient]:
         yield test_client
 
 
-def _mock_both(usgs: Any = None, gdacs: Any = None) -> None:
+def _mock_all(usgs: Any = None, gdacs: Any = None, eonet: Any = None) -> None:
     respx.get(USGS_URL).mock(
         return_value=httpx.Response(
-            200, json=usgs if usgs is not None else load_fixture("usgs/significant_month.json")
+            200,
+            json=usgs if usgs is not None else load_fixture("usgs/significant_month.json"),
         )
     )
     respx.get(GDACS_URL).mock(
         return_value=httpx.Response(
-            200, json=gdacs if gdacs is not None else load_fixture("gdacs/eventlist_eq.json")
+            200,
+            json=gdacs if gdacs is not None else load_fixture("gdacs/eventlist_eq.json"),
+        )
+    )
+    respx.get(EONET_URL).mock(
+        return_value=httpx.Response(
+            200, json=eonet if eonet is not None else load_fixture("eonet/events.json")
         )
     )
 
 
 class _FailingAdapter:
-    """Stands in for a third disaster source that is down."""
+    """Stands in for a disaster source that is down."""
 
     provider_id = "nasa_eonet"
 
@@ -62,16 +71,16 @@ class _FailingAdapter:
 
 @respx.mock
 def test_returns_canonical_events_from_every_source(client: TestClient) -> None:
-    _mock_both()
+    _mock_all()
     response = client.post(PATH, json={}, headers=AUTH)
     assert response.status_code == 200
 
     body = response.json()
-    assert set(body["data"]["sources"]) == {"usgs_earthquake", "gdacs"}
+    assert set(body["data"]["sources"]) == {"usgs_earthquake", "gdacs", "nasa_eonet"}
     assert body["meta"]["degraded_services"] == []
 
     providers = {event["source"]["provider"] for event in body["data"]["events"]}
-    assert providers == {"usgs_earthquake", "gdacs"}
+    assert providers == {"usgs_earthquake", "gdacs", "nasa_eonet"}
 
 
 @respx.mock
@@ -79,14 +88,15 @@ def test_duplicates_across_sources_are_kept_not_merged(client: TestClient) -> No
     """The same quake appears in more than one feed. The plan forbids dropping
     one here — module 05 resolves them, and it cannot resolve what it never
     receives."""
-    _mock_both()
+    _mock_all()
     body = client.post(PATH, json={}, headers=AUTH).json()
 
     usgs = [e for e in body["data"]["events"] if e["source"]["provider"] == "usgs_earthquake"]
     gdacs = [e for e in body["data"]["events"] if e["source"]["provider"] == "gdacs"]
+    eonet = [e for e in body["data"]["events"] if e["source"]["provider"] == "nasa_eonet"]
 
-    assert usgs and gdacs
-    assert len(body["data"]["events"]) == len(usgs) + len(gdacs)
+    assert usgs and gdacs and eonet
+    assert len(body["data"]["events"]) == len(usgs) + len(gdacs) + len(eonet)
     # Every record keeps the identifiers that make matching possible.
     assert any(event["cross_reference_ids"] for event in usgs)
     assert any(event["cross_reference_ids"] for event in gdacs)
@@ -94,7 +104,7 @@ def test_duplicates_across_sources_are_kept_not_merged(client: TestClient) -> No
 
 @respx.mock
 def test_events_are_newest_first_across_sources(client: TestClient) -> None:
-    _mock_both()
+    _mock_all()
     events = client.post(PATH, json={}, headers=AUTH).json()["data"]["events"]
     times = [event["effective_at"] for event in events]
     assert times == sorted(times, reverse=True)
@@ -102,7 +112,7 @@ def test_events_are_newest_first_across_sources(client: TestClient) -> None:
 
 @respx.mock
 def test_attribution_covers_every_answering_source(client: TestClient) -> None:
-    _mock_both()
+    _mock_all()
     attribution = client.post(PATH, json={}, headers=AUTH).json()["data"]["attribution"]
 
     assert any("U.S. Geological Survey" in text for text in attribution)
@@ -113,14 +123,14 @@ def test_attribution_covers_every_answering_source(client: TestClient) -> None:
 def test_an_empty_feed_is_a_success_with_no_events(client: TestClient) -> None:
     """No hazards reported is a real answer."""
     empty = {"type": "FeatureCollection", "features": []}
-    _mock_both(usgs=empty, gdacs=empty)
+    _mock_all(usgs=empty, gdacs=empty, eonet={"events": []})
 
     response = client.post(PATH, json={}, headers=AUTH)
 
     assert response.status_code == 200
     body = response.json()
     assert body["data"]["events"] == []
-    assert set(body["data"]["sources"]) == {"usgs_earthquake", "gdacs"}
+    assert set(body["data"]["sources"]) == {"usgs_earthquake", "gdacs", "nasa_eonet"}
     assert body["meta"]["degraded_services"] == []
 
 
@@ -132,6 +142,7 @@ def test_every_source_failing_is_an_error_not_an_empty_list(
     read as "no hazards on your route"."""
     respx.get(USGS_URL).mock(return_value=httpx.Response(503))
     respx.get(GDACS_URL).mock(return_value=httpx.Response(503))
+    respx.get(EONET_URL).mock(return_value=httpx.Response(503))
 
     response = client.post(PATH, json={}, headers=AUTH)
 
@@ -146,14 +157,15 @@ def test_one_source_failing_still_answers_but_reports_degraded(
     client: TestClient,
 ) -> None:
     """A partial answer is useful; a silent partial answer is not."""
-    _mock_both()
+    _mock_all()
     registry = client.app.state.adapters  # type: ignore[attr-defined]
+    healthy = registry._adapters["nasa_eonet"]
     registry._adapters["nasa_eonet"] = _FailingAdapter()
 
     try:
         body = client.post(PATH, json={}, headers=AUTH).json()
     finally:
-        registry._adapters.pop("nasa_eonet", None)
+        registry._adapters["nasa_eonet"] = healthy
 
     assert body["data"]["events"]
     assert set(body["data"]["sources"]) == {"usgs_earthquake", "gdacs"}
@@ -167,11 +179,11 @@ def test_a_source_that_does_not_cover_the_hazard_is_not_degraded(
     """USGS publishes earthquakes only. On a flood query it has nothing to say,
     which is different from being broken — marking it degraded would set that
     field on every flood query and drain it of meaning."""
-    _mock_both()
+    _mock_all()
 
     body = client.post(PATH, json={"event_types": ["FLOOD"]}, headers=AUTH).json()
 
-    assert body["data"]["sources"] == ["gdacs"]
+    assert "gdacs" in body["data"]["sources"]
     assert body["data"]["sources_not_covering_query"] == ["usgs_earthquake"]
     assert body["meta"]["degraded_services"] == []
 
@@ -180,7 +192,7 @@ def test_a_source_that_does_not_cover_the_hazard_is_not_degraded(
 def test_a_hazard_no_source_covers_is_unsupported_coverage(
     client: TestClient,
 ) -> None:
-    _mock_both()
+    _mock_all()
     response = client.post(
         PATH, json={"event_types": ["TRANSPORT_CLOSURE"]}, headers=AUTH
     )
@@ -193,7 +205,7 @@ def test_a_hazard_no_source_covers_is_unsupported_coverage(
 @respx.mock
 def test_bbox_narrows_the_result(client: TestClient) -> None:
     raw = load_fixture("usgs/significant_month.json")
-    _mock_both(usgs=raw)
+    _mock_all(usgs=raw)
 
     everything = client.post(PATH, json={}, headers=AUTH).json()["data"]["events"]
     first = raw["features"][0]["geometry"]["coordinates"]
@@ -248,6 +260,41 @@ def test_rejects_an_unknown_event_type(client: TestClient) -> None:
     body = response.json()
     assert body["error"]["code"] == "VALIDATION_ERROR"
     assert body["error"]["field_errors"]
+
+
+@respx.mock
+def test_duplicate_groups_annotate_without_removing_anything(
+    client: TestClient,
+) -> None:
+    """Grouping is a hint for module 05, not a decision. Every event stays in
+    `events` whether or not it appears in a group."""
+    _mock_all()
+    body = client.post(PATH, json={}, headers=AUTH).json()
+
+    events = body["data"]["events"]
+    groups = body["data"]["duplicate_groups"]
+    grouped_ids = {event_id for group in groups for event_id in group["event_ids"]}
+    all_ids = {event["event_id"] for event in events}
+
+    assert grouped_ids <= all_ids
+    for group in groups:
+        assert len(group["event_ids"]) >= 2
+        assert group["basis"] in {"shared_identifier", "proximity"}
+        assert len(group["providers"]) >= 2  # never groups one source with itself
+        assert group["authorities"]
+
+
+@respx.mock
+def test_a_single_source_answer_has_no_duplicate_groups(
+    client: TestClient,
+) -> None:
+    empty = {"type": "FeatureCollection", "features": []}
+    _mock_all(gdacs=empty, eonet={"events": []})
+
+    body = client.post(PATH, json={}, headers=AUTH).json()
+
+    assert body["data"]["events"]
+    assert body["data"]["duplicate_groups"] == []
 
 
 class _SlowAdapter:

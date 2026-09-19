@@ -15,7 +15,7 @@ the same to a user.
 | --- | --- | --- |
 | Geocoding | ✅ available | — |
 | Weather forecast | ✅ available | model forecast, not observation |
-| Earthquake and multi-hazard events | ✅ available | USGS + GDACS; EONET follows. Sources overlap and are **not** deduplicated here |
+| Earthquake and multi-hazard events | ✅ available | USGS + GDACS + EONET. Sources overlap; duplicates are **grouped, not merged** — see `duplicate_groups` |
 | Road routing | ❌ unavailable | "Route planning is not configured for this deployment" |
 | Nearby emergency POI | ❌ unavailable | "Nearby places search is not available" |
 | Flight status / search | ❌ unavailable | "Flight information is not available" |
