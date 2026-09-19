@@ -5,13 +5,13 @@
 | Field | Value |
 | --- | --- |
 | Module/owner | Module 06 — Risk and Knowledge Services |
-| Issue/PR | PR not opened; body prepared in `docs/handoffs/M06-risk-knowledge-pr-body.md` |
+| Issue/PR | Draft PR #12; body mirrored in `docs/handoffs/M06-risk-knowledge-pr-body.md` |
 | Branch | `contract/06-risk-evidence-route-schema` |
-| Base/final commit SHA | `29a1798a68f87cb9c1091836377a5a4bb7639d93` / compatibility-fix head `24b2c97` (report refresh commit follows) |
-| Date/time/timezone | 2026-09-20 00:56 +07:00 (Asia/Bangkok) |
+| Base/final commit SHA | `b63348058cfd9506ec9306923845aec53fe69b36` / review-fix head `44b99ed` (report refresh commit follows) |
+| Date/time/timezone | 2026-09-20 02:45 +07:00 (Asia/Bangkok) |
 | Reviewers | Required: Team Lead plus contracts/security reviewer; contract consumers: modules 03, 05, and 07 |
 | Contract version | `1.0.0` |
-| Docker image digest/tag | `sta-risk-knowledge:phase1`, `sha256:fe5dcd03100e7f355ebbffe538d3f95c098124d7689272c2f4169fedb323ce6e` |
+| Docker image digest/tag | `sta-risk-knowledge:phase1`, `sha256:2f67a9c87090d34efacc050009872808eb7c10d393829c0df362f7ea582e49c1` |
 | Related model/policy/prompt/collection version | feature `1.0.0`; route policy `1.0.0` pending approval; fallback `fallback-safety-1.0.0`; no active model or collection |
 
 ## 2. Executive summary
@@ -44,6 +44,7 @@ out of scope and remain required for the full module.
 ### Phase 1 — Service/storage foundation
 
 - [x] FastAPI, internal auth, health/readiness, metrics, traces, structured logs, and standard error envelopes.
+- [x] Shared `INTERNAL_SERVICE_TOKEN` auth and standardized FastAPI/Starlette HTTP errors, including router-level 404 responses.
 - [x] PostgreSQL migration, least-privilege module role, Qdrant collection/alias lifecycle, and local MLflow training profile.
 - [x] Artifact loader verifies approved `ACTIVE` metadata, path containment, SHA-256, Ed25519 signature, key, and feature schema before availability.
 - [x] Non-root/read-only Docker runtime with 2 CPU/2 GiB limits and bounded warmup/dependency readiness.
@@ -186,8 +187,8 @@ docker compose run --rm risk-knowledge alembic upgrade head
 
 | Variable/group | Required | Secret | Default/example | Used by | Failure if missing |
 | --- | --- | --- | --- | --- | --- |
-| `RISK_KNOWLEDGE_INTERNAL_API_TOKEN` | yes | yes | blank | internal auth | readiness 503; endpoints 503 |
-| `RISK_KNOWLEDGE_DB_USER/PASSWORD` | yes in Compose | password yes | `risk_knowledge` / blank | role bootstrap/service | Compose validation/start fails |
+| `INTERNAL_SERVICE_TOKEN` | yes when running M06 | yes | blank | shared internal auth | M06 readiness 503; protected endpoints 503 |
+| `RISK_KNOWLEDGE_DB_USER/PASSWORD` | yes only when running M06 | password yes | `risk_knowledge` / blank | role bootstrap/service | shared PostgreSQL skips M06 role; M06 DB readiness 503 |
 | `RISK_KNOWLEDGE_DATABASE_URL` or `POSTGRES_*` | yes | password/URL yes | host `postgres` | SQLAlchemy/Alembic | DB unavailable/readiness 503 |
 | `QDRANT_URL`, `QDRANT_API_KEY` | URL yes; key optional | key yes | `http://qdrant:6333` | collection lifecycle | knowledge unavailable |
 | `RISK_KNOWLEDGE_ARTIFACT_*` | key path required for active signed model | public key no | signature required | artifact verifier | model unavailable |
@@ -214,7 +215,7 @@ docker compose -f compose.yaml -f compose.dev.yaml --profile app up -d risk-know
 - Port: internal 8004; volumes: read-only model artifacts; PostgreSQL/Qdrant named volumes.
 - Readiness: `200 ready/degraded` when critical DB/auth work; `503 not_ready` when critical dependency/config is unavailable. Liveness checks process only.
 - Limits: 2 CPUs and 2 GiB RAM; load/peak memory not measured in Phase 1.
-- Image: 336,796,487 bytes uncompressed / Scout 77 MB, digest `sha256:fe5dcd0...`.
+- Image: 336,800,824 bytes uncompressed, digest `sha256:2f67a9c...`.
 
 ## 10. Tests and verification
 
@@ -222,8 +223,8 @@ docker compose -f compose.yaml -f compose.dev.yaml --profile app up -d risk-know
 | --- | --- | ---: | ---: | ---: | --- |
 | Format/lint | `docker run --rm sta-risk-knowledge:test ruff check ...` and `ruff format --check ...` | 43 files formatted; lint pass | 0 | 0 | post-rebase run |
 | Type | `docker run --rm sta-risk-knowledge:test mypy app` | 30 source files | 0 | 0 | strict mode |
-| Unit + contract | `docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term` | 35 | 0 | 0 | 90.47% branch-aware coverage; threshold 80% |
-| Repository CI compatibility | Python 3.11 `py_compile` over `git ls-files '*.py'` | 105 tracked files | 0 | 0 | matches temporary shared workflow interpreter |
+| Unit + contract | `docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term` | 37 | 0 | 0 | 90.54% branch-aware coverage; threshold 80% |
+| Repository CI compatibility | Python 3.11 `py_compile` over `git ls-files '*.py'` | 118 tracked files | 0 | 0 | matches temporary shared workflow interpreter |
 | OpenAPI | `npx --yes @redocly/cli@1.34.5 lint ...` | valid | 0 | 0 | four advisory warnings documented above |
 | Integration | real PostgreSQL/Qdrant containers; migration up/down/up; HTTP/DB smoke | pass | 0 | 0 | revision/ownership/persistence verified |
 | Security/privacy | Gitleaks branch scan; `pip-audit`; Docker Scout | source/deps/actionable image findings pass | 1 upstream-unfixed high | 0 | see Section 12 |
@@ -235,7 +236,9 @@ docker compose -f compose.yaml -f compose.dev.yaml --profile app up -d risk-know
 
 - Success/degraded: readiness 200 degraded; risk 200 `UNKNOWN/DEGRADED`; route 200 usable hard-constraint fallback; knowledge 200 empty/unavailable.
 - Invalid/unauthorized: standard 422 contract errors and 401 `AUTHENTICATION_REQUIRED`.
+- HTTP routing: both FastAPI-raised 403 and Starlette router 404 use the standard versioned error envelope.
 - DB outage: liveness 200; readiness 503 `not_ready`, DB unavailable, 2.027 seconds.
+- Shared Compose: validates without `RISK_KNOWLEDGE_DB_PASSWORD`; PostgreSQL init exits 0 after explicitly skipping only the M06 role.
 - Missing artifacts: explicit unavailable status; no fake model/RAG success.
 - Rollback: migration down/up and Qdrant alias design verified; no active production artifact exists.
 - Sanitized IDs: request `50000000-0000-4000-8000-000000000001`, correlation `...0002`, trace `0123456789abcdef0123456789abcdef`.
@@ -257,10 +260,10 @@ Not applicable. Phase 0/1 changes no UI-owned path or screen.
 
 Findings:
 
-- Gitleaks `origin/main..HEAD`: post-rebase branch diff scanned after the compatibility fix; no leaks found.
+- Gitleaks `origin/main..HEAD`: post-rebase branch diff scanned after the review fixes; no leaks found.
 - `pip-audit`: no known dependency vulnerabilities; the local project itself is correctly skipped because it is not a PyPI package.
-- Docker Scout actionable gate (`--only-fixed`, critical/high): 0 findings.
-- Docker Scout full critical/high scan: 0 critical, **1 high** — `CVE-2026-85091` in Debian 13 `zlib 1:1.3.dfsg+really1.3.1-1`; Scout reports `Fixed version: not fixed`. Merge requires security reviewer disposition; no VEX/exception was invented here.
+- Docker Scout actionable gate (`--only-fixed`, critical/high): last completed scan had 0 findings.
+- Docker Scout full critical/high scan: last completed scan had 0 critical, **1 high** — `CVE-2026-85091` in Debian 13 `zlib 1:1.3.dfsg+really1.3.1-1`; Scout reported `Fixed version: not fixed`. The review-fix image uses the same pinned base and dependency lock, but a new external Scout submission was not authorized. Merge still requires security reviewer disposition; no VEX/exception is asserted here.
 - SPDX 2.3 SBOM generation passed: 180 packages, 854,495 bytes; generated artifact SHA-256 `bea0c0dd9e1668ed506ed3f82e0c8cb253f5ab463bc5421db10c843998b8b926` (CI should retain the artifact rather than commit generated output).
 
 ## 13. Problems encountered and resolutions
@@ -272,7 +275,10 @@ Findings:
 | Readiness blocked 42 seconds during paused DB | driver cancellation waited for stalled server | structured readiness log | hard timeout plus skip optional DB probes after critical DB failure | cancelled driver task drains after dependency returns |
 | Initial image had 5 critical/52 high | old Debian/Python and runtime dependencies | Docker Scout | Python 3.12.14/Debian 13 and patched dependency lock | one upstream-unfixed zlib high remains |
 | Test commands were not reproducible in runtime image | production image correctly omitted dev dependencies/contracts | executable-not-found and contract path failures | separate self-contained Docker `test` target with named contract context | test image is intentionally larger than runtime |
-| Temporary shared CI rejected valid Python 3.12 generic syntax | repository workflow compiles every tracked Python file with Python 3.11 | Actions run #29 failed on pre-rebase commit `f6649ab`; local 3.11 compile reproduced the syntax incompatibility | retained the Python 3.12 runtime while expressing the helper with `TypeVar`; all 105 tracked Python files compile on 3.11 | shared workflow still needs Team Lead alignment with the authoritative Python 3.12 standard |
+| Temporary shared CI rejected valid Python 3.12 generic syntax | repository workflow compiles every tracked Python file with Python 3.11 | Actions run #29 failed on pre-rebase commit `f6649ab`; local 3.11 compile reproduced the syntax incompatibility | retained the Python 3.12 runtime while expressing the helper with `TypeVar`; all 118 tracked Python files compile on 3.11 | shared workflow still needs Team Lead alignment with the authoritative Python 3.12 standard |
+| Shared Compose required an M06-only DB secret | interpolation happened even when another member did not start M06 | Compose review and config reproduction without the variable | optional interpolation plus an explicit no-secret role-bootstrap skip; M06 itself remains not-ready without credentials | existing volumes still need explicit role bootstrap before M06 migration |
+| Per-service auth token diverged from team contract | initial M06 name introduced an unnecessary second credential | review against `.env.example` and M04 shared-token convention | M06 now reads only `INTERNAL_SERVICE_TOKEN` | shared secret rotation remains a platform concern |
+| Router 404 escaped the standard error envelope | Starlette raises its own HTTP exception for unmatched routes | regression test against an unknown route | register both FastAPI and Starlette HTTP exception classes | none observed |
 
 ## 14. Performance and operational behavior
 
@@ -311,16 +317,18 @@ Findings:
 ## 17. Commit and PR inventory
 
 ```text
-7aebe62 feat(contracts): define risk evidence route contract
-cd706b6 feat(risk): add service registry foundation
-a137463 build(risk): add self-contained test image
-a916443 docs(risk): add phase one handoff evidence
-24b2c97 fix(risk): support repository CI Python version
+63adf66 feat(contracts): define risk evidence route contract
+78889c4 feat(risk): add service registry foundation
+733d719 build(risk): add self-contained test image
+2a2b556 docs(risk): add phase one handoff evidence
+3e4735e fix(risk): support repository CI Python version
+6faf99f docs(risk): refresh post-rebase verification
+44b99ed fix(risk): address phase one review findings
 ```
 
-- PR review comments resolved: N/A; PR not opened.
+- PR review findings addressed locally: commit authors rewritten to `Nonyeol`; shared Compose secret coupling removed; shared internal token adopted; HTTP 404 envelope covered. Push and re-review remain pending.
 - Required checks: all Phase 0/1 functional checks pass; full image scan has one upstream-unfixed high finding requiring disposition.
-- Rebased on main SHA: `29a1798a68f87cb9c1091836377a5a4bb7639d93`; Compose conflicts were resolved by retaining both the merged M04 external-data service and M06 risk-knowledge/MLflow services.
+- Rebased on main SHA: `b63348058cfd9506ec9306923845aec53fe69b36`; Compose retains both merged M04 external-data and M06 risk-knowledge/MLflow services.
 - Proposed squash title: `feat(risk): establish risk evidence contracts and service foundation`.
 
 ## 18. Rollback and recovery

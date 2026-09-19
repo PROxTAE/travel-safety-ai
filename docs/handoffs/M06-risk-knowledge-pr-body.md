@@ -40,7 +40,8 @@ Out of scope:
 - API/OpenAPI/JSON Schema: adds internal v1 risk, knowledge, route, evidence-package, and status contracts.
 - Migration: `20260919_0001` creates six tables in `knowledge` with constraints/indexes; Alembic version table remains in the same schema.
 - Role: `risk_knowledge` owns only `knowledge`; a verified negative test cannot create in `integration`.
-- Environment: adds documented `RISK_KNOWLEDGE_*`, Qdrant, artifact, timeout, and OTEL variables. No usable secret defaults.
+- Environment: M06 uses the team-wide `INTERNAL_SERVICE_TOKEN`; module-specific database, Qdrant, artifact, timeout, and OTEL variables have no usable secret defaults.
+- Shared Compose: PostgreSQL no longer requires the M06 database password when another module starts shared infrastructure; the M06 role bootstrap explicitly skips only that role when its secret is absent.
 - Rollout: on an existing PostgreSQL volume, explicitly run the idempotent role bootstrap before Alembic because entrypoint init scripts run only for empty volumes.
 - Compatibility: new contract version `1.0.0`; numeric governance values remain null and cannot activate unsafe capability.
 
@@ -64,7 +65,7 @@ docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term
 
 cp .env.example .env
 # Fill POSTGRES_PASSWORD, RISK_KNOWLEDGE_DB_PASSWORD,
-# KEYCLOAK_ADMIN_PASSWORD, and RISK_KNOWLEDGE_INTERNAL_API_TOKEN.
+# KEYCLOAK_ADMIN_PASSWORD, and the shared INTERNAL_SERVICE_TOKEN.
 docker compose -f compose.yaml -f compose.dev.yaml --profile core up -d --wait
 docker compose exec postgres bash /docker-entrypoint-initdb.d/01-risk-knowledge-role.sh
 docker compose run --rm risk-knowledge alembic upgrade head
@@ -88,17 +89,20 @@ docker run --rm sta-risk-knowledge:test mypy app
   Success: no issues found in 30 source files.
 
 docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term
-  35 passed, 0 failed, 0 skipped; total coverage 90.47% (gate 80%).
+  37 passed, 0 failed, 0 skipped; total coverage 90.54% (gate 80%).
 
 $files = @(git ls-files '*.py')
 docker run --rm -e PYTHONPYCACHEPREFIX=/tmp/pycache -v "H:/travel-safety-ai:/repo:ro" -w /repo python:3.11-slim python -m py_compile $files
-  exit 0; validates compatibility with the temporary repository CI interpreter.
+  exit 0 for 118 tracked files; validates compatibility with the temporary repository CI interpreter.
 
 npx --yes @redocly/cli@1.34.5 lint packages/contracts/openapi/internal-risk-knowledge.yaml
   Valid OpenAPI; 4 advisory warnings (license metadata and health/metrics 4xx rule).
 
 docker compose -f compose.yaml -f compose.dev.yaml --profile core --profile app --profile training config --quiet
-  exit 0 with ephemeral placeholder values; no `.env` file was retained or committed.
+  exit 0 with `RISK_KNOWLEDGE_DB_PASSWORD` intentionally absent; no `.env` file was retained or committed.
+
+docker run --rm --entrypoint bash -v "H:/travel-safety-ai/infra/postgres/init/01-risk-knowledge-role.sh:/tmp/role.sh:ro" sta-risk-knowledge:test /tmp/role.sh
+  exit 0; `Skipping Module 06 role bootstrap: RISK_KNOWLEDGE_DB_PASSWORD is not set`.
 
 alembic upgrade head -> downgrade base -> upgrade head (as risk_knowledge)
   pass; revision 20260919_0001; 7 knowledge tables including Alembic.
@@ -111,23 +115,26 @@ runtime smoke
   risk 200 UNKNOWN/DEGRADED; route 200 DEGRADED;
   knowledge 200 empty/UNAVAILABLE; unauthenticated request 401.
 
+HTTP error regression
+  FastAPI-raised 403 and Starlette router-level 404 both return the v1 error envelope.
+
 PostgreSQL paused
   liveness 200; readiness 503 not_ready/DATABASE_UNAVAILABLE in 2.027 s.
 
 docker run --rm -v "H:/travel-safety-ai:/repo" zricethezav/gitleaks:v8.28.0 git /repo --log-opts="origin/main..HEAD" --no-banner --redact
-  post-rebase branch diff scanned after the compatibility fix; no leaks found.
+  post-rebase branch diff scanned after the review fixes; no leaks found.
 
 uv run --frozen --with pip-audit pip-audit
   no known dependency vulnerabilities.
 
 docker scout cves --only-severity critical,high --only-fixed --exit-code local://sta-risk-knowledge:phase1
-  0 critical/high actionable findings.
+  Last completed scan: 0 critical/high actionable findings.
 
 docker scout cves --only-severity critical,high --exit-code local://sta-risk-knowledge:phase1
-  0 critical, 1 high: CVE-2026-85091 in Debian zlib; no fixed version.
+  Last completed scan: 0 critical, 1 high: CVE-2026-85091 in Debian zlib; no fixed version.
 ```
 
-- Runtime image: `sha256:fe5dcd03100e7f355ebbffe538d3f95c098124d7689272c2f4169fedb323ce6e`, non-root `app`, read-only, 2 CPU, 2 GiB.
+- Runtime image: `sha256:2f67a9c87090d34efacc050009872808eb7c10d393829c0df362f7ea582e49c1`, non-root `app`, read-only, 2 CPU, 2 GiB. The review-fix image keeps the same pinned base and lock; a new external Scout metadata submission was not authorized.
 - SBOM: SPDX 2.3 generated successfully, 180 packages; artifact SHA-256 `bea0c0dd9e1668ed506ed3f82e0c8cb253f5ab463bc5421db10c843998b8b926`.
 - UI screenshots/video: N/A; no UI ownership or changes.
 - Sanitized IDs: request `50000000-0000-4000-8000-000000000001`, correlation `...0002`, trace `0123456789abcdef0123456789abcdef`.
