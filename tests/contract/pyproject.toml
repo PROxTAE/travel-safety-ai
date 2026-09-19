@@ -1,0 +1,18 @@
+[project]
+name = "smart-travel-contract-tests"
+version = "0.1.0"
+description = "Producer and consumer contract tests for packages/contracts. No service code and no network."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "jsonschema[format]>=4.23,<5",
+    "pydantic>=2.9,<3",
+    "pytest>=8.3,<9",
+    "pyyaml>=6.0,<7",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+addopts = "-q --strict-markers"
