@@ -188,6 +188,14 @@ A group is formed when either holds:
 - **`shared_identifier`** — one event's record id or cross-reference appears in another's (USGS `properties.ids`, GDACS `glide`, EONET `sources[].id`). Strong evidence.
 - **`proximity`** — same `event_type`, epicentres within 100 km, start times within 30 minutes. A hint, not a conclusion: two genuine quakes in a swarm can satisfy it, which is why the basis is reported.
 
+`cross_reference_ids` holds **only values that name one specific event** —
+USGS's cross-network ids, GDACS's GLIDE. The agency that reported an event
+(`reporting_networks`) and the episode index within it (`episode_id`) are
+separate fields, because they name a *category*, not an event. Review of PR #10
+caught what happens otherwise: `network:JTWC` appeared in 297 of 568 live
+events, and union-find chained seventeen storms months and hemispheres apart
+into one group labelled `shared_identifier`.
+
 Each group carries its members' `providers` and `authorities` so module 05 can
 prioritise. Module 04 does not rank them. Two records from the *same* source are
 never grouped — an aftershock sequence is that source's own catalogue, not a set

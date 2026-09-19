@@ -231,8 +231,14 @@ class EonetAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                     depth_km=None,
                     alert_level=None,
                     tsunami=None,
-                    cross_reference_ids=[
-                        f"network:{source.id}" for source in raw.sources if source.id
+                    # EONET publishes no identifier for this event in another
+                    # system, so there is nothing to cross-reference. The
+                    # agencies that reported it are a different fact and belong
+                    # in their own field: JTWC reports every typhoon, so
+                    # matching on it groups every typhoon.
+                    cross_reference_ids=[],
+                    reporting_networks=[
+                        source.id for source in raw.sources if source.id
                     ],
                     quality=_quality(
                         track_length=len(track),

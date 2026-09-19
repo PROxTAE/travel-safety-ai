@@ -116,13 +116,29 @@ def find_duplicate_groups(events: list[DisasterEvent]) -> list[DuplicateGroup]:
     return groups
 
 
+# A value naming a *category* rather than an event - the agency that reported
+# it, the episode index within it. One of these shared between two records says
+# nothing about whether they describe the same hazard, and matching on them
+# chained seventeen unrelated storms into a single "duplicate" group.
+_NOT_AN_EVENT_ID = ("network:", "episode:", "source:", "category:")
+
+
 def _identifiers(event: DisasterEvent) -> set[str]:
     """Everything that could name this event somewhere else.
 
     The provider-scoped `event_id` is excluded on purpose: it is unique to one
     source by construction and can never match another's.
+
+    The namespace guard is belt and braces. Adapters now keep reporting
+    networks and episode numbers in their own fields, but this is the place
+    where a regression there turns into merged hazards, so it refuses them
+    here too.
     """
-    values = {value.strip() for value in event.cross_reference_ids if value.strip()}
+    values = {
+        value.strip()
+        for value in event.cross_reference_ids
+        if value.strip() and not value.strip().startswith(_NOT_AN_EVENT_ID)
+    }
     if event.source.provider_record_id:
         values.add(event.source.provider_record_id.strip())
     return {value for value in values if value}

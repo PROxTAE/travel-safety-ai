@@ -314,12 +314,18 @@ def test_severity_stays_unknown(adapter: EonetAdapter) -> None:
     assert _run(adapter, load_fixture(FIXTURE))[0].severity is Severity.UNKNOWN
 
 
-def test_upstream_network_is_kept_for_dedup(adapter: EonetAdapter) -> None:
+def test_the_reporting_network_is_not_a_cross_reference_id(
+    adapter: EonetAdapter,
+) -> None:
+    """IRWIN and JTWC are the agencies that reported an event, not identifiers
+    of it. JTWC reports every typhoon, so matching on it groups every typhoon —
+    which is what it did before this was split out."""
     raw = load_fixture(FIXTURE)
     event = _run(adapter, raw)[0]
-    assert event.cross_reference_ids == [
-        f"network:{raw['events'][0]['sources'][0]['id']}"
-    ]
+
+    assert event.reporting_networks == [raw["events"][0]["sources"][0]["id"]]
+    # EONET publishes no id for this event in another system.
+    assert event.cross_reference_ids == []
 
 
 def test_source_url_points_at_the_upstream_record(adapter: EonetAdapter) -> None:

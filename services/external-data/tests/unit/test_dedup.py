@@ -182,3 +182,86 @@ def test_an_empty_cross_reference_is_not_a_match() -> None:
         provider="gdacs", record_id="b", cross_ids=["", "  "], latitude=40.0
     )
     assert find_duplicate_groups([first, second]) == []
+
+
+# --------------------------------- finding E from the PR #10 review ----------
+
+
+def test_a_shared_reporting_network_does_not_group_unrelated_storms() -> None:
+    """The regression this guard exists for.
+
+    JTWC reports every typhoon in the basin. When `network:JTWC` sat in
+    cross_reference_ids it appeared in 297 of 568 events in the reviewer's live
+    run, and union-find chained seventeen storms — months apart, opposite
+    hemispheres — into one group labelled `shared_identifier`. Module 05 could
+    then have kept one record and silently dropped a typhoon heading for
+    Thailand, which is the exact failure this module exists to prevent.
+    """
+    dujuan = _event(
+        provider="nasa_eonet",
+        record_id="EONET_24317",
+        latitude=26.2,
+        longitude=139.7,
+        event_type=EventType.STORM,
+        cross_ids=["network:JTWC"],
+    )
+    noul = _event(
+        provider="gdacs",
+        record_id="1010203",
+        latitude=-15.0,
+        longitude=-142.0,
+        minutes=60 * 24 * 40,  # six weeks earlier
+        event_type=EventType.STORM,
+        cross_ids=["network:JTWC"],
+    )
+
+    assert find_duplicate_groups([dujuan, noul]) == []
+
+
+def test_a_shared_episode_number_does_not_group_anything() -> None:
+    """An episode index is a position inside one event, and every storm has an
+    episode 3."""
+    first = _event(provider="gdacs", record_id="a", cross_ids=["episode:3"])
+    second = _event(
+        provider="nasa_eonet", record_id="b", latitude=60.0, cross_ids=["episode:3"]
+    )
+    assert find_duplicate_groups([first, second]) == []
+
+
+def test_a_real_shared_identifier_still_groups() -> None:
+    """The guard must not throw out what it is there to protect."""
+    usgs = _event(
+        provider="usgs_earthquake",
+        record_id="us7000",
+        cross_ids=["EQ-2026-000168-CHN", "network:NEIC"],
+    )
+    gdacs = _event(
+        provider="gdacs",
+        record_id="1562260",
+        cross_ids=["EQ-2026-000168-CHN"],
+        minutes=2,
+    )
+
+    groups = find_duplicate_groups([usgs, gdacs])
+
+    assert len(groups) == 1
+    assert groups[0].basis == "shared_identifier"
+
+
+def test_many_storms_sharing_one_network_stay_separate() -> None:
+    """Scaled-up version of the live failure: without the guard these collapse
+    into a single seventeen-member group."""
+    storms = [
+        _event(
+            provider="nasa_eonet" if index % 2 else "gdacs",
+            record_id=f"s{index}",
+            latitude=-60.0 + index * 7.0,
+            longitude=-170.0 + index * 20.0,
+            minutes=index * 60 * 24 * 5,
+            event_type=EventType.STORM,
+            cross_ids=["network:JTWC"],
+        )
+        for index in range(17)
+    ]
+
+    assert find_duplicate_groups(storms) == []
