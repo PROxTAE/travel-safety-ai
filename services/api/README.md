@@ -11,7 +11,7 @@ Contract: [`packages/contracts/openapi/public-api.yaml`](../../packages/contract
 
 ## What exists today
 
-Phases 1 and 2 of the plan.
+Phases 1, 2 and 3 of the plan.
 
 | Area | State |
 | --- | --- |
@@ -24,13 +24,13 @@ Phases 1 and 2 of the plan.
 | OIDC token verification, JWKS cache with rotation handling | Done |
 | Subject to internal user mapping, owner-scoped repository | Done |
 | Scope and role dependencies | Done |
-| `GET /api/v1/me` | Read only — `PATCH` is phase 3 |
-| Consent records, emergency profile | Phase 3 — **not implemented** |
+| `GET`/`PATCH /api/v1/me` | Done |
+| `POST /api/v1/consents` — versioned grant and withdrawal | Done |
+| `GET`/`PUT`/`DELETE /api/v1/me/emergency-profile`, envelope-encrypted | Done |
+| Audit trail that records actions but never their content | Done |
+| Export and deletion worker with tracked status | Skeleton — `identity` only, see below |
 | Trips, assessments, SSE, the rest of `/api/v1/**` | Phases 4–6 — **not implemented** |
 | Rate limiting | Phase 7 — **not implemented** |
-
-`GET /api/v1/me` returns `consents: []` and `has_emergency_profile: false`. Those are accurate, not
-placeholders: no consent can be granted and no emergency profile can exist until phase 3.
 
 ## Run it
 
@@ -138,6 +138,89 @@ The authenticated caller appears as `user_id` plus `subject_digest` — a trunca
 OIDC subject. Enough to correlate one person's requests during an investigation, without writing an
 identity-provider id into log storage.
 
+## Consent
+
+Append-only. Granting and withdrawing go through the same endpoint, because making withdrawal
+harder than granting is a dark pattern rather than an oversight to fix later. Every record carries
+the version of the text the person was shown — a consent record without that proves nothing, which
+is why this is a table and not a column of booleans.
+
+A decision supersedes the previous one for its type rather than overwriting it, so the table can
+answer what someone agreed to *and when*.
+
+"In force" means granted, not revoked and not expired — all three. Checking only `granted` would
+let a location grant keep working after it lapsed, which is the difference between a one-off share
+and tracking. Location grants are capped server-side: `API_CONSENT_LOCATION_ONCE_TTL_SECONDS` and
+`API_CONSENT_LOCATION_LIVE_MAX_TTL_SECONDS` are ceilings, and a client may ask for less but never
+for more.
+
+## The emergency profile
+
+The most sensitive thing this service holds, so it gets its own treatment.
+
+**Envelope encryption.** Each record has its own data key; the payload is sealed with that, and the
+data key is sealed with a key-encryption key from configuration. Two consequences follow, and they
+are why it is not just sealed directly: rotating the key means re-wrapping one small data key per
+row rather than rewriting every medical note, and reading a profile needs the row *and* the
+environment, which live in different places in any real deployment.
+
+AES-256-GCM throughout, and the owner id is bound in as additional authenticated data, so a row
+moved to another user's record fails to decrypt instead of handing over someone else's details.
+
+**No plaintext fallback.** With no key configured the endpoints answer 503 and say nothing was
+stored in the clear. In production the process refuses to start at all.
+
+**No searchable copy.** The table has no `blood_type` column and no `allergies` column, only
+ciphertext and the metadata to open it. A `SELECT *` while debugging shows bytes.
+
+**Consent gates it both ways.** Being signed in is not agreement to store medical data; storing and
+reading both need the `EMERGENCY_PROFILE` consent, and withdrawing it takes effect immediately
+rather than at the next purge. Deleting works regardless — withdrawing data must never be harder
+than providing it.
+
+Rotate a key by appending, never replacing:
+
+```bash
+docker compose run --rm api python -m app.cli.generate_key
+# API_EMERGENCY_ENCRYPTION_KEYS=v1:<old>,v2:<new>
+# API_EMERGENCY_ENCRYPTION_ACTIVE_VERSION=v2
+```
+
+Dropping a key while rows still reference it makes them unreadable, and the service says so loudly
+rather than reporting the profile as missing.
+
+## The audit trail
+
+`identity.audit_log` records that something happened and never what it said. A profile write is
+logged with the key version and the *number* of allergies, never the allergies. `app/repositories/
+audit.py` rejects a forbidden key outright rather than relying on everyone remembering, because an
+audit log that quotes the data it audits is a second, less guarded copy of it.
+
+Entries carry the request and correlation ids, so one can be matched to the log lines for the same
+request. They outlive the account: `user_id` is nulled on deletion, because *that* an account was
+deleted is worth keeping and *who* it was is not.
+
+## Export and deletion
+
+```bash
+docker compose run --rm api python -m app.cli.retention --once
+```
+
+A skeleton, and honest about being one. Deleting everything about a person means reaching the
+`agent`, `integration`, `knowledge`, `decision` and `recommendation` schemas through APIs that do
+not exist yet, so every completed request records those as `incomplete_scopes`. **COMPLETED here
+means "everything this service owns", never "erased everywhere"** — and the person who asked is
+exactly the one entitled to know the difference.
+
+Within `identity` it does the real work: deletion hard-deletes the emergency profile, withdraws
+every standing consent and soft-deletes the profile; export assembles the profile, the consent
+history and the emergency profile, withholding the last if the consent that authorised it has been
+withdrawn. An export must not become the way to read data whose consent no longer stands.
+
+Requests are queued through `identity.data_subject_requests` and claimed with
+`FOR UPDATE SKIP LOCKED`. There is one worker today; a queue that only works with one breaks the
+first time somebody scales it.
+
 ## Layout
 
 ```text
@@ -146,6 +229,9 @@ app/
 ├─ settings.py        every environment value, validated at startup
 ├─ api/               routers: health, and /api/v1/me
 ├─ auth/              JWKS cache, token verification, principal, dependencies
+├─ security/          envelope encryption for the emergency profile
+├─ services/          wiring that is neither a route nor a query
+├─ cli/               retention worker and key generation
 ├─ repositories/      owner-scoped queries — the only way to reach a row
 ├─ db/                declarative base, engine, session scope
 ├─ errors/            contract error codes, exceptions, handlers
@@ -163,7 +249,7 @@ public API, never through the tables.
 
 | Schema | Holds |
 | --- | --- |
-| `identity` | `user_profiles` today; consent records and emergency profiles in phase 3 |
+| `identity` | `user_profiles`, `consents`, `emergency_profiles`, `audit_log`, `data_subject_requests` |
 | `travel` | Trips, assessment requests, idempotency records |
 | `api` | This service's Alembic version table only — no user data |
 
@@ -213,7 +299,11 @@ In production, plain-HTTP CORS origins and a plain-HTTP OIDC issuer are rejected
 
 ## Known limitations
 
-- Only one protected endpoint exists, and it is read-only. Phases 3–6 add the rest.
+- Export and deletion cover `identity` only. Every completed request names the five schemas it could
+  not reach, and the public `DELETE /api/v1/me` endpoint the contract document implies is not in the
+  frozen OpenAPI yet — it needs a contract change, so the worker is driven by CLI for now.
+- Key rotation re-wraps one row at a time through the repository; there is no bulk rotation command.
+- Trips, assessments and the rest of `/api/v1/**` do not exist. Phases 4–6.
 - No rate limiting yet, although Redis is already required and probed. Phase 7.
 - A token stays valid until it expires. Disabling an account takes effect immediately because the
   local row is checked on every request, but there is no token introspection or revocation list.
