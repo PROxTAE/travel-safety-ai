@@ -7,7 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE SCHEMA IF NOT EXISTS keycloak;        -- Keycloak (KC_DB_SCHEMA)
 CREATE SCHEMA IF NOT EXISTS api;             -- module 02
 CREATE SCHEMA IF NOT EXISTS agent;           -- module 03 (checkpoints)
-CREATE SCHEMA IF NOT EXISTS external_data;   -- module 04 (provider health / cache index)
+CREATE SCHEMA IF NOT EXISTS provider;        -- module 04 (contract §8: providers, fetch_log, health)
 CREATE SCHEMA IF NOT EXISTS integration;     -- module 05
 CREATE SCHEMA IF NOT EXISTS knowledge;       -- module 06
 CREATE SCHEMA IF NOT EXISTS decision;        -- module 07
