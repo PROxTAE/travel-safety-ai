@@ -1,0 +1,138 @@
+# คู่มือ Docker ที่ปักหมุดในห้องของแต่ละคน — โพสต์ด้วย post_docker_guide.py
+# 1 part = 1 ข้อความ (Discord จำกัด 6000 ตัวอักษรต่อข้อความ) ทุก part ถูกปักหมุด
+#
+# ตัวแปร (จาก config.yaml → workstreams[].docker): {key} {person} {service} {port} {deps} {test} {open_url} {extra}
+#   {folder} = โฟลเดอร์แรกของ workstream · {stack_note} = คำอธิบายเฉพาะ node/python · {deps_list} = deps เป็นบรรทัด
+#   {ch:<channel>} {role:<key>} ใช้ได้เหมือน summary.yaml
+# marker ในข้อความ: docker-guide:<key>:<n> → รันซ้ำจะแก้ข้อความเดิม ไม่โพสต์ซ้ำ
+
+parts:
+  # ─────────────────────────────── 1/4 ───────────────────────────────
+  - title: "🐳 Docker สำหรับ {person} ({service}) — 1/4 ทำไมต้องใช้ + ติดตั้ง"
+    color: 0x2496ED
+    image: assets/safetytravel-discord/embed-announcement.png
+    description: |
+      **Docker คืออะไร (แบบไม่เทคนิค)**
+      คิดว่ามันคือ "กล่อง" ที่ใส่โปรแกรมของเรา + ทุกอย่างที่โปรแกรมต้องใช้ (ภาษา, ไลบรารี, ค่าตั้ง) ไว้ด้วยกัน
+      กล่องนี้ **รันเหมือนกันทุกเครื่อง** — เครื่องคุณ เครื่องเพื่อน เครื่องหัวหน้าตอนรีวิว วัน demo
+      → หมดปัญหา "ที่เครื่องผมรันได้นะ" และไม่ต้องติดตั้ง Python/Node/ฐานข้อมูลลงเครื่องเองให้ยุ่ง
+
+      โปรเจกต์เรามี **9 กล่อง** (เว็บ 1 + service 7 + ฐานข้อมูล/ตัวช่วยอีกหลายกล่อง) **Docker Compose** คือไฟล์ที่บอกว่ามีกล่องอะไรบ้าง ต่อกันยังไง แล้วสั่ง**คำสั่งเดียว**ให้ขึ้นพร้อมกันทั้งหมด
+      กล่องของคุณชื่อ **`{service}`** เปิดที่พอร์ต **{port}** โค้ดอยู่ใน `{folder}`
+
+      **ติดตั้ง (ทำครั้งเดียว)**
+      🪟 **Windows 10/11** — ต้องมี WSL2 ก่อน
+      ```powershell
+      wsl --install            # PowerShell แบบ Run as Administrator แล้วรีสตาร์ตเครื่อง
+      ```
+      แล้วโหลด **Docker Desktop** จาก docker.com/products/docker-desktop → ติดตั้ง → เปิดโปรแกรม → รอจนไอคอนวาฬนิ่ง (ไม่กะพริบ)
+      ถ้าขึ้น error เรื่อง virtualization: เข้า BIOS เปิด "Intel VT-x / AMD SVM" (ถามใน {ch:help} ได้)
+      🍎 **macOS** — โหลด Docker Desktop (เลือก Apple chip / Intel ให้ตรง) → ลากลง Applications → เปิด
+      🐧 **Linux** — `curl -fsSL https://get.docker.com | sh` แล้ว `sudo usermod -aG docker $USER` (ล็อกเอาต์-ล็อกอินใหม่)
+
+      **ตั้งค่า Docker Desktop** (Settings → Resources): ให้ RAM อย่างน้อย **6–8 GB**, Disk 40 GB+ เพราะเราจะรันหลายกล่องพร้อมกัน
+
+      **เช็กว่าพร้อม** (เปิด terminal ใหม่)
+      ```bash
+      docker --version            # ต้องได้ Docker version 2x.x
+      docker compose version      # ต้องได้ Docker Compose version v2.x  (สังเกต: compose ไม่มีขีด)
+      docker run --rm hello-world # ต้องขึ้น "Hello from Docker!"
+      ```
+      ผ่าน 3 บรรทัดนี้ = เครื่องพร้อม ไปต่อ part 2
+
+  # ─────────────────────────────── 2/4 ───────────────────────────────
+  - title: "🐳 2/4 — ครั้งแรกใน repo: ตั้งค่าแล้วรันให้ขึ้น"
+    color: 0x2496ED
+    description: |
+      **1. โหลดโค้ด** (ทำครั้งเดียว)
+      ```bash
+      git clone {repo}.git
+      cd travel-safety-ai
+      ```
+      **2. สร้างไฟล์ค่าตั้ง `.env`** — ไฟล์นี้เก็บรหัสผ่าน/คีย์ของเครื่องคุณ **ห้ามส่งขึ้น Git เด็ดขาด** (มี .gitignore กันไว้แล้ว)
+      ```bash
+      cp .env.example .env              # macOS/Linux/Git Bash
+      Copy-Item .env.example .env       # PowerShell
+      ```
+      เปิด `.env` แล้วเติมค่าที่ว่าง: รหัสฐานข้อมูล (ตั้งเองอะไรก็ได้), API key ของ provider ที่คุณใช้ (ขอจากหัวหน้าหรือสมัครเอง) — ค่าที่ไม่เกี่ยวกับส่วนของคุณปล่อยว่างได้ ระบบจะแสดง "unavailable" แทน
+
+      **3. เช็กว่าไฟล์ compose อ่านได้** (จับ typo ก่อนเสียเวลา build)
+      ```bash
+      docker compose -f compose.yaml -f compose.dev.yaml config > /dev/null && echo OK
+      ```
+      **4. รันให้ขึ้น** — ครั้งแรกจะโหลดนาน 5–15 นาที ครั้งถัดไปเร็ว
+      ```bash
+      docker compose -f compose.yaml -f compose.dev.yaml up -d --build
+      docker compose ps                       # ดูว่าทุกกล่อง STATUS = running (healthy)
+      ```
+      **5. เปิดดูของคุณ** → {open_url}
+      {extra_block}
+      **ยังไม่มี `compose.yaml` ใน main?** แปลว่าหัวหน้ายังไม่ได้ push โครงเริ่มต้น รอประกาศใน {ch:announcements} ก่อน ระหว่างนี้ติดตั้ง Docker ให้พร้อม (part 1) และอ่านแผนของตัวเองไปก่อน
+
+      **ความหมายของ 2 ไฟล์**
+      • `compose.yaml` = โครงจริงของระบบ (ใช้ตอนรวมระบบ/demo) ห้ามแก้เองโดยไม่บอกหัวหน้า
+      • `compose.dev.yaml` = ของแถมสำหรับตอนพัฒนา: แก้โค้ดแล้วเห็นผลทันทีไม่ต้อง build ใหม่ (hot reload), เปิดพอร์ตให้เข้าจากเครื่องได้
+      → **ตอนทำงานประจำวันใช้ 2 ไฟล์คู่กันเสมอ** (แนะนำตั้ง alias จะได้ไม่ต้องพิมพ์ยาว)
+      ```bash
+      alias dc="docker compose -f compose.yaml -f compose.dev.yaml"    # Git Bash / macOS / Linux
+      function dc {{ docker compose -f compose.yaml -f compose.dev.yaml @args }}   # PowerShell
+      ```
+
+  # ─────────────────────────────── 3/4 ───────────────────────────────
+  - title: "🐳 3/4 — ใช้ทุกวัน: รันเฉพาะของตัวเอง, ดู log, เทส, เมื่อไหร่ต้อง build ใหม่"
+    color: 0x2496ED
+    description: |
+      คุณไม่จำเป็นต้องรันทั้ง 9 กล่องทุกครั้ง **รันแค่กล่องของคุณ + กล่องที่มันต้องพึ่ง** ก็พอ (Compose จะเปิดตัวที่ต้องพึ่งให้เอง)
+      ```bash
+      dc up -d --build {service}           # เปิดกล่องของคุณ (+ {deps_short})
+      dc ps                                # เช็กสถานะ
+      dc logs -f --tail=200 {service}      # ดู log แบบสด (Ctrl+C ออก ไม่ได้ปิดกล่อง)
+      dc restart {service}                 # รีสตาร์ตกล่องเดียว
+      dc exec {service} sh                 # "เข้าไปในกล่อง" ดูไฟล์/รันคำสั่งข้างใน (พิมพ์ exit ออก)
+      dc stop {service}                    # หยุดชั่วคราว   ·   dc down = ปิดทุกกล่อง (ข้อมูลใน DB ยังอยู่)
+      ```
+      กล่องที่ `{service}` ต้องพึ่ง: {deps_list}
+
+      **แก้โค้ดแล้วต้องทำอะไร?**
+      • แก้ไฟล์ `.py` / `.ts` / `.tsx` ธรรมดา → **ไม่ต้องทำอะไร** hot reload ทำให้ (ถ้าไม่เปลี่ยน ลอง `dc restart {service}`)
+      • เพิ่ม/ลบ **ไลบรารี** ({stack_note}) → ต้อง `dc up -d --build {service}` เพราะของใหม่ต้องถูกใส่เข้ากล่อง
+      • แก้ `.env` → `dc up -d {service}` (กล่องอ่านค่าตอนเริ่มเท่านั้น)
+      • แก้ `Dockerfile` หรือ `compose*.yaml` → `dc up -d --build {service}`
+
+      **รันเทสก่อน push ทุกครั้ง** (รันในกล่อง จะได้ผลเหมือนที่ CI และหัวหน้ารัน)
+      ```bash
+      {test}
+      ```
+      ผลต้องเป็น 0 failed ถ้ามี skipped ต้องเขียนเหตุผลใน PR
+
+      **ห้ามใช้ `docker compose down -v`** — `-v` ลบฐานข้อมูล/ข้อมูลใน Qdrant ทิ้งหมด ถ้าอยากล้างจริง ๆ ถามหัวหน้าก่อน
+
+  # ─────────────────────────────── 4/4 ───────────────────────────────
+  - title: "🐳 4/4 — ส่งงาน (PR) ต้องแก้อะไรเรื่อง Docker + ปัญหาที่เจอบ่อย"
+    color: 0x10B981
+    image: assets/safetytravel-discord/embed-deploy-success.png
+    description: |
+      หลักคิด: **คนรีวิวจะรันงานคุณด้วย Docker แบบเดียวกับที่คุณรัน** ถ้า build ไม่ผ่านหรือขึ้นไม่ healthy = ยังไม่ผ่านรีวิว
+
+      **เช็กลิสต์ก่อนเปิด PR**
+      ☐ `dc build {service}` ผ่าน และ `dc up -d {service}` แล้ว `dc ps` ขึ้น **healthy** (ไม่ใช่แค่ running)
+      ☐ เทสในกล่องผ่าน (part 3) และเอา **คำสั่ง + ผล** ไปวางใน PR ตามช่อง "How to run / Verification evidence"
+      ☐ **ไม่มี `.env`** และไม่มีคีย์/รหัสผ่านใน diff (`git diff --cached` ดูก่อน)
+      ☐ ถ้า**เพิ่มไลบรารี** → commit ไฟล์ lock ด้วย ({stack_note}) ไม่งั้นเครื่องอื่น build ไม่เหมือนคุณ
+      ☐ ถ้า**เพิ่มค่าตั้งใหม่** (env var) → เพิ่มชื่อ + คอมเมนต์ใน `.env.example` (**ชื่อเท่านั้น ห้ามใส่ค่าจริง**) และเขียนไว้ใน README ของ service
+      ☐ ถ้าแก้ **`Dockerfile` ของ `{service}`** ได้ (อยู่ในโฟลเดอร์คุณ) แต่ต้องยังเป็นแบบที่กติกากำหนด: multi-stage, ไม่รันเป็น root (`USER app`), มี healthcheck `/health/live`
+      ☐ ถ้าต้องแก้ **`compose.yaml` / `compose.dev.yaml` / `.env.example`** (เช่น เปลี่ยนพอร์ต, เพิ่มกล่องใหม่, เพิ่ม depends_on) → เป็น "ไฟล์กลาง" ต้องมี {role:lead} รีวิวด้วย และบอกในห้อง {ch:api-contracts} ถ้ากระทบคนอื่น
+      ☐ ถ้ามี **migration** (เปลี่ยนตารางฐานข้อมูล) → ต้องลองทั้ง DB เปล่า → head และ DB เดิม → head ใน Docker แล้วแนบผล
+
+      **ส่วนใหญ่ = ไม่ต้องแก้อะไรเรื่อง Docker เลย** แค่โค้ดในโฟลเดอร์ของคุณ + เทส + หลักฐานว่ารันในกล่องผ่าน
+
+      **ปัญหาที่เจอบ่อย**
+      • *Docker Desktop เปิดไม่ขึ้น / "WSL 2 installation is incomplete"* → รัน `wsl --update` แล้วรีสตาร์ต
+      • *`port is already allocated`* → มีโปรแกรมอื่นใช้พอร์ต {port} อยู่ ปิดมัน หรือ `dc down` แล้ว up ใหม่
+      • *กล่องขึ้นแล้วดับ (Restarting)* → `dc logs {service}` อ่านบรรทัดล่างสุด มักเป็น .env ขาดค่า หรือกล่องที่พึ่งยังไม่พร้อม
+      • *build ช้ามาก / disk เต็ม* → `docker system prune` ลบของที่ไม่ใช้ (ไม่แตะ volume ข้อมูล)
+      • *Windows: สคริปต์ `.sh` พัง `\r: command not found`* → `git config --global core.autocrlf false` แล้ว clone ใหม่
+      • *แก้โค้ดแล้วไม่เปลี่ยน* → เช็กว่าใช้ `-f compose.dev.yaml` ด้วย (ไม่งั้นไม่มี hot reload) หรือ `dc up -d --build {service}`
+      • *ทุกอย่างเพี้ยนไปหมด* → `dc down` แล้ว `dc up -d --build` (ไม่ใส่ `-v`)
+
+      ติดตรงไหนถามใน {ch:help}: บอกว่า **คำสั่งอะไร + ข้อความ error 10 บรรทัดล่างสุดจาก `dc logs {service}`**

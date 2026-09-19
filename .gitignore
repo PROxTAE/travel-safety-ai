@@ -1,3 +1,4 @@
+# ===== จาก repo เดิม (Mrbeer19) =====
 # ---------- Python ----------
 __pycache__/
 *.py[cod]
@@ -37,3 +38,30 @@ models/*.safetensors
 Thumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# ===== เพิ่มสำหรับ ops/discord และ Docker =====
+# secrets / local env
+ops/discord/out/*
+!ops/discord/out/.gitkeep
+
+# python
+*.pyc
+.ruff_cache/
+
+# node
+pnpm-debug.log*
+
+# docker / data
+postgres-data/
+qdrant-data/
+
+# editor / os
+.vscode/
+.DS_Store
+
+# AI tool traces (ห้าม commit — ดู ops/discord/REVIEW_PLAYBOOK.md)
+CLAUDE.md
+.claude/
+.cursor/
+.cursorrules
+.aider*

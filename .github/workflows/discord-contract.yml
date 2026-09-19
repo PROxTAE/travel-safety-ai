@@ -1,0 +1,99 @@
+name: Discord - contract changes
+
+# เตือนดัง ๆ ใน #api-contracts เมื่อมีใครแตะ contract กลาง (กระทบทั้ง 8 คน)
+#   - PR ที่แก้ contract เปิด/มี commit ใหม่ → @everyone "อย่าเพิ่ง approve จนกว่าจะคุยกันในห้องนี้"
+#   - merge เข้า main → "ทุกคนต้องอ่านและ rebase ทันที"
+#
+# paths ด้านล่างต้องตรงกับ project.contract_paths ใน ops/discord/config.yaml
+# secret: DISCORD_WEBHOOK_CONTRACT
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, closed]
+    paths:
+      - "packages/contracts/**"
+      - "IMPLEMENTATION_PLANS/00_API_AND_DATA_CONTRACTS.md"
+      - "docs/api/**"
+  push:
+    branches: [main]
+    paths:
+      - "packages/contracts/**"
+      - "IMPLEMENTATION_PLANS/00_API_AND_DATA_CONTRACTS.md"
+      - "docs/api/**"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Send Discord message
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_CONTRACT }}
+          EMBED_BASE: ${{ vars.DISCORD_EMBED_BASE_URL }}
+          EVENT_NAME: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.event.after }}
+          PUSHER: ${{ github.event.pusher.name }}
+          COMPARE_URL: ${{ github.event.compare }}
+        run: |
+          set -euo pipefail
+          if [ -z "${WEBHOOK_URL}" ]; then echo "DISCORD_WEBHOOK_CONTRACT not set - skipping"; exit 0; fi
+          PATHS='packages/contracts IMPLEMENTATION_PLANS/00_API_AND_DATA_CONTRACTS.md docs/api'
+
+          if [ "${EVENT_NAME}" = "push" ]; then
+            FROM="${PUSH_BEFORE}"; TO="${PUSH_AFTER}"
+          else
+            FROM="${BASE_SHA}"; TO="${HEAD_SHA}"
+          fi
+          # shellcheck disable=SC2086
+          STAT="$(git diff --stat "${FROM}" "${TO}" -- ${PATHS} 2>/dev/null | tail -n 1 || true)"
+          # shellcheck disable=SC2086
+          FILES="$(git diff --name-only "${FROM}" "${TO}" -- ${PATHS} 2>/dev/null | head -n 15 | sed 's/^/• `/; s/$/`/' || true)"
+
+          if [ "${EVENT_NAME}" = "push" ]; then
+            TITLE="📜 CONTRACT เปลี่ยนบน main แล้ว — ทุกคนต้องอ่านทันที"
+            BODY="${PUSHER} push/merge การเปลี่ยน contract เข้า \`main\`"$'\n\n'"${FILES}"$'\n\n'"ทุกคน: \`git fetch origin && git rebase origin/main\` แล้วรัน contract test ของ module ตัวเองใหม่"
+            URL="${COMPARE_URL}"; COLOR=1096577; IMG="embed-pr-merged.png"
+          elif [ "${ACTION}" = "closed" ]; then
+            if [ "${PR_MERGED}" != "true" ]; then echo "contract PR closed without merge - no message"; exit 0; fi
+            echo "merged - the push event will announce it"; exit 0
+          else
+            TITLE="📜 PR #${PR_NUMBER} แตะ CONTRACT กลาง — อย่าเพิ่ง approve"
+            BODY="${PR_AUTHOR} (${ACTION}) branch \`${HEAD_REF}\`: **${PR_TITLE}**"$'\n\n'"${FILES}"$'\n\n'"กติกา (00_GIT_DOCKER_DELIVERY_RULES §7): producer/consumer ทุกคนที่กระทบต้องตอบในห้องนี้ก่อน reviewer approve · เพิ่ม optional field = compatible · เปลี่ยนชื่อ/type/required/enum = breaking ต้อง version + migration path"
+            URL="${PR_URL}"; COLOR=16746015; IMG="embed-deadline-reminder.png"
+          fi
+          IMAGE_URL=""
+          if [ -n "${EMBED_BASE}" ]; then IMAGE_URL="${EMBED_BASE%/}/${IMG}"; fi
+
+          jq -nc \
+            --arg title "${TITLE}" --arg body "${BODY}" --arg url "${URL}" --argjson color "${COLOR}" \
+            --arg stat "${STAT:-n/a}" --arg image "${IMAGE_URL}" \
+            '{
+              username: "SafetyTravel GitHub",
+              content: "@everyone",
+              allowed_mentions: {parse: ["everyone"]},
+              embeds: [{
+                title: $title, url: $url, color: $color, description: $body,
+                fields: [{name: "Diff", value: $stat}],
+                image: (if $image != "" then {url: $image} else null end),
+                timestamp: (now | todate)
+              }]
+            } | .embeds[0] |= with_entries(select(.value != null))' \
+          | curl -sS --fail-with-body -X POST -H "Content-Type: application/json" -d @- "${WEBHOOK_URL}"

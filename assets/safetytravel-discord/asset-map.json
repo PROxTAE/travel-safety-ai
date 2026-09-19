@@ -1,0 +1,26 @@
+{
+  "brand": {
+    "name": "SafetyTravel Assistant",
+    "icon": "safetytravel-app-icon.png",
+    "logo": "safetytravel-logo-horizontal.png",
+    "colors": {
+      "mint": "#25C7AE",
+      "teal": "#0FA78F",
+      "navy": "#103653",
+      "sky": "#73D7E8",
+      "orange": "#FF8A1F",
+      "alert": "#F05252"
+    }
+  },
+  "events": {
+    "announcement": { "image": "embed-announcement.png", "color": "#25C7AE" },
+    "task_assigned": { "image": "embed-task-assigned.png", "color": "#25C7AE" },
+    "deadline_reminder": { "image": "embed-deadline-reminder.png", "color": "#FF8A1F" },
+    "pr_review_requested": { "image": "embed-pr-review.png", "color": "#7657D6" },
+    "pr_merged": { "image": "embed-pr-merged.png", "color": "#10B981" },
+    "deploy_success": { "image": "embed-deploy-success.png", "color": "#10B981" },
+    "build_failed": { "image": "embed-build-failed.png", "color": "#F05252" },
+    "weekly_summary": { "image": "embed-weekly-summary.png", "color": "#25C7AE" }
+  }
+}
+

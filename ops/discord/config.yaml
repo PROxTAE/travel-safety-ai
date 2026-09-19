@@ -1,0 +1,351 @@
+# ==========================================================================
+# SafetyTravel Assistant — Discord team config
+#
+# ไฟล์นี้คือ "แหล่งความจริง" เดียวของโครงสร้างทีมบน Discord และ GitHub
+#   - setup_discord.py   อ่านไฟล์นี้แล้วสร้าง/อัปเดต role, ห้อง, ใบงานปักหมุด, webhook
+#   - gen_github.py      อ่านไฟล์นี้แล้วสร้าง .github/CODEOWNERS
+#   - workflows          ใช้ค่า module_map / role_ids / channel_ids ที่ setup พิมพ์ออกมา
+#
+# แก้โครงสร้างทีม → แก้ที่นี่ที่เดียว แล้วรัน setup_discord.py ใหม่ (idempotent)
+# ห้ามใส่ token / webhook URL ในไฟล์นี้
+# ==========================================================================
+
+project:
+  name: SafetyTravel Assistant
+  repo_slug: Mrbeer19/travel-safety-ai       # https://github.com/Mrbeer19/travel-safety-ai
+  default_branch: main
+  plans_dir: IMPLEMENTATION_PLANS
+  contract_paths:                            # ไฟล์ที่ถือเป็น "contract" — แตะแล้วต้องแจ้ง @everyone
+    - packages/contracts/**
+    - IMPLEMENTATION_PLANS/00_API_AND_DATA_CONTRACTS.md
+    - docs/api/**
+  branch_types: [feat, fix, test, docs, refactor, chore, contract, infra]
+  channel_name_format: "{emoji}│{name}"   # ชื่อห้องที่แสดงใน Discord; key/ชื่อ logical ยังเป็น name เฉย ๆ (ใช้ใน workflow/notify)
+
+# --------------------------------------------------------------------------
+# Roles: ป้ายชื่อล้วน permissions=0, hoist ให้เห็นกลุ่มในรายชื่อด้านขวา
+# สีเป็น int (hex → decimal) ตาม brand palette
+# --------------------------------------------------------------------------
+lead_role:
+  name: lead
+  modules: ["00"]        # branch infra/00-... / chore/00-... → ping lead
+  color: 0xFF8A1F        # orange
+  hoist: true
+  github: proxtae285     # GitHub username ของหัวหน้า (จาก git config ของเครื่องนี้ — แก้ได้)
+
+# --------------------------------------------------------------------------
+# Workstreams: 8 คน = 8 module ตาม IMPLEMENTATION_PLANS (คนที่ N ทำ module 0N)
+# หนึ่งรายการ = หนึ่ง role + หนึ่งห้อง (ชื่อเดียวกัน = key) + module ที่ดูแล
+#
+# modules = เลข 2 หลักในชื่อ branch `<type>/<NN>-<desc>` ที่จะ route มาหา role นี้
+# github  = GitHub username ของเจ้าของ (ใช้ทำ CODEOWNERS) — ห้ามมี "_" เช็กด้วย gh api users/<ชื่อ>
+# --------------------------------------------------------------------------
+workstreams:
+  - key: 01-web
+    emoji: "🌐"
+    person: คนที่ 1
+    modules: ["01"]
+    color: 0x25C7AE       # mint
+    github: null
+    plans: [01_WEB_APP_IMPLEMENTATION.md]
+    folders: [apps/web/, packages/ts-config/]
+    commit_scopes: [web]
+    branches: [feat/01-web-shell, feat/01-auth-api-client, feat/01-trip-planner, feat/01-dashboard]
+    scope: >-
+      Web app (Next.js 16 / React 19 / HeroUI 3 / MapLibre) ให้ตรง UI 6 หน้าใน assets/ui-screens/
+      เชื่อม Public API จริงของ module 02 แสดงข้อมูลสด/ความสด/แหล่งอ้างอิงครบ รองรับ loading, empty, error,
+      partial/degraded, mobile และ accessibility — frontend ห้ามคำนวณ final risk/action เอง
+
+    docker:
+      service: web
+      port: 3000
+      stack: node
+      deps: api
+      test: "docker compose exec web pnpm lint && docker compose exec web pnpm typecheck && docker compose exec web pnpm test"
+      open_url: http://localhost:3000
+  - key: 02-api
+    emoji: "🔐"
+    person: คนที่ 2
+    modules: ["02"]
+    color: 0x0FA78F       # teal
+    github: null
+    plans: [02_API_BACKEND_IMPLEMENTATION.md]
+    folders: [services/api/, packages/contracts/]
+    commit_scopes: [api, contracts]
+    branches: [contract/02-public-travel-schema, feat/02-api-scaffold, feat/02-oidc-auth, feat/02-profile-consent]
+    scope: >-
+      Public trust boundary ของระบบด้วย FastAPI: OIDC/JWT (Keycloak), user/trip/consent persistence,
+      input validation, rate limit, idempotency, orchestration ไป Agent (03), SSE proxy, response validation,
+      privacy/retention และ public OpenAPI ที่เป็น contract กลาง — maintainer ของ packages/contracts
+
+    docker:
+      service: api
+      port: 8000
+      stack: python
+      deps: postgres redis keycloak
+      test: "docker compose run --rm api uv run ruff check . && docker compose run --rm api uv run mypy app && docker compose run --rm api uv run pytest -q"
+      open_url: http://localhost:8000/docs
+      extra: |
+        docker compose exec api alembic upgrade head        # สร้าง/อัปเดตตารางในฐานข้อมูล (ทำทุกครั้งที่มี migration ใหม่)
+  - key: 03-agent
+    emoji: "🤖"
+    person: คนที่ 3
+    modules: ["03"]
+    color: 0x73D7E8       # sky
+    github: null
+    plans: [03_TRAVEL_AI_AGENT_IMPLEMENTATION.md]
+    folders: [services/agent/]
+    commit_scopes: [agent]
+    branches: [contract/03-agent-run-schema, feat/03-agent-graph, feat/03-intent-extraction, feat/03-tool-registry]
+    scope: >-
+      LangGraph orchestration แบบ finite state machine รับ TravelRequest ที่ normalize แล้ว วาง execution plan
+      เรียก tools ที่อนุมัติไปยัง module 04–08 ด้วย budget/timeout/cancellation ชัดเจน เก็บ checkpoint สำหรับ follow-up
+      และคืนผลที่ trace กลับไปยัง evidence ได้ — ห้ามตัดสิน safety จาก free text และห้ามมี unlimited loop
+
+    docker:
+      service: agent
+      port: 8001
+      stack: python
+      deps: postgres redis external-data data-integration risk-knowledge decision-engine recommendation
+      test: "docker compose run --rm agent uv run ruff check . && docker compose run --rm agent uv run mypy app && docker compose run --rm agent uv run pytest -q"
+      open_url: http://localhost:8001/health/ready
+  - key: 04-external-data
+    emoji: "🌍"
+    person: คนที่ 4
+    modules: ["04"]
+    color: 0x7657D6       # violet
+    github: null
+    plans: [04_EXTERNAL_DATA_SERVICES_IMPLEMENTATION.md]
+    folders: [services/external-data/]
+    commit_scopes: [external-data]
+    branches: [contract/04-provider-canonical-schema, feat/04-adapter-foundation, feat/04-geocoding-weather, feat/04-disaster-adapters]
+    scope: >-
+      Adapter service เรียก geocoding, weather, route/transport และ disaster providers จริง (Open-Meteo, ORS,
+      USGS, GDACS, EONET, GTFS) แปลง response แต่ละเจ้าเป็น canonical contract เก็บ provenance/freshness/quality
+      จัดการ cache/quota/retry/failover — ไม่เลือก final recommendation
+
+    docker:
+      service: external-data
+      port: 8002
+      stack: python
+      deps: redis
+      test: "docker compose run --rm external-data uv run ruff check . && docker compose run --rm external-data uv run mypy app && docker compose run --rm external-data uv run pytest -q"
+      open_url: http://localhost:8002/health/ready
+  - key: 05-data-integration
+    emoji: "🧩"
+    person: คนที่ 5
+    modules: ["05"]
+    color: 0x103653       # navy
+    github: null
+    plans: [05_DATA_INTEGRATION_IMPLEMENTATION.md]
+    folders: [services/data-integration/]
+    commit_scopes: [integration]
+    branches: [contract/05-integrated-context-schema, feat/05-postgis-foundation, feat/05-normalization-lineage, feat/05-dedup-conflict]
+    scope: >-
+      Pipeline รวม canonical records จากหลาย provider เป็น IntegratedTravelContext ที่ repeatable, immutable,
+      versioned และ trace ย้อนกลับได้: normalize เวลา/หน่วย/ชื่อสถานที่/พิกัด, deduplicate, resolve conflict,
+      สร้าง route corridor, align เหตุการณ์ตามตำแหน่ง/เวลา, คำนวณ feature และ data-quality flags ก่อนส่ง risk model
+
+    docker:
+      service: data-integration
+      port: 8003
+      stack: python
+      deps: postgres redis external-data
+      test: "docker compose run --rm data-integration uv run ruff check . && docker compose run --rm data-integration uv run mypy app && docker compose run --rm data-integration uv run pytest -q"
+      open_url: http://localhost:8003/health/ready
+  - key: 06-risk-knowledge
+    emoji: "🧠"
+    person: คนที่ 6
+    modules: ["06"]
+    color: 0xF05252       # coral
+    github: null
+    plans: [06_RISK_KNOWLEDGE_SERVICES_IMPLEMENTATION.md]
+    folders: [services/risk-knowledge/, infra/qdrant/]
+    commit_scopes: [risk]
+    branches: [contract/06-risk-evidence-route-schema, feat/06-service-registry-foundation, feat/06-real-training-dataset, feat/06-risk-baseline]
+    scope: >-
+      3 capability ใน service เดียว: (1) local risk model เทรน/serve จากข้อมูลจริง อธิบายด้วย reason codes
+      (2) Disaster RAG จากเอกสารหน่วยงานที่อนุมัติ ลง Qdrant พร้อม citation ตรวจสอบได้
+      (3) route evaluation/ranking ที่วัด exposure ตลอดเส้นทางและเคารพ closure/evacuation hard constraints
+
+    docker:
+      service: risk-knowledge
+      port: 8004
+      stack: python
+      deps: postgres qdrant data-integration
+      test: "docker compose run --rm risk-knowledge uv run ruff check . && docker compose run --rm risk-knowledge uv run mypy app && docker compose run --rm risk-knowledge uv run pytest -q"
+      open_url: http://localhost:8004/health/ready
+      extra: |
+        docker compose run --rm risk-knowledge python -m app.cli.index_knowledge   # โหลดเอกสารเข้า Qdrant
+        docker compose run --rm risk-knowledge python -m app.cli.verify_model     # เช็กว่าโมเดลพร้อม
+  - key: 07-decision-engine
+    emoji: "🚦"
+    person: คนที่ 7
+    modules: ["07"]
+    color: 0xFF8A1F       # orange
+    github: null
+    plans: [07_DECISION_LLM_ENGINE_IMPLEMENTATION.md]
+    folders: [services/decision-engine/]
+    commit_scopes: [decision]
+    branches: [contract/07-decision-result-schema, feat/07-policy-registry, feat/07-deterministic-evaluator, feat/07-confidence-escalation]
+    scope: >-
+      Decision engine ตรวจความสอดคล้องของ evidence แล้วเลือก NORMAL / CHANGE_ROUTE / DELAY / AVOID ด้วย
+      deterministic, versioned, testable policy จากนั้น lock action และให้ LLM เขียนคำอธิบายแบบ structured
+      จาก facts/citations ที่อนุมัติเท่านั้น พร้อม post-validation และ fixed-template fallback — safety boundary สุดท้าย
+
+    docker:
+      service: decision-engine
+      port: 8005
+      stack: python
+      deps: postgres risk-knowledge
+      test: "docker compose run --rm decision-engine uv run ruff check . && docker compose run --rm decision-engine uv run mypy app && docker compose run --rm decision-engine uv run pytest -q"
+      open_url: http://localhost:8005/health/ready
+  - key: 08-recommendation
+    emoji: "🧭"
+    person: คนที่ 8
+    modules: ["08"]
+    color: 0x10B981       # green
+    github: null
+    plans: [08_RECOMMENDATION_FEEDBACK_IMPLEMENTATION.md]
+    folders: [services/recommendation/]
+    commit_scopes: [recommendation]
+    branches: [contract/08-recommendation-feedback-schema, feat/08-service-storage-foundation, feat/08-recommendation-builder, feat/08-emergency-directory]
+    scope: >-
+      Final delivery layer ประกอบ RecommendationResponse จาก locked decision + route/evidence/freshness
+      แนบ emergency instructions/contacts ที่ตรวจสอบแล้ว บันทึก recommendation ส่ง live alert ตาม consent
+      รับ feedback แบบ governed และสร้าง feedback loop โดยไม่เรียนรู้สดอัตโนมัติ
+
+    docker:
+      service: recommendation
+      port: 8006
+      stack: python
+      deps: postgres redis decision-engine
+      test: "docker compose run --rm recommendation uv run ruff check . && docker compose run --rm recommendation uv run mypy app && docker compose run --rm recommendation uv run pytest -q"
+      open_url: http://localhost:8006/health/ready
+# --------------------------------------------------------------------------
+# ของเก่าที่ให้ลบ (ใช้กับ `setup_discord.py --prune` เท่านั้น — ไม่ใส่ --prune จะไม่ลบอะไร)
+# ลบห้อง = ข้อความในห้องหายทั้งหมด · ลบ role = สมาชิกหลุดจาก role นั้น (ต้องแจก role ใหม่)
+# --------------------------------------------------------------------------
+retired:
+  roles: [devops, frontend, backend, agent, data, riskmodel, rag, decision]
+  channels: [devops, frontend, backend, agent, data, riskmodel, rag, decision]
+
+# --------------------------------------------------------------------------
+# Channels: เฉพาะห้องที่สคริปต์ดูแล (ห้องอื่นในเซิร์ฟเวอร์จะไม่ถูกแตะ ไม่มีการลบอะไรทั้งสิ้น)
+# emoji: ใส่หน้าชื่อห้องตาม channel_name_format (สคริปต์หาห้องเดิมด้วยชื่อ logical แล้ว rename ให้ ไม่สร้างซ้ำ)
+# webhook: true = สร้าง incoming webhook สำหรับ GitHub Actions ให้
+# post_only: [role] = ให้เฉพาะ role นี้โพสต์ได้ (คนอื่นอ่านอย่างเดียว)
+# --------------------------------------------------------------------------
+categories:
+  - name: "📢 GENERAL"
+    channels:
+      - name: announcements
+        emoji: "📣"
+        topic: "ประกาศจากหัวหน้าทีม — อ่านทุกข้อความ"
+        post_only: [lead]
+        webhook: true
+      - name: general
+        emoji: "💬"
+        topic: "คุยทั่วไป"
+      - name: standup
+        emoji: "📅"
+        topic: "รายงานสั้น ๆ ทุกวัน: เมื่อวานทำอะไร วันนี้จะทำอะไร ติดอะไร"
+      - name: help
+        emoji: "🆘"
+        topic: "ติดปัญหา ถามที่นี่ — บอกว่า module ไหน branch ไหน error อะไร ลองอะไรไปแล้ว"
+      - name: project-summary
+        emoji: "📖"
+        topic: "ภาพรวมโปรเจกต์: เป้าหมาย หน้าจอที่จะทำ โฟลว์การทำงาน ใครทำส่วนไหน — ถามเรื่องภาพรวมได้ที่นี่ (python ops/discord/post_summary.py)"
+      - name: role-draw
+        emoji: "🎲"
+        topic: "สุ่มแจก module ให้สมาชิก (python ops/discord/draw.py) — ผลสุดท้ายปักหมุดไว้"
+        post_only: [lead]
+
+  - name: "🛠️ WORKSTREAMS"
+    workstream_channels: true          # สร้างห้องหนึ่งต่อ workstream ชื่อ = key, topic = scope
+
+  - name: "🔗 INTEGRATION"
+    channels:
+      - name: pull-requests
+        emoji: "🔀"
+        topic: "GitHub แจ้ง PR เปิด / review / merge อัตโนมัติ — ping role เจ้าของ module"
+        webhook: true
+      - name: ci-status
+        emoji: "🧪"
+        topic: "ผล CI (lint / typecheck / test / scan) ของทุก PR และ main"
+        webhook: true
+      - name: merge-conflicts
+        emoji: "💥"
+        topic: "PR ที่ conflict กับ main หลังมีคน merge — เจ้าของต้อง rebase"
+        webhook: true
+      - name: api-contracts
+        emoji: "📜"
+        topic: "แตะ packages/contracts หรือ 00_API_AND_DATA_CONTRACTS.md ต้องคุยที่นี่ก่อน approve"
+        webhook: true
+
+# --------------------------------------------------------------------------
+# Webhook ที่ GitHub Actions ใช้ส่งข้อความ
+# --------------------------------------------------------------------------
+webhook:
+  name: SafetyTravel GitHub
+  avatar: ../../assets/safetytravel-discord/safetytravel-logo-app-icon.png   # relative to this file; null = ไม่ตั้ง
+
+# --------------------------------------------------------------------------
+# ใบงานปักหมุดในห้องของแต่ละ workstream — ส่งเป็น embed 1 ใบ (title/description/fields สร้างจากด้านล่าง)
+# ตัวแปร: {key} {person} {modules} {plans} {folders} {branches} {branch_first} {commit_scopes} {scope}
+#         {default_branch} {plans_dir} {repo} {repo_url}
+# ข้อจำกัด Discord: description ≤ 4096, field value ≤ 1024, รวมทั้ง embed ≤ 6000 ตัวอักษร
+# ภาพ: image = ภาพใหญ่ด้านล่าง, thumbnail = มุมขวาบน, footer_icon = ไอคอนเล็กท้าย embed (ไฟล์ใน assets/safetytravel-discord)
+# --------------------------------------------------------------------------
+brief:
+  title: "📌 ใบงาน {person} · Module {modules} · {key}"
+  url: "{repo_url}"
+  image: embed-task-assigned.png
+  thumbnail: mascot-welcome.png
+  footer_icon: safetytravel-logo-app-icon.png
+  footer: "SafetyTravel Assistant · อัปเดตอัตโนมัติจาก ops/discord/config.yaml"
+  description: |
+    **ขอบเขตงานของคุณ**
+    {scope}
+
+    Repo: {repo_url}
+  fields:
+    - name: "📁 โฟลเดอร์ที่รับผิดชอบ"
+      value: "{folders}"
+    - name: "📖 อ่านก่อนเริ่ม (ใน `{plans_dir}/`)"
+      value: |
+        1. `00_SHARED_PROJECT_CONTEXT.md`
+        2. `00_API_AND_DATA_CONTRACTS.md`
+        3. `00_GIT_DOCKER_DELIVERY_RULES.md`
+        4. {plans}
+    - name: "🌿 สร้าง branch (copy ไปวางได้เลย)"
+      value: |
+        รูปแบบ `<type>/<NN>-<short-kebab>` เช่น {branches}
+        ```bash
+        git switch {default_branch}
+        git pull --ff-only origin {default_branch}
+        git status            # ต้องสะอาดก่อนเริ่ม
+        git switch -c {branch_first}
+        ```
+    - name: "✍️ Commit"
+      value: |
+        `<type>({commit_scopes}): <สิ่งที่ทำ>` — 1 commit = 1 เรื่อง
+        ใช้ `git add <ไฟล์>` ระบุชื่อไฟล์ ไม่ใช้ `git add .`
+    - name: "🚀 ก่อนเปิด PR"
+      value: |
+        ```bash
+        git fetch origin && git rebase origin/{default_branch}
+        # รัน lint / typecheck / test ของ module แล้วใส่ผลจริงใน PR
+        git push -u origin {branch_first}
+        ```
+        เปิด PR เข้า `{default_branch}` ชื่อ `[M{modules_first}] ...` กรอก template ให้ครบ
+    - name: "📏 กติกาที่บอทและ GitHub บังคับ"
+      value: |
+        • ห้าม push ตรงเข้า `{default_branch}` — ทุกงานผ่าน PR + reviewer ≥ 1 (auth/emergency/policy/schema ต้อง 2 คนรวม lead)
+        • PR เล็ก < 400 บรรทัด · ห้ามเขียนแค่ "tests pass" ต้องมี command + ผล
+        • runtime ห้ามมี mock / hard-coded current data — provider ล่มต้องแสดง `degraded` / `unavailable`
+        • ห้าม commit `.env`, secret, PII, `node_modules`, `.venv`
+        • แตะ contract → คุยใน #api-contracts ก่อน
+        • ส่งงาน: กรอก `10_WORK_COMPLETION_REPORT_TEMPLATE.md` → `docs/handoffs/M{modules_first}-<feature>.md`
+    - name: "🔔 บอทจะเตือนคุณที่ไหน"
+      value: "ping @{key} ใน #pull-requests (เปิด/approve/merge) · #ci-status (เทสแดง) · #merge-conflicts (ต้อง rebase) · ติดปัญหาถามใน #help"

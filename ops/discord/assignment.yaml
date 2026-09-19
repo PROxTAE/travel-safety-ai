@@ -1,0 +1,97 @@
+# ข้อความแจกงาน — โพสต์ในห้องของแต่ละคนด้วย post_assignment.py (3 ข้อความ/ห้อง, ปักหมุด, รันซ้ำ = แก้ของเดิม)
+#
+# ตัวแปร: {key} {person} {modules} {plan_file} {plan_title} {mission} {phases} {branches} {branch_first}
+#         {folder} {service} {shared_files} {ai_prompt} {repo} {ch:<channel>} {role:<key>}
+# ไฟล์แนบ (ข้อความที่ 1): shared 3 ไฟล์ + แผนของคนนั้น + runbook + template รายงาน + PR template + AI instructions
+
+attach:
+  - IMPLEMENTATION_PLANS/00_SHARED_PROJECT_CONTEXT.md
+  - IMPLEMENTATION_PLANS/00_API_AND_DATA_CONTRACTS.md
+  - IMPLEMENTATION_PLANS/00_GIT_DOCKER_DELIVERY_RULES.md
+  - "{plan_path}"
+  - IMPLEMENTATION_PLANS/09_INTEGRATION_ACCEPTANCE_RUNBOOK.md
+  - IMPLEMENTATION_PLANS/10_WORK_COMPLETION_REPORT_TEMPLATE.md
+  - IMPLEMENTATION_PLANS/PR_TEMPLATE.md
+  - IMPLEMENTATION_PLANS/AI_EXECUTION_INSTRUCTIONS.md
+
+parts:
+  # ─────────────────────────── 1. งานของคุณ + ไฟล์แนบ ───────────────────────────
+  - content: "{role:{key}} 📦 **แจกงานแล้ว!** นี่คืองานของ {person} — ไฟล์แนบด้านล่างคือ \"แผนฉบับเต็ม\" ของคุณ โหลดเก็บไว้เลย"
+    title: "📦 งานของ {person} · Module {modules} — {plan_title}"
+    color: 0x25C7AE
+    image: assets/safetytravel-discord/embed-task-assigned.png
+    thumbnail: assets/mascot/mascot-welcome.png
+    description: |
+      **สรุปสั้น ๆ ว่าต้องทำอะไร**
+      {mission}
+
+      **ทำเป็นลำดับ (Phase) ตามแผน — ทำทีละ Phase ส่ง PR ทีละชิ้น ไม่ต้องรอเสร็จทั้งหมด**
+      {phases}
+
+      **Branch ที่แผนแนะนำ (เรียงตามลำดับที่ควรทำ)**
+      {branches}
+
+      โค้ดของคุณอยู่ที่ `{folder}` · กล่อง Docker ชื่อ `{service}` · คู่มือ Docker และใบงานเต็มอยู่ที่ปักหมุดในห้องนี้
+    fields:
+      - name: "📎 ไฟล์แนบ — อ่าน/ใช้ตามลำดับนี้"
+        value: |
+          1. `00_SHARED_PROJECT_CONTEXT.md` — ภาพรวมทั้งระบบ (ทุกคนต้องอ่าน)
+          2. `00_API_AND_DATA_CONTRACTS.md` — "แบบฟอร์มกลาง" ที่ทุกส่วนคุยกัน
+          3. `00_GIT_DOCKER_DELIVERY_RULES.md` — กติกา Git / Docker / PR
+          4. **`{plan_file}` — แผนของคุณ (สำคัญสุด)**
+          5. `09_INTEGRATION_ACCEPTANCE_RUNBOOK.md` — วันรวมระบบจะตรวจอะไร
+          6. `10_WORK_COMPLETION_REPORT_TEMPLATE.md` — แบบรายงานตอนส่งงาน
+          7. `PR_TEMPLATE.md` — สิ่งที่ต้องกรอกตอนเปิด PR
+          8. `AI_EXECUTION_INSTRUCTIONS.md` — วิธีสั่ง AI (ดูข้อความถัดไป)
+      - name: "✅ ถือว่า \"เสร็จ\" เมื่อ"
+        value: |
+          • ทุก Phase ในแผนผ่านตาม Acceptance checklist ท้ายไฟล์แผน
+          • รันใน Docker แล้ว healthy · เทสผ่าน · ไม่มี mock/ข้อมูลปลอม
+          • PR ทุกอัน merge เข้า `main` แล้ว + มีรายงานที่ `docs/handoffs/M{modules}-<feature>.md`
+
+  # ─────────────────────────── 2. วิธีใช้ AI ───────────────────────────
+  - title: "🤖 ใช้ AI ช่วยทำงานตามแผน — ทำยังไงให้ได้ของดี ไม่บั๊ก"
+    color: 0x7657D6
+    thumbnail: assets/safetytravel-discord/safetytravel-app-icon.png
+    description: |
+      แผนของเราเขียนมาให้ AI (Claude Code / Cursor / Codex ฯลฯ) อ่านแล้วลงมือทำได้เลย **แต่ AI จะทำดีแค่ไหนขึ้นกับ "บริบท" ที่คุณให้ และ "การตรวจ" ของคุณ** — ใช้หลัก 7 ข้อนี้
+
+      **1️⃣ ให้บริบทครบก่อนสั่งงานเสมอ** — เปิด AI ที่ root ของ repo (ไม่ใช่ในโฟลเดอร์ย่อย) บน branch ของคุณ แล้วแนบไฟล์ **ตามลำดับ** 00_SHARED → 00_API → 00_GIT → แผนของคุณ (ไฟล์ 1–4 ที่แนบด้านบน) AI ที่ไม่เห็นแบบฟอร์มกลางจะเดา field เอง = บั๊กตอนต่อกับเพื่อน
+
+      **2️⃣ สั่งทีละ Phase ไม่สั่ง "ทำทั้งหมด"** — บอกชัดว่า *"ทำ Phase 1 ข้อ 1–4 เท่านั้น"* งานเล็กลง = AI ผิดน้อยลง คุณตรวจทัน และได้ PR เล็ก ๆ ตามกติกา (< 400 บรรทัด)
+
+      **3️⃣ ให้ AI สรุปแผนก่อนเขียนโค้ด** — สั่งว่า *"อ่านแผนแล้วบอกก่อนว่าจะสร้างไฟล์อะไรบ้าง แตะไฟล์ไหน มีอะไรขัดกับ contract ไหม"* ถ้าแผนที่ AI เล่ามาผิด แก้ตรงนั้นก่อน ถูกกว่าแก้โค้ดทีหลัง
+
+      **4️⃣ บังคับหลักฐาน ไม่เชื่อคำว่า "เสร็จแล้ว"** — ทุกครั้งให้ AI รันเทส**ในกล่อง Docker** (คำสั่งอยู่ในคู่มือ Docker ตอน 3) แล้ววาง output จริงมาให้ดู ถ้า AI บอกว่าผ่านแต่ไม่มี output = ยังไม่ผ่าน · ถ้า AI ข้ามเทสหรือปิดเทสที่แดง ให้สั่งกลับไปแก้
+
+      **5️⃣ ย้ำกติกาที่ AI ชอบละเมิดในทุก prompt** —
+      ห้าม mock / hard-code ข้อมูลปัจจุบัน (provider ล่มต้องตอบ `degraded`) · ห้ามแตะไฟล์นอก `{folder}` (ถ้าจำเป็นให้บอกคุณก่อน) · ห้ามเปลี่ยน contract เงียบ ๆ · ห้ามใส่ key/รหัสในโค้ด · ห้าม `git push` เอง
+
+      **6️⃣ อ่าน diff เองก่อน commit** — `git diff` ทุกครั้ง ถามตัวเองว่า *เข้าใจไหมว่าทำไมบรรทัดนี้ถึงมี* ถ้าไม่เข้าใจให้ AI อธิบาย commit เล็ก ๆ ตาม Conventional Commits (`feat({service}): ...`)
+      **ลบร่องรอย AI ก่อน push**: ไม่ commit `CLAUDE.md` `.claude/` `.cursor/` และ commit message ห้ามมี `Co-Authored-By: Claude` / "Generated with" — หัวหน้าตรวจทุก PR เจอแล้วไม่ approve
+
+      **7️⃣ AI ติดลูป/แก้ไม่หาย** — ให้ error เต็ม ๆ + log 20 บรรทัดล่าง สั่ง *"อธิบายสาเหตุก่อน ยังไม่ต้องแก้"* ถ้าแก้ 2 รอบยังไม่หาย **หยุด** แล้วมาถามใน {ch:help} พร้อม branch + error (AI ที่วนแก้ 5 รอบมักพังของอย่างอื่นไปด้วย)
+
+      **โครง prompt ที่ดี = บทบาท + เป้าหมาย + บริบท + ข้อจำกัด + ผลลัพธ์ที่ต้องส่ง + วิธีตรวจ**
+      ตัวอย่างสั้น ๆ:
+      > ทำ Phase 2 ข้อ 1–3 ของ `{plan_file}` เท่านั้น อยู่ในโฟลเดอร์ `{folder}` ตาม contract ใน 00_API_AND_DATA_CONTRACTS.md ห้าม mock provider เสร็จแล้วรัน `{test_first}` ในกล่อง Docker แล้วส่งสรุป: ไฟล์ที่แก้, ผลเทสจริง, สิ่งที่ยังไม่ได้ทำ
+
+  # ─────────────────────────── 3. Prompt พร้อมใช้ ───────────────────────────
+  - title: "📋 Prompt พร้อมใช้สำหรับ Module {modules} — copy ทั้งก้อนวางใน AI"
+    color: 0x0FA78F
+    description: |
+      **ครั้งแรก** (เริ่มจาก Phase 0) — แนบไฟล์ 1–4 แล้ววาง prompt นี้ (ภาษาอังกฤษเพื่อให้ AI อ่านชัดที่สุด ต่อท้ายเป็นไทยได้):
+      ```text
+      {ai_prompt}
+      ```
+      ต่อท้ายด้วยขอบเขต เช่น: `เริ่มที่ Phase 0 และ Phase 1 ของแผนเท่านั้น สร้าง branch {branch_first} จาก main ก่อน`
+
+      **ครั้งถัดไป** (ทำ Phase ต่อ):
+      ```text
+      Continue with Phase <N> of IMPLEMENTATION_PLANS/{plan_file} only, on the current branch. Re-read the four authoritative files first. Do not modify files outside {folder} without telling me. Run the module tests inside Docker and paste the real output before claiming completion.
+      ```
+      **ก่อนเปิด PR**:
+      ```text
+      Prepare this branch for a pull request: rebase on origin/main, run lint/typecheck/tests inside Docker and paste results, fill IMPLEMENTATION_PLANS/10_WORK_COMPLETION_REPORT_TEMPLATE.md into docs/handoffs/M{modules}-<feature>.md, and draft the PR body from IMPLEMENTATION_PLANS/PR_TEMPLATE.md with exact commands and evidence. Do not push.
+      ```
+      แล้วคุณ push เองด้วย `git push -u origin {branch_first}` → เปิด PR เข้า `main` → บอทจะแจ้งใน {ch:pull-requests} → หัวหน้ารีวิว + เทสจริง → ผลเด้งกลับในห้องนี้

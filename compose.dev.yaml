@@ -1,0 +1,32 @@
+# Overrides สำหรับพัฒนาบนเครื่องตัวเอง: เปิด host port, hot reload (source mount)
+# ใช้คู่กับ compose.yaml เสมอ:
+#   docker compose -f compose.yaml -f compose.dev.yaml --profile core up -d
+# ห้ามใช้ไฟล์นี้ตอน demo / รวมระบบ
+
+services:
+  postgres:
+    ports: ["5432:5432"]
+
+  redis:
+    ports: ["6379:6379"]
+
+  qdrant:
+    ports: ["6333:6333", "6334:6334"]
+
+  keycloak:
+    ports: ["8080:8080"]
+
+  # ตัวอย่าง override ของ module (เจ้าของเพิ่มพร้อม service ใน compose.yaml)
+  #
+  # external-data:
+  #   ports: ["8002:8002"]
+  #   volumes:
+  #     - ./services/external-data/app:/app/app:ro
+  #   command: ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
+  #
+  # web:
+  #   ports: ["3000:3000"]
+  #   volumes:
+  #     - ./apps/web:/app
+  #     - /app/node_modules
+  #   command: ["pnpm", "dev"]

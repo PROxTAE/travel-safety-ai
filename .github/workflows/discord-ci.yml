@@ -1,0 +1,86 @@
+name: Discord - CI status
+
+# แจ้ง #ci-status เมื่อ workflow ชื่อ "ci" (.github/workflows/ci.yml) รันจบ — ping role เจ้าของ module จากชื่อ branch
+# แจ้งเฉพาะ: ล้มเหลว, ถูกยกเลิก, หรือผ่านบน main (PR ที่ผ่านเงียบ ๆ ไม่รบกวน — ดูได้ที่หน้า PR)
+#
+# secret: DISCORD_WEBHOOK_CI · variables: DISCORD_ROLE_IDS, DISCORD_MODULE_MAP, DISCORD_EMBED_BASE_URL (optional)
+# ชื่อใน `workflows:` ต้องตรงกับ `name:` ของ ci.yml (case-sensitive) — เปลี่ยนชื่อ CI เมื่อไหร่ แก้ตรงนี้ด้วย
+
+on:
+  workflow_run:
+    workflows: ["ci"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord message
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_CI }}
+          ROLE_IDS: ${{ vars.DISCORD_ROLE_IDS }}
+          MODULE_MAP: ${{ vars.DISCORD_MODULE_MAP }}
+          EMBED_BASE: ${{ vars.DISCORD_EMBED_BASE_URL }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_NAME: ${{ github.event.workflow_run.name }}
+          ACTOR: ${{ github.event.workflow_run.actor.login }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          if [ -z "${WEBHOOK_URL}" ]; then echo "DISCORD_WEBHOOK_CI not set - skipping"; exit 0; fi
+          : "${ROLE_IDS:={}}" "${MODULE_MAP:={}}"
+
+          if [ "${CONCLUSION}" = "success" ] && [ "${BRANCH}" != "${DEFAULT_BRANCH}" ]; then
+            echo "green on a feature branch - stay quiet"; exit 0
+          fi
+
+          MOD="$(printf '%s' "${BRANCH}" | sed -nE 's#^(feat|fix|test|docs|refactor|chore|contract|infra)/([0-9]{2})-[a-z0-9.-]+$#\2#p')"
+          RIDS="$(jq -nc --argjson m "${MODULE_MAP}" --argjson r "${ROLE_IDS}" --arg k "${MOD}" '[($m[$k] // [])[] | $r[.] // empty]')"
+          if [ "${BRANCH}" = "${DEFAULT_BRANCH}" ] && [ "${CONCLUSION}" != "success" ]; then
+            # main แดง = เรื่องของ lead ด้วย
+            RIDS="$(jq -nc --argjson r "${ROLE_IDS}" --argjson x "${RIDS}" '($x + [$r.lead // empty]) | unique')"
+          fi
+          MENTION="$(jq -r 'map("<@&\(.)>") | join(" ")' <<<"${RIDS}")"
+          ALLOWED="$(jq -nc --argjson r "${RIDS}" '{parse: [], roles: $r}')"
+
+          case "${CONCLUSION}" in
+            success)   VERB="✅ ${RUN_NAME} ผ่านบน \`${BRANCH}\`";      COLOR=1096577;  IMG="embed-deploy-success.png" ;;
+            failure)   VERB="❌ ${RUN_NAME} ล้มเหลวบน \`${BRANCH}\`";   COLOR=15749714; IMG="embed-build-failed.png" ;;
+            cancelled) VERB="⏹️ ${RUN_NAME} ถูกยกเลิกบน \`${BRANCH}\`"; COLOR=16746015; IMG="" ;;
+            *)         VERB="⚠️ ${RUN_NAME}: ${CONCLUSION} บน \`${BRANCH}\`"; COLOR=16746015; IMG="" ;;
+          esac
+          IMAGE_URL=""
+          if [ -n "${EMBED_BASE}" ] && [ -n "${IMG}" ]; then IMAGE_URL="${EMBED_BASE%/}/${IMG}"; fi
+          HINT=""
+          if [ "${CONCLUSION}" = "failure" ]; then
+            HINT="เปิด log ที่ลิงก์ด้านบน แก้แล้ว push เข้า branch เดิม · รันเองก่อน push: \`make lint typecheck test-unit\` (ดู 00_GIT_DOCKER_DELIVERY_RULES §11)"
+          fi
+          PR_LINE=""
+          if [ -n "${PR_NUMBER}" ]; then PR_LINE="PR #${PR_NUMBER} · "; fi
+          FIRST_LINE="$(printf '%s' "${COMMIT_MSG}" | head -n 1)"
+
+          jq -nc \
+            --arg content "${MENTION} ${VERB}" --argjson am "${ALLOWED}" \
+            --arg title "${PR_LINE}${FIRST_LINE}" --arg url "${RUN_URL}" --argjson color "${COLOR}" \
+            --arg actor "${ACTOR}" --arg sha "${SHA:0:7}" --arg hint "${HINT}" --arg image "${IMAGE_URL}" \
+            '{
+              username: "SafetyTravel GitHub",
+              content: $content, allowed_mentions: $am,
+              embeds: [{
+                title: $title, url: $url, color: $color,
+                description: (if $hint != "" then $hint else null end),
+                fields: [{name: "By", value: $actor, inline: true}, {name: "Commit", value: ("`" + $sha + "`"), inline: true}],
+                image: (if $image != "" then {url: $image} else null end),
+                timestamp: (now | todate)
+              }]
+            } | .embeds[0] |= with_entries(select(.value != null))' \
+          | curl -sS --fail-with-body -X POST -H "Content-Type: application/json" -d @- "${WEBHOOK_URL}"

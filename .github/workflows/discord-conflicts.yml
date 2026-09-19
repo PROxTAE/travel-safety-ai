@@ -1,0 +1,74 @@
+name: Discord - merge conflicts
+
+# หลังมีอะไร merge เข้า main → ตรวจ PR ที่ยังเปิดอยู่ทุกอัน ถ้าอันไหน conflict กับ main
+# แจ้ง #merge-conflicts และ ping เจ้าของ module ให้ rebase
+#
+# secret: DISCORD_WEBHOOK_CONFLICTS · variables: DISCORD_ROLE_IDS, DISCORD_MODULE_MAP
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find conflicting PRs and notify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_CONFLICTS }}
+          ROLE_IDS: ${{ vars.DISCORD_ROLE_IDS }}
+          MODULE_MAP: ${{ vars.DISCORD_MODULE_MAP }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          if [ -z "${WEBHOOK_URL}" ]; then echo "DISCORD_WEBHOOK_CONFLICTS not set - skipping"; exit 0; fi
+          : "${ROLE_IDS:={}}" "${MODULE_MAP:={}}"
+
+          # GitHub คำนวณ mergeable แบบ async → ขอรายการ แล้ว poll ทีละ PR จน mergeable ไม่ใช่ null
+          NUMBERS="$(gh pr list -R "${REPO}" --state open --base "${DEFAULT_BRANCH}" --json number --jq '.[].number')"
+          if [ -z "${NUMBERS}" ]; then echo "no open PRs"; exit 0; fi
+
+          for N in ${NUMBERS}; do
+            MERGEABLE="null"; PR="{}"
+            for _ in 1 2 3 4 5 6; do
+              PR="$(gh api "repos/${REPO}/pulls/${N}")"
+              MERGEABLE="$(jq -r '.mergeable' <<<"${PR}")"
+              if [ "${MERGEABLE}" != "null" ]; then break; fi
+              sleep 5
+            done
+            STATE="$(jq -r '.mergeable_state' <<<"${PR}")"
+            if [ "${MERGEABLE}" != "false" ] && [ "${STATE}" != "dirty" ]; then
+              echo "PR #${N}: ${STATE} - ok"; continue
+            fi
+            HEAD_REF="$(jq -r '.head.ref' <<<"${PR}")"
+            TITLE="$(jq -r '.title' <<<"${PR}")"
+            URL="$(jq -r '.html_url' <<<"${PR}")"
+            AUTHOR="$(jq -r '.user.login' <<<"${PR}")"
+            MOD="$(printf '%s' "${HEAD_REF}" | sed -nE 's#^(feat|fix|test|docs|refactor|chore|contract|infra)/([0-9]{2})-[a-z0-9.-]+$#\2#p')"
+            RIDS="$(jq -nc --argjson m "${MODULE_MAP}" --argjson r "${ROLE_IDS}" --arg k "${MOD}" '[($m[$k] // [])[] | $r[.] // empty]')"
+            MENTION="$(jq -r 'map("<@&\(.)>") | join(" ")' <<<"${RIDS}")"
+            ALLOWED="$(jq -nc --argjson r "${RIDS}" '{parse: [], roles: $r}')"
+            echo "PR #${N}: CONFLICT (${HEAD_REF})"
+
+            HOWTO="เจ้าของ branch แก้เอง (ห้ามเลือก ours/theirs ทั้ง folder โดยไม่อ่าน):"$'\n'
+            HOWTO="${HOWTO}"'```bash'$'\n'"git switch ${HEAD_REF}"$'\n'"git fetch origin"$'\n'"git rebase origin/${DEFAULT_BRANCH}"$'\n'
+            HOWTO="${HOWTO}# แก้ conflict ทีละไฟล์ → git add <file> → git rebase --continue → รัน test ใหม่"$'\n'"git push --force-with-lease"$'\n''```'$'\n'
+            HOWTO="${HOWTO}ถ้า conflict อยู่ในไฟล์ของคนอื่นหรือ contract → คุยใน #api-contracts / #help ก่อน"
+
+            jq -nc \
+              --arg content "${MENTION} ⚠️ PR #${N} ของ ${AUTHOR} conflict กับ \`${DEFAULT_BRANCH}\` แล้ว" --argjson am "${ALLOWED}" \
+              --arg title "#${N} ${TITLE}" --arg url "${URL}" --arg howto "${HOWTO}" \
+              '{
+                username: "SafetyTravel GitHub",
+                content: $content, allowed_mentions: $am,
+                embeds: [{title: $title, url: $url, color: 16746015, description: $howto, timestamp: (now | todate)}]
+              }' \
+            | curl -sS --fail-with-body -X POST -H "Content-Type: application/json" -d @- "${WEBHOOK_URL}"
+          done

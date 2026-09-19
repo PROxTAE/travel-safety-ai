@@ -1,0 +1,27 @@
+{
+  "screenReference": "../ui-screens/00-login.png",
+  "backgrounds": {
+    "hero": "./backgrounds/login-hero-background.png"
+  },
+  "brand": {
+    "horizontalLogo": "./brand/login-logo-horizontal.png",
+    "logoMark": "./brand/login-logo-mark.png"
+  },
+  "decorations": {
+    "routeOverlay": "./decorations/login-route-overlay.png",
+    "mascotWelcome": "./decorations/login-mascot-welcome.png",
+    "cornerDecoration": "./decorations/login-corner-decoration.png"
+  },
+  "icons": {
+    "email": "./icons/email.png",
+    "passwordLock": "./icons/password-lock.png",
+    "showPassword": "./icons/show-password.png",
+    "languageGlobe": "./icons/language-globe.png",
+    "ssoUsers": "./icons/sso-users.png",
+    "checkedSquare": "./icons/checked-square.png",
+    "arrowRight": "./icons/arrow-right.png",
+    "sosShield": "./icons/sos-shield.png",
+    "spriteSheet": "./icons/login-icon-sheet.png"
+  }
+}
+

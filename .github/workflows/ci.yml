@@ -1,14 +1,22 @@
 name: ci
 
-# CI พื้นฐาน: รันทุกครั้งที่เปิด PR เข้า main หรือ dev และทุกครั้งที่ push ขึ้น feature/*
+# CI พื้นฐาน (ชั่วคราว จนกว่า lead/module จะเพิ่ม lint/typecheck/test จริงตาม 00_GIT_DOCKER_DELIVERY_RULES §12):
+# รันทุกครั้งที่เปิด PR เข้า main และทุกครั้งที่ push ขึ้น branch ตามกติกา <type>/<NN>-<desc>
+# ชื่อ workflow "ci" ถูกอ้างใน discord-ci.yml — เปลี่ยนชื่อต้องแก้ทั้งคู่
 on:
   pull_request:
     branches:
       - main
-      - dev
   push:
     branches:
-      - 'feature/**'
+      - 'feat/**'
+      - 'fix/**'
+      - 'test/**'
+      - 'docs/**'
+      - 'refactor/**'
+      - 'chore/**'
+      - 'contract/**'
+      - 'infra/**'
 
 jobs:
   ci:
@@ -52,9 +60,10 @@ jobs:
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           fi
-          if [ -d tests ]; then
+          # รัน pytest เฉพาะเมื่อมีไฟล์เทส Python จริง (โฟลเดอร์ tests/ มี README ตั้งแต่ bootstrap — pytest เจอ 0 เทสจะ exit 5)
+          if git ls-files 'tests/**/*.py' 'tests/*.py' | grep -q .; then
             pip install pytest
-            pytest -q
+            pytest -q tests
           else
-            echo "ยังไม่มีโฟลเดอร์ tests ข้ามการรันเทส"
+            echo "ยังไม่มีไฟล์เทส Python ใน tests/ ข้ามการรันเทส"
           fi

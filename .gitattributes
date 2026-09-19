@@ -1,0 +1,10 @@
+# บังคับ LF ใน repo ทุก OS (กัน ": command not found" บน Windows)
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+Makefile text eol=lf
+*.png binary
+*.jpg binary
+*.ttc binary

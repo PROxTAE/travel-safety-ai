@@ -1,0 +1,133 @@
+name: Discord - pull requests
+
+# แจ้ง #pull-requests เมื่อ PR เปิด / พร้อมรีวิว / ถูกรีวิว / merge / ปิด
+# หา module จากชื่อ branch `<type>/<NN>-<desc>` แล้ว ping role เจ้าของตาม DISCORD_MODULE_MAP
+#
+# ต้องตั้งใน Settings > Secrets and variables > Actions (ได้จาก ops/discord/setup_discord.py):
+#   secret   DISCORD_WEBHOOK_PR
+#   variable DISCORD_ROLE_IDS      {"frontend":"<id>",...}
+#   variable DISCORD_CHANNEL_IDS   {"frontend":"<id>",...}
+#   variable DISCORD_MODULE_MAP    {"01":["frontend"],"06":["riskmodel","rag"],...}
+#   variable DISCORD_EMBED_BASE_URL (optional) public URL ของ assets/safetytravel-discord เช่น
+#            https://raw.githubusercontent.com/<owner>/<repo>/main/assets/safetytravel-discord
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, closed]
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    # draft PR ไม่แจ้ง (จะแจ้งตอนกด Ready for review)
+    if: github.event.pull_request.draft == false || github.event.action == 'closed'
+    steps:
+      - name: Build and send Discord message
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_PR }}
+          ROLE_IDS: ${{ vars.DISCORD_ROLE_IDS }}
+          CHANNEL_IDS: ${{ vars.DISCORD_CHANNEL_IDS }}
+          MODULE_MAP: ${{ vars.DISCORD_MODULE_MAP }}
+          EMBED_BASE: ${{ vars.DISCORD_EMBED_BASE_URL }}
+          EVENT_NAME: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          PR_MERGED_BY: ${{ github.event.pull_request.merged_by.login }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+          ADDITIONS: ${{ github.event.pull_request.additions }}
+          DELETIONS: ${{ github.event.pull_request.deletions }}
+          REVIEW_STATE: ${{ github.event.review.state }}
+          REVIEW_USER: ${{ github.event.review.user.login }}
+          REVIEW_URL: ${{ github.event.review.html_url }}
+          REVIEW_BODY: ${{ github.event.review.body }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          if [ -z "${WEBHOOK_URL}" ]; then echo "DISCORD_WEBHOOK_PR not set - skipping"; exit 0; fi
+          : "${ROLE_IDS:={}}" "${CHANNEL_IDS:={}}" "${MODULE_MAP:={}}"
+
+          # ---- 1) module จากชื่อ branch ---------------------------------------
+          MOD="$(printf '%s' "${HEAD_REF}" | sed -nE 's#^(feat|fix|test|docs|refactor|chore|contract|infra)/([0-9]{2})-[a-z0-9.-]+$#\2#p')"
+          KEYS="$(jq -nc --argjson m "${MODULE_MAP}" --arg k "${MOD}" '$m[$k] // []')"
+          RIDS="$(jq -nc --argjson r "${ROLE_IDS}" --argjson keys "${KEYS}" '[$keys[] | $r[.] // empty]')"
+          CIDS="$(jq -nc --argjson c "${CHANNEL_IDS}" --argjson keys "${KEYS}" '[$keys[] | $c[.] // empty]')"
+          MENTION="$(jq -r 'map("<@&\(.)>") | join(" ")' <<<"${RIDS}")"
+          ROOMS="$(jq -r 'map("<#\(.)>") | join(" ")' <<<"${CIDS}")"
+          ALLOWED="$(jq -nc --argjson r "${RIDS}" '{parse: [], roles: $r}')"
+
+          # ---- 2) เตือน branch/base ผิดกติกา ----------------------------------
+          WARN=""
+          if [ -z "${MOD}" ]; then
+            WARN="⚠️ ชื่อ branch \`${HEAD_REF}\` ไม่ตรงรูปแบบ \`<type>/<NN>-<short-kebab>\` (type: feat|fix|test|docs|refactor|chore|contract|infra) — ping ใครไม่ได้ กรุณา rename: \`git branch -m feat/NN-xxx && git push -u origin feat/NN-xxx\` แล้วเปิด PR ใหม่"
+          elif [ "$(jq 'length' <<<"${KEYS}")" = "0" ]; then
+            WARN="⚠️ module \`${MOD}\` ไม่มีใน DISCORD_MODULE_MAP — lead ช่วยอัปเดต ops/discord/config.yaml แล้วรัน setup_discord.py"
+          fi
+          if [ "${BASE_REF}" != "${DEFAULT_BRANCH}" ]; then
+            WARN="${WARN}"$'\n'"⚠️ PR นี้เปิดเข้า \`${BASE_REF}\` ไม่ใช่ \`${DEFAULT_BRANCH}\` — ถ้าไม่ได้ตั้งใจ กด Edit ข้างชื่อ PR แล้วเปลี่ยน base"
+          fi
+
+          # ---- 3) หัวข้อ / สี / ภาพ ตามเหตุการณ์ ------------------------------
+          IMG=""; VERB=""; COLOR=2475950   # mint
+          if [ "${EVENT_NAME}" = "pull_request_review" ]; then
+            case "${REVIEW_STATE}" in
+              approved)          VERB="✅ ${REVIEW_USER} approve แล้ว";            COLOR=1096577;  IMG="embed-pr-merged.png" ;;
+              changes_requested) VERB="❌ ${REVIEW_USER} ขอให้แก้ (request changes)"; COLOR=15749714; IMG="embed-build-failed.png" ;;
+              commented)         VERB="💬 ${REVIEW_USER} คอมเมนต์รีวิว";           COLOR=7558358 ;;
+              *) echo "ignore review state ${REVIEW_STATE}"; exit 0 ;;
+            esac
+            LINK="${REVIEW_URL}"
+            NOTE="$(printf '%s' "${REVIEW_BODY}" | head -c 600)"
+          else
+            case "${ACTION}" in
+              opened|reopened)   VERB="🟢 ${PR_AUTHOR} เปิด PR (${ACTION})";      COLOR=7755734;  IMG="embed-pr-review.png" ;;
+              ready_for_review)  VERB="🟢 ${PR_AUTHOR} พร้อมให้รีวิวแล้ว";         COLOR=7755734;  IMG="embed-pr-review.png" ;;
+              closed)
+                if [ "${PR_MERGED}" = "true" ]; then VERB="🟣 ${PR_MERGED_BY} merge แล้ว"; COLOR=1096577; IMG="embed-pr-merged.png"
+                else VERB="🔴 ${PR_AUTHOR} ปิดโดยไม่ merge"; COLOR=15749714; fi ;;
+              *) echo "ignore ${ACTION}"; exit 0 ;;
+            esac
+            LINK="${PR_URL}"
+            NOTE=""
+          fi
+          IMAGE_URL=""
+          if [ -n "${EMBED_BASE}" ] && [ -n "${IMG}" ]; then IMAGE_URL="${EMBED_BASE%/}/${IMG}"; fi
+
+          # ---- 4) ส่ง ------------------------------------------------------------
+          CONTENT="${MENTION} ${VERB} — PR #${PR_NUMBER}"
+          if [ -n "${ROOMS}" ]; then CONTENT="${CONTENT}  (ห้อง ${ROOMS})"; fi
+          if [ -n "${WARN}" ]; then CONTENT="${CONTENT}"$'\n'"${WARN}"; fi
+
+          jq -nc \
+            --arg content "${CONTENT}" --argjson am "${ALLOWED}" \
+            --arg title "#${PR_NUMBER} ${PR_TITLE}" --arg url "${LINK}" --argjson color "${COLOR}" \
+            --arg branch "${HEAD_REF} → ${BASE_REF}" --arg author "${PR_AUTHOR}" \
+            --arg files "${CHANGED_FILES:-?} ไฟล์ · +${ADDITIONS:-0} / −${DELETIONS:-0}" \
+            --arg note "${NOTE}" --arg image "${IMAGE_URL}" \
+            '{
+              username: "SafetyTravel GitHub",
+              content: $content,
+              allowed_mentions: $am,
+              embeds: [{
+                title: $title, url: $url, color: $color,
+                description: (if $note != "" then $note else null end),
+                fields: [
+                  {name: "Branch", value: ("`" + $branch + "`"), inline: true},
+                  {name: "Author", value: $author, inline: true},
+                  {name: "Changes", value: $files, inline: true}
+                ],
+                image: (if $image != "" then {url: $image} else null end),
+                timestamp: (now | todate)
+              }]
+            } | .embeds[0] |= with_entries(select(.value != null))' \
+          | curl -sS --fail-with-body -X POST -H "Content-Type: application/json" -d @- "${WEBHOOK_URL}"
