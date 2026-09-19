@@ -81,6 +81,30 @@ services:
       start_period: 60s
     restart: unless-stopped
 
+  external-data:
+    build:
+      context: ./services/external-data
+      target: runtime
+    profiles: [app]
+    env_file: .env
+    environment:
+      # Container DNS, not host ports (shared context § 3).
+      POSTGRES_HOST: postgres
+      REDIS_URL: redis://redis:6379/0
+      GTFS_PROVIDER_CONFIG: /app/config/providers.yaml
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/live', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
   # ---------------------------------------------------------------------------
   # ตัวอย่าง service ของ module (เจ้าของคัดลอกไปเพิ่มใน PR ของตัวเอง แล้วลบคอมเมนต์นี้ออก)
   #

@@ -16,6 +16,13 @@ services:
   keycloak:
     ports: ["8080:8080"]
 
+  external-data:
+    ports: ["8002:8002"]
+    volumes:
+      - ./services/external-data/app:/app/app:ro
+      - ./services/external-data/config:/app/config:ro
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
+
   # ตัวอย่าง override ของ module (เจ้าของเพิ่มพร้อม service ใน compose.yaml)
   #
   # external-data:
