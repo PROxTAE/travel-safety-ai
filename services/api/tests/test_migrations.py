@@ -128,17 +128,31 @@ def test_downgrade_then_upgrade_returns_to_head(
     command.upgrade(alembic_config, "head")
 
 
-def test_one_step_down_removes_the_table_but_keeps_the_schemas(
+def test_each_revision_reverses_on_its_own(
     alembic_config: Config, migration_database_url: str
 ) -> None:
-    """Each revision has to be reversible on its own, not only the whole stack at once."""
-    command.upgrade(alembic_config, "head")
-    command.downgrade(alembic_config, "-1")
+    """Stepping down one revision at a time has to work, not only dropping the whole stack.
 
+    Targets are named rather than counted: `-1` moves with every new revision, so a relative test
+    quietly starts checking something else the next time one is added.
+    """
+    command.upgrade(alembic_config, "head")
+
+    # 0003 down: the phase 3 tables go, the phase 2 one stays.
+    command.downgrade(alembic_config, "0002")
+    identity_tables = tables_in(migration_database_url, "identity")
+    assert "user_profiles" in identity_tables
+    assert identity_tables & {"consents", "emergency_profiles", "audit_log"} == set()
+
+    # 0002 down: the table goes, the schemas stay.
+    command.downgrade(alembic_config, "0001")
     assert "user_profiles" not in tables_in(migration_database_url, "identity")
     assert {"identity", "travel"} <= schemas_in(migration_database_url)
 
     command.upgrade(alembic_config, "head")
+    assert {"consents", "emergency_profiles", "audit_log", "data_subject_requests"} <= tables_in(
+        migration_database_url, "identity"
+    )
 
 
 def test_downgrade_refuses_to_drop_a_schema_that_still_holds_data(
