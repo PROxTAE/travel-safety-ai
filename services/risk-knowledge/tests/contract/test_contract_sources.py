@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -9,7 +10,11 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 from openapi_spec_validator import OpenAPIV31SpecValidator
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
+REPOSITORY_ROOT = (
+    Path(configured_root)
+    if (configured_root := os.environ.get("REPOSITORY_ROOT"))
+    else Path(__file__).resolve().parents[4]
+)
 SERVICE_ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_SCHEMA = (
     REPOSITORY_ROOT

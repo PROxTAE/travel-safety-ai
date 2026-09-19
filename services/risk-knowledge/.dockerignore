@@ -5,8 +5,6 @@
 .venv
 __pycache__
 *.pyc
-tests
-training
 models
 *.log
 .env

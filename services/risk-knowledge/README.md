@@ -60,10 +60,12 @@ ready but the optional model/knowledge capabilities are unavailable. It is
 ## Verify
 
 ```bash
+docker build --build-context contracts=packages/contracts --target test -t sta-risk-knowledge:test services/risk-knowledge
+docker run --rm sta-risk-knowledge:test ruff check app migrations tests
+docker run --rm sta-risk-knowledge:test ruff format --check app migrations tests
+docker run --rm sta-risk-knowledge:test mypy app
+docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term
 docker compose build risk-knowledge
-docker compose run --rm --no-deps risk-knowledge ruff check app tests
-docker compose run --rm --no-deps risk-knowledge mypy app
-docker compose run --rm --no-deps risk-knowledge pytest -q
 docker compose run --rm risk-knowledge alembic upgrade head
 docker compose run --rm risk-knowledge alembic downgrade base
 docker compose run --rm risk-knowledge alembic upgrade head

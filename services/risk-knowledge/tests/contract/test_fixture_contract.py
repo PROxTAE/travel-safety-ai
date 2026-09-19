@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
+REPOSITORY_ROOT = (
+    Path(configured_root)
+    if (configured_root := os.environ.get("REPOSITORY_ROOT"))
+    else Path(__file__).resolve().parents[4]
+)
 SERVICE_ROOT = Path(__file__).resolve().parents[2]
 
 

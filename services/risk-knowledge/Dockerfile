@@ -20,6 +20,18 @@ COPY governance ./governance
 COPY knowledge ./knowledge
 RUN uv sync --frozen --no-dev
 
+FROM builder AS test
+
+ENV PATH=/app/.venv/bin:$PATH \
+    REPOSITORY_ROOT=/workspace
+
+RUN uv sync --frozen
+COPY tests ./tests
+COPY training ./training
+COPY --from=contracts . /workspace/packages/contracts
+
+CMD ["pytest", "-q"]
+
 FROM python:3.12.14-slim-trixie AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

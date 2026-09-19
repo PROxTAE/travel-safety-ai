@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
@@ -16,7 +17,11 @@ from app.contracts import (
 )
 from app.risk.fallback import assess_with_conservative_fallback
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
+REPOSITORY_ROOT = (
+    Path(configured_root)
+    if (configured_root := os.environ.get("REPOSITORY_ROOT"))
+    else Path(__file__).resolve().parents[4]
+)
 CONTRACT_SCHEMA = (
     REPOSITORY_ROOT
     / "packages"
