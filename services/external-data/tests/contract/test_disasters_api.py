@@ -206,3 +206,72 @@ def test_rejects_an_unknown_event_type(client: TestClient) -> None:
     body = response.json()
     assert body["error"]["code"] == "VALIDATION_ERROR"
     assert body["error"]["field_errors"]
+
+
+class _SlowAdapter:
+    """A source that takes a known time to answer."""
+
+    def __init__(self, provider_id: str, seconds: float) -> None:
+        self.provider_id = provider_id
+        self.seconds = seconds
+
+    async def query(self, query: Any, **kwargs: Any) -> list[Any]:
+        import asyncio
+
+        await asyncio.sleep(self.seconds)
+        return []
+
+
+def test_sources_are_queried_in_parallel(client: TestClient) -> None:
+    """Shared context § 7 item 4: real providers are fetched in parallel.
+
+    Sequentially this endpoint cost the sum of every source's latency - 12s for
+    a global query measured in review - and the sum of every source's *timeout*
+    when one hung. Module 03 budgets per tool call, so that difference is the
+    whole endpoint's usability.
+    """
+    import time
+
+    delay = 0.4
+    registry = client.app.state.adapters  # type: ignore[attr-defined]
+    saved = dict(registry._adapters)
+    # Keyed by real registry ids: all_for_kind resolves through the registry,
+    # so an invented id would simply not be found.
+    registry._adapters = {
+        provider_id: _SlowAdapter(provider_id, delay)
+        for provider_id in ("usgs_earthquake", "gdacs", "nasa_eonet")
+    }
+
+    try:
+        started = time.perf_counter()
+        response = client.post(PATH, json={}, headers=AUTH)
+        elapsed = time.perf_counter() - started
+    finally:
+        registry._adapters = saved
+
+    assert response.status_code == 200
+    # Three sources at 0.4s each: ~0.4s in parallel, ~1.2s sequentially.
+    assert elapsed < delay * 2, f"took {elapsed:.2f}s for 3 x {delay}s sources"
+
+
+def test_a_slow_source_does_not_delay_the_others(client: TestClient) -> None:
+    """The case that hurt most: one source burning its full deadline used to
+    push every source behind it out by that much."""
+    import time
+
+    registry = client.app.state.adapters  # type: ignore[attr-defined]
+    saved = dict(registry._adapters)
+    registry._adapters = {
+        "usgs_earthquake": _SlowAdapter("usgs_earthquake", 0.05),
+        "gdacs": _SlowAdapter("gdacs", 0.6),
+    }
+
+    try:
+        started = time.perf_counter()
+        body = client.post(PATH, json={}, headers=AUTH).json()
+        elapsed = time.perf_counter() - started
+    finally:
+        registry._adapters = saved
+
+    assert set(body["data"]["sources"]) == {"usgs_earthquake", "gdacs"}
+    assert elapsed < 0.6 + 0.3  # the slowest source, not the sum

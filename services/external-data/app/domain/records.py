@@ -157,6 +157,12 @@ class DisasterEvent(BaseModel):
     # scale, deliberately NOT cast to Severity (open question Q3).
     alert_level: str | None = None
     tsunami: bool | None = None
-    # Identifiers the same event carries in other networks. Module 05 resolves
-    # duplicates; module 04 never drops one.
+    # Identifiers **of this event** in other networks - a USGS cross-network id,
+    # a GLIDE number. Module 05 matches on these, so anything in here that does
+    # not identify one specific event will make it merge unrelated hazards.
     cross_reference_ids: list[str] = Field(default_factory=list)
+    # Who reported it, which is a different question from which event it is.
+    # A network name is shared by every event that network publishes.
+    reporting_networks: list[str] = Field(default_factory=list)
+    # One provider event can have many episodes (a storm's successive updates).
+    episode_id: str | None = None

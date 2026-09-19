@@ -7,6 +7,7 @@ places, context) arrive with their adapters in Phases 3-6.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from fastapi import APIRouter, Request, Response
@@ -297,18 +298,29 @@ async def disasters_query(
     degraded: list[str] = []
     last_error: ProviderError | None = None
 
-    for adapter in available:
-        try:
-            events.extend(await adapter.query(query))
-        except ProviderError as exc:
-            last_error = exc
+    # Fan out in parallel (shared context § 7): the sources are independent, so
+    # the total cost should be the slowest of them, not the sum. Sequentially
+    # this endpoint took 12s for a global query and 20s when one source timed
+    # out, because every later source waited out the earlier one's deadline.
+    results = await asyncio.gather(
+        *(adapter.query(query) for adapter in available), return_exceptions=True
+    )
+
+    for adapter, result in zip(available, results, strict=True):
+        if isinstance(result, ProviderError):
+            last_error = result
             degraded.append(adapter.provider_id)
             log.warning(
                 "disaster_source_failed",
                 provider=adapter.provider_id,
-                error_code=str(exc.code),
+                error_code=str(result.code),
             )
+        elif isinstance(result, BaseException):
+            # Not a provider failure - a bug, or the caller cancelling. Neither
+            # should be quietly recorded as "that source is a bit degraded".
+            raise result
         else:
+            events.extend(result)
             answered.append(adapter.provider_id)
 
     if not answered:
