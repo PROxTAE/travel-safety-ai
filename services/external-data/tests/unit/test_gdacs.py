@@ -352,6 +352,40 @@ def test_glide_is_kept_for_cross_source_dedup(adapter: GdacsAdapter) -> None:
     assert raw["features"][0]["properties"]["glide"] in event.cross_reference_ids
 
 
+def test_the_reporting_network_is_not_a_cross_reference_id(
+    adapter: GdacsAdapter,
+) -> None:
+    """`source` is the agency that reported the event - NEIC, JTWC - and it is
+    shared by every event that agency publishes. Putting it in
+    cross_reference_ids made unrelated storms match each other."""
+    raw = load_fixture(FIXTURE)
+    event = _run(adapter, raw)[0]
+
+    assert event.reporting_networks == [raw["features"][0]["properties"]["source"]]
+    assert all("network:" not in value for value in event.cross_reference_ids)
+
+
+def test_the_episode_is_its_own_field_not_a_cross_reference(
+    adapter: GdacsAdapter,
+) -> None:
+    """An episode number is an index within one event, not an id of it."""
+    raw = load_fixture(FIXTURE)
+    event = _run(adapter, raw)[0]
+
+    assert event.episode_id == str(raw["features"][0]["properties"]["episodeid"])
+    assert all("episode:" not in value for value in event.cross_reference_ids)
+
+
+def test_cross_reference_ids_hold_only_event_identifiers(
+    adapter: GdacsAdapter,
+) -> None:
+    """Every value here must name one specific event. A namespaced tag is a
+    category, and categories match far too much."""
+    for event in _run(adapter, load_fixture(FIXTURE)):
+        for value in event.cross_reference_ids:
+            assert ":" not in value or value.count("-") >= 2, value
+
+
 def test_source_url_is_the_human_report_page(adapter: GdacsAdapter) -> None:
     raw = load_fixture(FIXTURE)
     event = _run(adapter, raw)[0]

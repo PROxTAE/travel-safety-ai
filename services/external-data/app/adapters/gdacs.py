@@ -224,6 +224,10 @@ class GdacsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                     alert_level=properties.alertlevel,
                     tsunami=None,
                     cross_reference_ids=_cross_ids(properties),
+                    reporting_networks=_reporting_networks(properties),
+                    episode_id=(
+                        str(properties.episodeid) if properties.episodeid else None
+                    ),
                     quality=_quality(
                         properties=properties,
                         effective_at=effective_at,
@@ -331,17 +335,24 @@ def _inside_window(moment: datetime, query: DisasterQuery) -> bool:
 
 
 def _cross_ids(properties: GdacsProperties) -> list[str]:
-    """GLIDE is an international disaster identifier shared across agencies, so
-    it is the strongest dedup key GDACS offers. `source` names the upstream
-    network, which is often the same body USGS reports for."""
-    ids: list[str] = []
+    """Identifiers of *this event* elsewhere.
+
+    GLIDE is an international disaster identifier shared across agencies, so it
+    is the strongest dedup key GDACS offers - and the only value here that names
+    one specific event. The reporting network and the episode number used to sit
+    in this list too, which is how every storm JTWC ever reported ended up
+    matching every other one.
+    """
     if properties.glide and properties.glide.strip():
-        ids.append(properties.glide.strip())
-    if properties.episodeid:
-        ids.append(f"episode:{properties.episodeid}")
+        return [properties.glide.strip()]
+    return []
+
+
+def _reporting_networks(properties: GdacsProperties) -> list[str]:
+    """Who reported it - a different question from which event it is."""
     if properties.source and properties.source.strip():
-        ids.append(f"network:{properties.source.strip()}")
-    return ids
+        return [properties.source.strip()]
+    return []
 
 
 def _quality(
