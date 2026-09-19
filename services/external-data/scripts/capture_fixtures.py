@@ -12,7 +12,7 @@ import pathlib
 import re
 import sys
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 OUT = pathlib.Path("services/external-data/tests/fixtures/real-sanitized")
 
@@ -111,7 +111,7 @@ def main() -> int:
                 "source_url": url,
                 "http_status": status,
                 "content_type": ctype,
-                "captured_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "captured_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "raw_bytes": len(raw),
                 "content_hash": "sha256:" + hashlib.sha256(raw).hexdigest(),
                 "license": license_,

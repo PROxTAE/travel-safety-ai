@@ -1,0 +1,143 @@
+"""Internal API contract: envelopes, auth and the provider health endpoint.
+
+Runs without Postgres or Redis. The dependencies are absent on purpose - it lets
+these tests assert the degraded behaviour the team will actually meet first.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.main import create_app
+from tests.conftest import TEST_TOKEN
+
+AUTH = {"Authorization": f"Bearer {TEST_TOKEN}"}
+HEALTH_PATH = "/internal/v1/providers/health"
+
+
+@pytest.fixture
+def client() -> Iterator[TestClient]:
+    with TestClient(create_app()) as test_client:
+        yield test_client
+
+
+def test_live_probe_touches_no_dependency(client: TestClient) -> None:
+    response = client.get("/health/live")
+    assert response.status_code == 200
+    assert response.json() == {"status": "UP"}
+
+
+def test_ready_reports_down_when_dependencies_are_missing(client: TestClient) -> None:
+    response = client.get("/health/ready")
+    assert response.status_code == 503
+    body = response.json()
+    assert body["status"] == "DOWN"
+    assert body["checks"]["postgres"] == "DOWN"
+    assert body["checks"]["internal_auth"] == "UP"
+
+
+def test_metrics_endpoint_exposes_prometheus_text(client: TestClient) -> None:
+    response = client.get("/metrics")
+    assert response.status_code == 200
+    assert "external_data_http_requests_total" in response.text
+
+
+def test_correlation_headers_are_echoed(client: TestClient) -> None:
+    response = client.get(
+        "/health/live",
+        headers={"X-Request-ID": "req-1", "X-Correlation-ID": "corr-1"},
+    )
+    assert response.headers["X-Request-ID"] == "req-1"
+    assert response.headers["X-Correlation-ID"] == "corr-1"
+    assert response.headers["X-Contract-Version"] == "1.0.0"
+
+
+def test_request_id_is_generated_when_absent(client: TestClient) -> None:
+    response = client.get("/health/live")
+    assert response.headers["X-Request-ID"]
+
+
+def test_internal_route_requires_a_credential(client: TestClient) -> None:
+    response = client.get(HEALTH_PATH)
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "AUTHENTICATION_REQUIRED"
+
+
+def test_internal_route_rejects_a_wrong_credential(client: TestClient) -> None:
+    response = client.get(HEALTH_PATH, headers={"Authorization": "Bearer wrong"})
+    assert response.status_code == 401
+
+
+def test_internal_route_rejects_browser_cookies(client: TestClient) -> None:
+    """Contract § 5: internal endpoints must not accept a browser token."""
+    response = client.get(
+        HEALTH_PATH, headers={**AUTH, "Cookie": "session=abc"}
+    )
+    assert response.status_code == 401
+
+
+def test_missing_token_configuration_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.settings import get_settings
+
+    monkeypatch.delenv("INTERNAL_SERVICE_TOKEN", raising=False)
+    get_settings.cache_clear()
+
+    with TestClient(create_app()) as unconfigured:
+        assert unconfigured.get(HEALTH_PATH, headers=AUTH).status_code == 401
+        ready = unconfigured.get("/health/ready").json()
+        assert ready["checks"]["internal_auth"] == "NOT_CONFIGURED"
+
+
+def test_provider_health_uses_the_success_envelope(client: TestClient) -> None:
+    body = client.get(HEALTH_PATH, headers=AUTH).json()
+
+    assert set(body) == {"data", "meta"}
+    meta = body["meta"]
+    assert meta["contract_version"] == "1.0.0"
+    assert meta["request_id"]
+    assert "degraded_services" in meta
+
+
+def test_provider_health_lists_every_registry_entry(client: TestClient) -> None:
+    providers = client.get(HEALTH_PATH, headers=AUTH).json()["data"]["providers"]
+    assert len(providers) == 9
+    assert {p["provider"] for p in providers} >= {"usgs_earthquake", "gdacs"}
+
+
+def test_blocked_providers_are_reported_as_degraded(client: TestClient) -> None:
+    body = client.get(HEALTH_PATH, headers=AUTH).json()
+    degraded = set(body["meta"]["degraded_services"])
+    assert {"openrouteservice", "amadeus", "gtfs_registry", "ors_pois"} <= degraded
+
+
+def test_health_names_missing_credentials_but_never_values(
+    client: TestClient,
+) -> None:
+    providers = client.get(HEALTH_PATH, headers=AUTH).json()["data"]["providers"]
+    ors = next(p for p in providers if p["provider"] == "openrouteservice")
+
+    assert ors["effective_status"] == "PENDING_CREDENTIAL"
+    assert ors["missing_credentials"] == ["ORS_API_KEY"]
+    assert ors["health"] == "NOT_CONFIGURED"
+
+
+def test_health_response_contains_no_secret_material(client: TestClient) -> None:
+    raw = client.get(HEALTH_PATH, headers=AUTH).text
+    assert TEST_TOKEN not in raw
+    assert "password" not in raw.lower()
+
+
+def test_health_reports_quota_as_unverified(client: TestClient) -> None:
+    providers = client.get(HEALTH_PATH, headers=AUTH).json()["data"]["providers"]
+    assert all(p["quota_verified"] is False for p in providers)
+
+
+def test_unknown_route_returns_the_error_envelope(client: TestClient) -> None:
+    body = client.get("/internal/v1/does-not-exist", headers=AUTH).json()
+    assert body["error"]["code"] == "NOT_FOUND"
+    assert body["meta"]["contract_version"] == "1.0.0"
