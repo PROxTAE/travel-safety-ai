@@ -1,10 +1,9 @@
-# [M04] External Data Services — Phase 0–1 Handoff
+# [M04] External Data Services — Phase 0–2 Handoff
 
-> **This is not a module completion report.** Phases 0 and 1 of
+> **This is not a module completion report.** Phases 0, 1 and 2 of
 > `IMPLEMENTATION_PLANS/04_EXTERNAL_DATA_SERVICES_IMPLEMENTATION.md` are done.
-> Phases 2–7 — every actual provider adapter — are not started. The acceptance
-> checklist for module 04 is therefore **not** met, and this document says so
-> rather than implying otherwise.
+> Phases 3–7 are not started, so the module acceptance checklist is **not** met.
+> Two of seven user-visible capabilities work; the rest are unavailable and say so.
 
 ## 1. Metadata
 
@@ -13,24 +12,24 @@
 | Module/owner | 04 — external-data · คน 4 |
 | Branch | `contract/04-provider-canonical-schema` |
 | Base commit | `a814558` (`origin/main`) |
-| Head commit | `9cbcc43` |
+| Commits on branch | 7, on top of `a814558` |
 | Contract version | `1.0.0` |
-| Docker image | `smart-travel-external-data:latest` · `sha256:d3589f32…` · 320 MB |
+| Docker image | `smart-travel-external-data:latest` · 320 MB |
 | Date | 2026-09-19 |
-| Scope delivered | Phase 0 (provider governance), Phase 1 (service foundation) |
+| Scope delivered | Phase 0 (governance), Phase 1 (foundation), Phase 2 (geocoding + weather) |
 
 ## 2. Executive summary
 
-The service boots, is healthy in compose, owns its `provider` schema, and can
-report on every provider it knows about — but it does not yet call a single one
-of them for data. Phase 1 deliberately built the part that every later phase
-depends on: the registry gate, the shared transport with its resilience
-policies, provenance/quality value objects, and the internal API skeleton.
+The service runs on port 8002, owns its `provider` schema, and answers two
+capabilities with real provider data: place-name lookup and route-aware weather
+forecasting. Every record it emits carries provenance, freshness and quality.
 
-Five of nine providers are reachable and keyless (Open-Meteo ×2, USGS, GDACS,
-EONET) and have real captured fixtures. Four are blocked on a credential or a
-Lead decision, and the service reports each one as explicitly unavailable
-instead of pretending otherwise.
+Five of nine registered providers are keyless, reachable and `ACTIVE`; two of
+those five have adapters. The other four are blocked on a credential or a Lead
+decision, and the service reports each as explicitly unavailable rather than
+pretending otherwise. Nothing is mocked: the only stored provider payloads are
+six real captures used exclusively by tests, and a test asserts no runtime module
+can load them.
 
 ## 3. What was implemented
 
@@ -38,11 +37,11 @@ instead of pretending otherwise.
 
 | Plan item | Delivered |
 | --- | --- |
-| 1. Provider registry matrix | `services/external-data/config/providers.yaml` + `docs/provider-registry.md` |
+| 1. Provider registry matrix | `config/providers.yaml` + `docs/provider-registry.md` |
 | 2. Lead approval, official doc links | `docs/lead-approval-checklist.md` — **recorded, not decided** |
-| 3. Canonical models with คน 5/6 | `docs/canonical-field-mapping.md` — field-by-field, with Q1–Q6 open |
-| 4. Real sanitized fixtures | 5 live captures + `MANIFEST.json` provenance + `scripts/capture_fixtures.py` |
-| 5. Unsupported coverage / degraded UX | `docs/coverage-and-degraded-ux.md` — with U1–U3 open for คน 1/2 |
+| 3. Canonical models with คน 5/6 | `docs/canonical-field-mapping.md`, Q1–Q6 open |
+| 4. Real sanitized fixtures | 6 live captures + `MANIFEST.json` + `scripts/capture_fixtures.py` |
+| 5. Unsupported coverage / degraded UX | `docs/coverage-and-degraded-ux.md`, U1–U3 open |
 
 ### Phase 1 — service foundation
 
@@ -51,195 +50,211 @@ instead of pretending otherwise.
 | 1. FastAPI / internal auth / health / metrics / settings | `app/main.py`, `app/api/`, `app/settings.py`, `app/observability/` |
 | 2. Base adapter, error mapping, shared HTTP transport | `app/adapters/base.py`, `app/domain/errors.py`, `app/transport/http.py` |
 | 3. Timeout / retry / circuit / rate / quota / cache | `app/transport/resilience.py`, `app/cache/provider_cache.py` |
-| 4. Provider health repository / migrations | `app/repositories/`, `app/migrations/versions/0001_provider_schema.py` |
+| 4. Provider health repository / migrations | `app/repositories/`, `0001_provider_schema` |
 | 5. Docker non-root / TLS CA / UTC | `Dockerfile` — uid 10001, `ca-certificates`, `TZ=UTC` |
 
-## 4. Two design decisions worth reviewing
+### Phase 2 — geocoding and weather
+
+| Plan item | Delivered |
+| --- | --- |
+| 1. Typed provider models with drift capture | `extra="ignore"` plus explicit required-field and shape checks |
+| 2. Normalization / units / time / source / quality | `app/adapters/open_meteo_*.py`, `app/domain/records.py` |
+| 3. Route point batching and ETA alignment | even downsampling to 10 points; nearest forecast hour per ETA |
+| 4. Cache / health / contract tests + real canary | 178 tests + 8 canary tests against the live provider |
+| 5. Expose internal endpoints | `POST /internal/v1/geocode/search`, `POST /internal/v1/weather/query` |
+
+**Phase 2 exit criterion met:** Bangkok, Chiang Mai, Tokyo and Reykjavik resolve
+for real, with forecast and freshness.
+
+## 4. Capability status
+
+| Capability | Endpoint | Status |
+| --- | --- | --- |
+| Geocoding | `POST /internal/v1/geocode/search` | ✅ live |
+| Weather | `POST /internal/v1/weather/query` | ✅ live |
+| Provider health | `GET /internal/v1/providers/health` | ✅ live |
+| Disaster events | — | ⬜ Phase 3 (providers ACTIVE and reachable, no adapter yet) |
+| Road route · emergency POI | — | ❌ no `ORS_API_KEY` |
+| Flight | — | ❌ no Amadeus production credential |
+| Transit realtime | — | ❌ Lead has not chosen a GTFS region |
+
+## 5. Four design decisions worth reviewing
 
 **The registry gate reconciles config against the environment.** A provider
-marked `ACTIVE` in `providers.yaml` whose credential is absent resolves to
-`PENDING_CREDENTIAL` at startup, and the transport refuses to call it. The
-inverse is also true and less obvious: supplying `ORS_API_KEY` does **not**
-promote openrouteservice to callable, because the `status` field records a Lead
-approval decision, not mere reachability.
+marked `ACTIVE` whose credential is absent resolves to `PENDING_CREDENTIAL` at
+startup and the transport refuses to call it. The inverse also holds: supplying
+`ORS_API_KEY` does **not** promote a provider the Lead has not approved, because
+`status` records an approval decision, not reachability.
 
-**Provider health comes from observation, never from configuration.** An
-`ACTIVE` provider with no row in `provider.health` reports `UNKNOWN` with
-`last_checked_at: null`, not `UP`, and counts as degraded. Modules 03/05 route
-requests on this answer, so "configured" must never be reported as "reachable".
-Rows appear once a Phase 2 adapter writes `upsert_health` after a fetch.
+**Provider health comes from observation, never configuration.** An `ACTIVE`
+provider with no row in `provider.health` reports `UNKNOWN` with
+`last_checked_at: null` and counts as degraded. Adapters write a real observation
+after every call — `UP` with measured latency on success, and on failure a state
+that preserves the distinction that matters: an auth failure is
+`NOT_CONFIGURED` (our key is wrong) while a timeout is `DOWN` (the provider is).
 
-**A blank environment variable counts as a missing credential.** `.env.example`
-ships `ORS_API_KEY=` with no value, so an unfilled deployment presents an empty
-string rather than an unset variable. This was caught against the live container
-— the health endpoint was reporting the key as supplied.
+**Route sampling downsamples evenly, not by truncation.** A route capped at its
+first ten points reports nothing about the half the traveller has not driven yet.
+Survivors carry the reduced `quality.coverage` and an `INCOMPLETE` flag.
 
-## 5. Contract, database and configuration changes
+**`severity` and `quality.score` stay unset.** Q2/Q3/Q5 are unanswered by
+modules 05/06. Inventing a threshold would be a silent decision about what counts
+as dangerous weather.
 
-**Database.** New `provider` schema with `providers`, `fetch_log`, `health`,
-matching contract § 8. No raw-provider-body column exists: `store_raw_body:
-false` is the retention default, so `fetch_log` keeps only a query hash, content
-hash, status and timestamps.
+## 6. Three provider traps absorbed by the adapters
 
-**Configuration.** One new shared variable, `INTERNAL_SERVICE_TOKEN`.
+Each was found against a real response rather than documentation, and each
+produces a plausible-looking wrong answer rather than a crash:
 
-**No API or JSON Schema change.** `packages/contracts/` is untouched. The
-canonical record schemas land with their adapters in Phase 2+.
+1. **`hourly.time` carries no zone suffix** even under `timezone=UTC` — the
+   provider returns `"2026-09-19T00:00"` and reports `timezone: "GMT"`. Parsing
+   it as naive local time shifts every forecast by the host offset; on this
+   team's machines, by seven hours. The adapter asserts
+   `utc_offset_seconds == 0` and attaches UTC explicitly.
+2. **`hourly` is column-oriented** — parallel arrays, not a list of objects. A
+   short column means rows no longer line up, so every later value would be
+   attributed to the wrong hour. That is `PROVIDER_SCHEMA_CHANGED`.
+3. **A batched request returns a JSON array** while a single coordinate returns
+   an object, and the array carries no id — results map back to samples **by
+   position only**. Getting this wrong hands Chiang Mai's weather to someone in
+   Bangkok.
 
-## 6. Open conflicts and proposals — need a decision
+## 7. Contract, database and configuration changes
 
-### 6.1 Schema name conflict (blocking nothing today, will bite later)
+- **API/JSON Schema:** none. `packages/contracts/` untouched; canonical record schemas land with their remaining adapters.
+- **Migration:** `0001_provider_schema` creates `provider.{providers,fetch_log,health}` per contract § 8. Up/down/up tested. No raw-provider-body column — `store_raw_body: false` is the retention default.
+- **Environment:** one new shared variable, `INTERNAL_SERVICE_TOKEN`.
+- **Compose:** `external-data` added to the `app` profile; host port 8002 in dev.
 
-`infra/postgres/init/00-schemas.sql` creates a schema named **`external_data`**
-and labels it "module 04". Both `00_API_AND_DATA_CONTRACTS.md` § 8 and the module
-plan's ownership list say the schema is **`provider`**.
+## 8. Review history on this branch
 
-Two authoritative documents outvote one infra file, so the migration creates and
-uses `provider`, and creates it itself rather than depending on the init script.
-That keeps this service correct on a fresh database either way — but it leaves an
-unused empty `external_data` schema behind.
+| When (UTC) | What |
+| --- | --- |
+| 08:43 | Lead review → CHANGES_REQUESTED: health reported `UP` without observation; metrics route label unbounded |
+| 08:56 | Both fixed with five regression tests (`1eb518e`) |
+| 09:07 | Lead re-ran on `1eb518e` → "✅ ผ่าน — merge ได้เลย" |
+| 09:34:18 | Lead merged PR #6 (Phase 2) into this branch → head became `11dc0b8` |
+| 09:34:20 | The 09:07 approval was dismissed, since it covered `1eb518e` only |
 
-**Proposed fix (needs Lead + infra review):** drop `external_data` from
-`00-schemas.sql`, or repoint it to `provider`. Not done here because `infra/` is
-shared surface and the init script only runs on a fresh volume, so changing it
-has no effect on existing developer machines.
+The Phase 2 content merged at 09:34 has therefore **not been reviewed by anyone**
+— PR #6 was merged with zero reviews. That is the main thing a reviewer should
+look at now.
 
-### 6.2 Internal auth scheme is a proposal, not a settled contract
+## 9. Open items — need a decision
 
-Contract § 5 requires internal endpoints to use service authentication and
-reject browser tokens, but names no mechanism. Phase 1 implements a shared
-bearer secret compared in constant time, rejecting any request carrying a
-`Cookie` header. **Modules 03 and 05 are the callers and must agree** before this
-is treated as settled.
+### 9.1 Internal auth scheme is a proposal
 
-The service fails closed when the token is unset: an unset secret is a
-misconfiguration, not a development convenience.
+Contract § 5 requires service authentication on internal endpoints but names no
+mechanism. This branch implements a shared bearer secret, compared in constant
+time, rejecting any request carrying a `Cookie`. It fails closed when unset.
+**Modules 03 and 05 are the callers and must agree.** The Lead has accepted it as
+an MVP proposal and is confirming with those owners.
 
-### 6.3 Cross-module questions still open
+### 9.2 Schema name conflict — Lead is fixing it
+
+`infra/postgres/init/00-schemas.sql` created `external_data` while contract § 8
+and the module plan say `provider`. The migration follows the contract and
+creates `provider` itself. The Lead has taken the infra fix into PR #5, which is
+still open.
+
+### 9.3 Cross-module questions
 
 `docs/canonical-field-mapping.md` § 7 carries Q1–Q6 for คน 5/6 — chiefly who
 derives `severity` and what the `DataQuality.score` formula is.
-`docs/coverage-and-degraded-ux.md` carries U1–U3 for คน 1/2. Until Q2/Q3/Q5 are
-answered, adapters will emit `severity` and `score` as `null` with a quality
-flag rather than guessing.
+`docs/coverage-and-degraded-ux.md` carries U1–U3 for คน 1/2.
 
-## 7. Verification evidence
+## 10. Verification evidence
 
 ```text
 command: uv run ruff check .
 result:  All checks passed!
 
 command: uv run mypy app
-result:  Success: no issues found in 29 source files
+result:  Success: no issues found in 34 source files
 
 command: uv run pytest
-result:  111 passed, 0 failed, 0 skipped
+result:  178 passed, 8 deselected (canary), 0 failed
 
-command: docker compose -f compose.yaml -f compose.dev.yaml --profile core --profile app config
-result:  valid
+command: uv run pytest -m canary
+result:  8 passed against the live provider
 
 command: docker compose ... --profile core --profile app up -d --wait external-data
-result:  smart-travel-external-data-1  Up (healthy)
+result:  Up (healthy)
 
-command: docker compose ... run --rm external-data alembic upgrade head
-result:  Running upgrade -> 0001_provider_schema
-
-command: docker compose ... run --rm external-data alembic downgrade -1
-result:  Running downgrade 0001_provider_schema -> (base); only alembic_version left
-
-command: docker compose ... run --rm external-data alembic upgrade head
-result:  4 tables in schema provider
+command: alembic upgrade head / downgrade -1 / upgrade head
+result:  all three succeed; 4 tables in schema provider
 
 command: docker compose ... exec external-data id
 result:  uid=10001(app) gid=10001(app)
-
-command: docker compose ... exec external-data date -u '+%Z'
-result:  UTC
 ```
 
-Live endpoint checks against the running container:
+Live from the running container — Bangkok → Chiang Mai with ETAs:
 
 ```text
-GET /health/live                        200  {"status":"UP"}
-GET /health/ready                       200  redis UP, postgres UP,
-                                             internal_auth UP, provider_registry UP
-GET /internal/v1/providers/health       401  AUTHENTICATION_REQUIRED (no token)
-GET /internal/v1/providers/health       200  9 providers, all 9 degraded
-                                             (none observed yet -> UNKNOWN)
-GET /metrics                            200  Prometheus text
+bkk  valid_at=2026-09-19T10:00:00Z  28.8C  feels 34.2C  rain 0.0mm/95%  wind 8.5km/h
+cnx  valid_at=2026-09-19T14:00:00Z  24.6C  feels 30.0C  rain 0.6mm/89%  wind 3.3km/h
+     severity=UNKNOWN  score=None  coverage=1.0  eta_offset=0s  observed_at=None
+attribution: ['Weather data by Open-Meteo.com (CC BY 4.0)']
 ```
 
-Provider health as reported by the running service:
+Health moving from assumption to observation:
 
 ```text
-open_meteo_geocoding   ACTIVE                 UP               missing=[]
-open_meteo_forecast    ACTIVE                 UP               missing=[]
-openrouteservice       PENDING_CREDENTIAL     NOT_CONFIGURED   missing=['ORS_API_KEY']
-amadeus                UNAVAILABLE            NOT_CONFIGURED   missing=['AMADEUS_CLIENT_ID','AMADEUS_CLIENT_SECRET']
-gtfs_registry          PENDING_LEAD_APPROVAL  UNKNOWN          missing=[]
-usgs_earthquake        ACTIVE                 UP               missing=[]
-gdacs                  ACTIVE                 UP               missing=[]
-nasa_eonet             ACTIVE                 UP               missing=[]
-ors_pois               PENDING_CREDENTIAL     NOT_CONFIGURED   missing=['ORS_API_KEY']
+before any call:  open_meteo_geocoding  UNKNOWN  last_checked_at=None
+after one call:   open_meteo_geocoding  UP       814 ms
+                  open_meteo_forecast   UP       947 ms
+                  usgs / gdacs / eonet  UNKNOWN  (no adapter yet — correct)
 ```
 
-### Two defects the tests caught
+### Defects found by the tests during development
 
-**Log redaction was destroying every timestamp.** The phone-number pattern
-matched ISO-8601 dates — `2026-09-19` is ten digits joined by dashes — so every
-log line read `"timestamp": "[PHONE]T08:09:49Z"`. Timestamps are now lifted out
-before redaction and restored after. Regression tests in
-`tests/unit/test_logging_redaction.py`; verified in the real container log.
+- **Log redaction destroyed every timestamp.** The phone pattern matched ISO-8601 dates, so every line logged `"timestamp": "[PHONE]T08:09:49Z"`.
+- **404s escaped the error envelope.** Starlette raises its own `HTTPException` for unmatched routes.
+- **A blank `ORS_API_KEY=` was read as a present credential**, caught against the live container.
 
-**A 404 escaped the error envelope.** Starlette raises its own `HTTPException`
-for an unmatched route, so registering only the FastAPI handler let unknown
-paths return a bare `{"detail": ...}`. Both are registered now.
+## 11. Safety, security and privacy
 
-## 8. Safety, security and privacy
+- [x] No credential value in the repository, a log, a trace or a fixture; health returns credential *names* only
+- [x] Provider-specific messages never reach a consumer — `PROVIDER_AUTH` surfaces as "not configured in this deployment"
+- [x] Redaction covers tokens, bearer headers, email, phone and exact coordinates (rounded to ~11 km in logs)
+- [x] SSRF: base URLs from config only, redirects disabled, off-host URLs refused
+- [x] Timeout budget, cancellation, `Retry-After`, backoff+jitter, circuit breaker
+- [x] `SourceProvenance` rejects `observed_at == fetched_at`, so model output cannot pose as a measurement
+- [x] Unhandled errors log the exception *type* only
+- [ ] Idempotency keys — N/A, no mutating endpoint yet
 
-- [x] No credential value in the repository, a log, a trace or a fixture. The health endpoint returns credential *names* only.
-- [x] Provider-specific messages never reach a consumer — `PROVIDER_AUTH` surfaces as "not configured in this deployment", never "invalid API key".
-- [x] Redaction covers tokens, bearer headers, email, phone and exact coordinates (rounded to ~11 km in logs).
-- [x] SSRF: base URLs come from config only, redirects disabled, off-host URLs refused.
-- [x] Timeout budget, cancellation propagation, `Retry-After`, backoff+jitter, circuit breaker.
-- [x] `SourceProvenance` rejects `observed_at == fetched_at`, so model output cannot pose as a measurement.
-- [x] Unhandled errors log the exception *type* only — a message can carry a URL with query parameters.
-- [ ] Idempotency keys — N/A for Phase 1 (no mutating endpoint yet).
+## 12. Known limitations
 
-## 9. Known limitations
+1. **Phases 3–7 are not started.** Disaster, routing, transit, flight and the combined `/context/query` do not exist.
+2. **The Phase 2 code has not been reviewed** — PR #6 was merged with zero reviews.
+3. **Circuit breaker, concurrency limiter and quota tracker are in-process.** Each replica has its own view.
+4. **No quota figure is verified** against a live account; all nine carry `verification_required: true`.
+5. **A weather request is capped at 10 sample points.** Chunking across requests belongs with the Phase 6 fan-out.
+6. **openrouteservice and Amadeus mappings are documentation-derived**, marked NOT VERIFIED — no credential means they have never been called.
+7. **`Retry-After` HTTP-date form is not parsed**, only delta-seconds.
+8. **`quality.status` is computed at normalization, not on cache read.** Safe only because the 15-minute forecast TTL sits inside the 60-minute freshness window — revisit if either number changes.
 
-1. **No provider is actually called for data.** Phases 2–7 are not started.
-2. **Circuit breaker, concurrency limiter and quota tracker are in-process.** With more than one replica each has its own view. A shared breaker needs a Redis design that belongs with the distributed-cache work.
-3. **No quota figure has been verified** against a live account. Every entry carries `verification_required: true`, and `/internal/v1/providers/health` reports `quota_verified: false` for all nine.
-4. **`DataQuality.score` is always `null`** pending Q5.
-5. **openrouteservice and Amadeus mappings are documentation-derived** and marked NOT VERIFIED — no credential means they have never been called.
-6. **Retry-After HTTP-date form is not parsed**, only delta-seconds. None of the active providers uses the date form; a wrong parse would be worse than the default backoff.
-7. **No canary test job yet** — the `canary` pytest marker is registered but unused until adapters exist.
+## 13. Handoff
 
-## 10. Handoff
+**Team Lead** — `services/external-data/docs/lead-approval-checklist.md`: approve
+providers (A1–A5), assign credential owners (B1–B3), verify quotas (C1–C4),
+confirm licence/attribution (D1–D3). **Phases 4 and 5 cannot start until
+B1/B2/A5 are resolved.**
 
-**Team Lead** — `services/external-data/docs/lead-approval-checklist.md`:
-approve providers (A1–A5), assign credential owners (B1–B3), verify quotas
-(C1–C4), confirm licence/attribution (D1–D3). Plus the schema-name conflict in
-§ 6.1 above. **Phase 4 and 5 cannot start until B1/B2/A5 are resolved.**
+**คน 5 (data-integration)** — Q1–Q6 in `docs/canonical-field-mapping.md` § 7.
 
-**คน 5 (data-integration)** — Q1–Q6 in `docs/canonical-field-mapping.md` § 7,
-especially who derives `severity` and the `score` formula.
-
-**คน 6 (risk-knowledge)** — Q2, Q3, Q6: which feature fields the risk model
-needs so adapters do not drop them.
+**คน 6 (risk-knowledge)** — Q2, Q3, Q6: which feature fields the risk model needs.
 
 **คน 1 / คน 2 (web, public API)** — `docs/coverage-and-degraded-ux.md`: four of
-seven user-visible capabilities are unavailable and need an honest disabled
-state. U1–U3 are open.
+seven user-visible capabilities are unavailable and need an honest disabled state.
 
-**คน 3 / คน 5 (internal API callers)** — agree the internal auth scheme in § 6.2.
+**คน 3 / คน 5 (internal API callers)** — agree the internal auth scheme (§ 9.1).
 
-**Next owner of this module** — Phases 2 and 3 are unblocked and can start now:
-geocoding, weather and all three disaster sources are keyless, reachable, and
-have real fixtures with the parsing traps already documented.
+**Next work on this module** — Phase 3 is unblocked: USGS, GDACS and EONET are
+keyless, reachable, already `ACTIVE` in the registry, and have real fixtures with
+the parsing traps documented in the field mapping.
 
-## 11. How to run
+## 14. How to run
 
 ```bash
 cp .env.example .env
@@ -250,23 +265,25 @@ docker compose -f compose.yaml -f compose.dev.yaml --profile core --profile app 
   run --rm external-data alembic upgrade head
 
 curl -s localhost:8002/health/ready
-curl -s -H "Authorization: Bearer $INTERNAL_SERVICE_TOKEN" \
-  localhost:8002/internal/v1/providers/health
+curl -s -X POST localhost:8002/internal/v1/geocode/search \
+  -H "Authorization: Bearer $INTERNAL_SERVICE_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"query":"Chiang Mai","count":2}'
 ```
+
+> After PR #5 lands, the core services lose their profile and
+> `--profile core` becomes unnecessary. These commands need updating then.
 
 Module checks:
 
 ```bash
 cd services/external-data
 uv sync --locked
-uv run ruff check .
-uv run mypy app
-uv run pytest
+uv run ruff check . && uv run mypy app && uv run pytest
+uv run pytest -m canary   # hits real providers
 ```
 
-## 12. Rollback
+## 15. Rollback
 
-- **Code:** revert `9cbcc43` and `479c28d`. `7c46d7b` is documentation and fixtures only, safe to keep.
-- **Compose:** reverting `9cbcc43` removes the service from the `app` profile; the `core` profile is untouched.
-- **Database:** `alembic downgrade base` drops all three tables, tested. It leaves the empty `provider` schema and its `alembic_version` table, which is intentional.
-- **Provider disable path:** set a provider's `status` to `UNAVAILABLE` in `providers.yaml` and restart. No code change needed.
+- **Code:** the branch is six commits; revert the feature commits and keep `7c46d7b` (docs and fixtures only) if desired.
+- **Database:** `alembic downgrade base` drops all three tables, tested. The empty schema and `alembic_version` remain by design.
+- **Provider disable path:** set a provider's `status` to `UNAVAILABLE` in `providers.yaml` and restart. No code change.
