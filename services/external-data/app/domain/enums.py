@@ -27,6 +27,22 @@ class Severity(StrEnum):
     UNKNOWN = "UNKNOWN"
 
 
+class EventType(StrEnum):
+    """Contract § 3.7. A provider value with no equivalent maps to OTHER."""
+
+    EARTHQUAKE = "EARTHQUAKE"
+    CYCLONE = "CYCLONE"
+    STORM = "STORM"
+    FLOOD = "FLOOD"
+    WILDFIRE = "WILDFIRE"
+    VOLCANO = "VOLCANO"
+    LANDSLIDE = "LANDSLIDE"
+    EXTREME_TEMPERATURE = "EXTREME_TEMPERATURE"
+    HEALTH = "HEALTH"
+    TRANSPORT_CLOSURE = "TRANSPORT_CLOSURE"
+    OTHER = "OTHER"
+
+
 class SourceAuthority(StrEnum):
     OFFICIAL = "OFFICIAL"
     INTERGOVERNMENTAL = "INTERGOVERNMENTAL"

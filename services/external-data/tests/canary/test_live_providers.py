@@ -1,13 +1,14 @@
-"""Live canary: hits the real Open-Meteo endpoints.
+"""Live canary: hits the real provider endpoints.
 
 Excluded from the default run. Execute deliberately:
 
     uv run pytest -m canary
 
-This is the Phase 2 exit check from the module plan - Bangkok, Chiang Mai and an
-international location must resolve for real, with a forecast and honest
-freshness. It also detects schema drift that a frozen fixture never will, which
-is the whole reason to keep a test that depends on the network.
+These are the phase exit checks from the module plan: Bangkok, Chiang Mai and an
+international location must resolve for real with a forecast and honest
+freshness (Phase 2), and the USGS feed must still have the shape the adapter
+expects (Phase 3). They also detect schema drift that a frozen fixture never
+will, which is the whole reason to keep tests that depend on the network.
 """
 
 from __future__ import annotations
@@ -22,7 +23,8 @@ from app.adapters.open_meteo_weather import (
     OpenMeteoWeatherAdapter,
     WeatherQuery,
 )
-from app.domain.enums import DataStatus, ProviderStatus, Severity
+from app.adapters.usgs import DisasterQuery, UsgsAdapter
+from app.domain.enums import DataStatus, EventType, ProviderStatus, Severity
 from app.providers.registry import Defaults, ResolvedProvider, load_registry
 from app.settings import get_settings
 from app.transport.http import ProviderTransport
@@ -154,3 +156,42 @@ async def test_live_forecast_is_plausible_for_the_tropics(
         p.precipitation_probability is None or 0 <= p.precipitation_probability <= 100
         for p in points
     )
+
+
+# --------------------------------------------------------------- USGS (Phase 3)
+
+
+@pytest.fixture
+def usgs() -> UsgsAdapter:
+    return _adapter("usgs_earthquake", UsgsAdapter)
+
+
+async def test_live_usgs_feed_matches_the_expected_shape(usgs: UsgsAdapter) -> None:
+    """Schema drift on a hazard feed is the kind of thing a frozen fixture will
+    never tell you about."""
+    events = await usgs.query(DisasterQuery(start=datetime.now(UTC) - timedelta(days=7)))
+
+    # A quiet week worldwide is implausible, but assert only what must hold.
+    for event in events:
+        assert event.event_type is EventType.EARTHQUAKE
+        assert len(event.geometry.coordinates) == 2
+        assert -180 <= event.geometry.longitude <= 180
+        assert -90 <= event.geometry.latitude <= 90
+        assert event.effective_at.utcoffset() == timedelta(0)
+        assert event.effective_at.year >= 2020  # epoch-ms handled correctly
+        assert event.source.observed_at == event.effective_at
+        assert event.source.source_url and event.source.source_url.startswith("https://")
+        assert event.official is True
+        assert event.severity is Severity.UNKNOWN  # pending Q2/Q3
+
+
+async def test_live_usgs_magnitudes_are_plausible(usgs: UsgsAdapter) -> None:
+    """Catches a unit or scale swap: magnitudes live roughly in -2..10."""
+    from app.adapters.usgs import DisasterQuery
+
+    events = await usgs.query(DisasterQuery(start=datetime.now(UTC) - timedelta(days=7)))
+    magnitudes = [e.magnitude for e in events if e.magnitude is not None]
+
+    assert magnitudes, "no magnitudes in a week of global earthquakes"
+    assert all(-2.0 <= value <= 10.0 for value in magnitudes)
+    assert all(e.depth_km is None or -5.0 <= e.depth_km <= 800.0 for e in events)

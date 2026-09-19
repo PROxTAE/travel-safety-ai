@@ -15,15 +15,23 @@ the same to a user.
 | --- | --- | --- |
 | Geocoding | ✅ available | — |
 | Weather forecast | ✅ available | model forecast, not observation |
-| Earthquake / multi-hazard events | ✅ available | 3 sources; may disagree |
+| Earthquake events | ✅ available | USGS only so far; GDACS and EONET follow |
 | Road routing | ❌ unavailable | "Route planning is not configured for this deployment" |
 | Nearby emergency POI | ❌ unavailable | "Nearby places search is not available" |
 | Flight status / search | ❌ unavailable | "Flight information is not available" |
 | Public transit realtime | ❌ unavailable | "Transit coverage is not available for this area yet" |
 
-Four of seven user-visible capabilities are unavailable at Phase 0. Three are
-blocked on a credential or a Lead decision, not on code — see
+Four of seven user-visible capabilities are unavailable. All four are blocked on
+a credential or a Lead decision, not on code — see
 [`lead-approval-checklist.md`](lead-approval-checklist.md).
+
+One more rule the earthquake capability makes concrete: **an empty `events` list
+means "no hazards were reported", and the API guarantees it never means "we could
+not reach the sources".** If every disaster source fails the request fails with an
+error envelope, so the UI can never render a reassuring empty map by accident. If
+only some fail, the answer comes back with the failed ones named in
+`meta.degraded_services` — which the UI must show, because a partial hazard list
+looks exactly like a complete one.
 
 ## Contract for the unavailable state
 

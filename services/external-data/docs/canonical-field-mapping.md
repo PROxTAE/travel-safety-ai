@@ -87,7 +87,7 @@ Required canonical fields: `event_id`, `event_type`, `title`, `description`,
 `severity`, `geometry`, `effective_at`, `ends_at`, `instruction`, `official`,
 `quality`, `source`.
 
-### 3.1 USGS — fixture `usgs/significant_month.json`
+### 3.1 USGS — fixture `usgs/significant_month.json` — ✅ implemented (Phase 3)
 
 | Canonical | Provider | Note |
 | --- | --- | --- |
@@ -107,6 +107,14 @@ Required canonical fields: `event_id`, `event_type`, `title`, `description`,
 
 `properties.alert` (PAGER green/yellow/orange/red) is impact, not magnitude, and is
 frequently `null`. Do not overwrite `severity` with it — **open question Q3**.
+
+Implemented as agreed: `severity` stays `UNKNOWN`, and `mag`, `magType`, `alert`,
+depth and `tsunami` are carried through in typed fields on `DisasterEvent` so
+modules 05/06 have the evidence to decide with. Two further traps found while
+implementing: the summary feeds accept **no bbox and no time parameter**, so
+filtering is client-side and recorded as `OUTSIDE_COVERAGE` with a note; and a
+bbox that crosses the antimeridian is the union of two longitude spans, not one
+range — treating it as `min <= x <= max` silently hides every Pacific hazard.
 
 ### 3.2 GDACS — fixture `gdacs/eventlist_eq.json`
 

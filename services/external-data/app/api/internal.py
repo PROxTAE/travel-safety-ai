@@ -16,10 +16,16 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from app.adapters.factory import AdapterRegistry
 from app.adapters.open_meteo_geocoding import GeocodeQuery
 from app.adapters.open_meteo_weather import CoordinateSample, WeatherQuery
+from app.adapters.usgs import DisasterQuery
 from app.api.deps import InternalAuth
 from app.api.envelope import success
-from app.api.schemas import GeocodeSearchRequest, WeatherQueryRequest
+from app.api.schemas import (
+    DisasterQueryRequest,
+    GeocodeSearchRequest,
+    WeatherQueryRequest,
+)
 from app.domain.enums import HealthState, ProviderKind, ProviderStatus
+from app.domain.errors import ProviderError, ProviderErrorCode
 from app.observability.logging import get_logger
 from app.observability.metrics import REGISTRY
 from app.providers.registry import ResolvedRegistry
@@ -248,4 +254,74 @@ async def weather_query(
             "requested_samples": len(body.samples),
             "attribution": registry.attributions([adapter.provider_id]),
         }
+    )
+
+
+@router.post("/internal/v1/disasters/query")
+async def disasters_query(
+    request: Request, body: DisasterQueryRequest, _: InternalAuth
+) -> dict[str, Any]:
+    """Hazard events from every configured disaster source.
+
+    The sources are complementary, not interchangeable: the same earthquake
+    appears in more than one of them, and the plan forbids dropping a duplicate
+    here. Everything each source returned is emitted with its own provenance,
+    and module 05 resolves them.
+
+    If one source fails the answer is still returned, with that source named in
+    `meta.degraded_services`. If *every* source fails the request fails - an
+    empty list would read as "no hazards", which is the one answer this module
+    must never invent.
+    """
+    adapters: AdapterRegistry = request.app.state.adapters
+    registry: ResolvedRegistry = request.app.state.registry
+
+    available = adapters.all_for_kind(ProviderKind.DISASTER)
+    if not available:
+        raise ProviderError(
+            ProviderErrorCode.OUTSIDE_COVERAGE,
+            provider_id=str(ProviderKind.DISASTER),
+            message=adapters.blocked_reason(ProviderKind.DISASTER),
+        )
+
+    query = DisasterQuery(
+        bbox=body.bbox,
+        start=body.start,
+        end=body.end,
+        event_types=list(body.event_types),
+        min_magnitude=body.min_magnitude,
+    )
+
+    events: list[Any] = []
+    answered: list[str] = []
+    degraded: list[str] = []
+    last_error: ProviderError | None = None
+
+    for adapter in available:
+        try:
+            events.extend(await adapter.query(query))
+        except ProviderError as exc:
+            last_error = exc
+            degraded.append(adapter.provider_id)
+            log.warning(
+                "disaster_source_failed",
+                provider=adapter.provider_id,
+                error_code=str(exc.code),
+            )
+        else:
+            answered.append(adapter.provider_id)
+
+    if not answered:
+        assert last_error is not None
+        raise last_error
+
+    events.sort(key=lambda event: event.effective_at, reverse=True)
+
+    return success(
+        {
+            "events": [event.model_dump(mode="json") for event in events],
+            "sources": answered,
+            "attribution": registry.attributions(answered),
+        },
+        degraded=degraded,
     )

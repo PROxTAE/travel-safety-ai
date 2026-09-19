@@ -11,6 +11,7 @@ from __future__ import annotations
 from app.adapters.base import HealthRecorder, ProviderAdapter
 from app.adapters.open_meteo_geocoding import OpenMeteoGeocodingAdapter
 from app.adapters.open_meteo_weather import OpenMeteoWeatherAdapter
+from app.adapters.usgs import UsgsAdapter
 from app.cache.provider_cache import ProviderCache
 from app.domain.enums import ProviderKind
 from app.domain.errors import ProviderError, ProviderErrorCode
@@ -20,6 +21,7 @@ from app.transport.http import ProviderTransport
 ADAPTERS: dict[str, type[ProviderAdapter]] = {  # type: ignore[type-arg]
     "open_meteo_geocoding": OpenMeteoGeocodingAdapter,
     "open_meteo_forecast": OpenMeteoWeatherAdapter,
+    "usgs_earthquake": UsgsAdapter,
 }
 
 
@@ -46,6 +48,27 @@ class AdapterRegistry:
 
     def get(self, provider_id: str) -> ProviderAdapter | None:  # type: ignore[type-arg]
         return self._adapters.get(provider_id)
+
+    def all_for_kind(self, kind: ProviderKind) -> list[ProviderAdapter]:  # type: ignore[type-arg]
+        """Every usable adapter for a capability, in registry order.
+
+        Disaster sources are complementary rather than interchangeable - the
+        same earthquake appears in several of them and the plan forbids
+        dropping a duplicate - so the caller fans out to all of them.
+        """
+        return [
+            adapter
+            for resolved in self._registry.for_kind(kind)
+            if (adapter := self._adapters.get(resolved.id)) is not None
+        ]
+
+    def blocked_reason(self, kind: ProviderKind) -> str:
+        return (
+            "; ".join(
+                f"{p.id}: {p.reason}" for p in self._registry.for_kind(kind) if p.reason
+            )
+            or f"no provider configured for {kind}"
+        )
 
     def for_kind(self, kind: ProviderKind) -> ProviderAdapter:  # type: ignore[type-arg]
         """First usable adapter for a capability, or an explicit unavailable."""
