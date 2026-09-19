@@ -34,6 +34,13 @@ def _env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.setenv("GTFS_PROVIDER_CONFIG", str(REGISTRY_PATH))
     monkeypatch.setenv("INTERNAL_SERVICE_TOKEN", TEST_TOKEN)
     monkeypatch.setenv("POSTGRES_PASSWORD", "test-password")
+    # Point the dependencies at a closed local port rather than the compose
+    # hostnames. They are still unreachable - which is what the degraded-path
+    # tests want - but they fail on connect instead of waiting out a DNS lookup
+    # for "postgres" and "redis" on every single cache call.
+    monkeypatch.setenv("POSTGRES_HOST", "127.0.0.1")
+    monkeypatch.setenv("POSTGRES_PORT", "1")
+    monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:1/0")
     for name in ("ORS_API_KEY", "AMADEUS_CLIENT_ID", "AMADEUS_CLIENT_SECRET"):
         monkeypatch.delenv(name, raising=False)
     get_settings.cache_clear()

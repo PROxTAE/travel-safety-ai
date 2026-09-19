@@ -20,7 +20,7 @@ Conventions that apply everywhere:
 
 ---
 
-## 1. `LocationRef` ← Open-Meteo Geocoding
+## 1. `LocationRef` ← Open-Meteo Geocoding — ✅ implemented (Phase 2)
 
 Fixture: `open_meteo_geocoding/search_bangkok.json`
 
@@ -41,7 +41,7 @@ question Q1**.
 
 ---
 
-## 2. `WeatherForecastPoint` ← Open-Meteo Forecast
+## 2. `WeatherForecastPoint` ← Open-Meteo Forecast — ✅ implemented (Phase 2)
 
 Fixture: `open_meteo_weather/forecast_bangkok.json`, captured with
 `timezone=UTC&wind_speed_unit=kmh&precipitation_unit=mm&temperature_unit=celsius`.
@@ -72,7 +72,12 @@ Three traps confirmed against the fixture:
    array must be the same length as `time`; a ragged response is
    `PROVIDER_SCHEMA_CHANGED`, not a partial result.
 3. **The returned coordinate is the model grid point**, not the requested one.
-   Distance from request to grid point feeds `quality.coverage`.
+   The adapter records the haversine distance as a quality note, and flags
+   `INFERRED` past 25 km.
+4. **A batched request returns a JSON array**, a single-coordinate request
+   returns an object — and the array carries no id field, so results map back to
+   requests **by position only**. Found while implementing Phase 2, not in the
+   documentation; fixture `open_meteo_weather/forecast_batched.json`.
 
 ---
 

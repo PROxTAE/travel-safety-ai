@@ -20,7 +20,7 @@ from __future__ import annotations
 import abc
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Protocol, TypeVar
 
 from app.cache.provider_cache import ProviderCache, build_key
 from app.domain.canonical import SourceProvenance, content_hash
@@ -31,6 +31,19 @@ from app.providers.registry import ResolvedProvider
 from app.transport.http import ProviderResponse, ProviderTransport
 
 log = get_logger(__name__)
+
+# An auth failure says our configuration is wrong; a timeout or outage says the
+# provider is down; a quota or schema problem means it answered, badly.
+_HEALTH_BY_ERROR = {
+    ProviderErrorCode.PROVIDER_AUTH: HealthState.NOT_CONFIGURED,
+    ProviderErrorCode.PROVIDER_TIMEOUT: HealthState.DOWN,
+    ProviderErrorCode.PROVIDER_OUTAGE: HealthState.DOWN,
+    ProviderErrorCode.PROVIDER_QUOTA: HealthState.DEGRADED,
+    ProviderErrorCode.PROVIDER_RATE_LIMIT: HealthState.DEGRADED,
+    ProviderErrorCode.PROVIDER_SCHEMA_CHANGED: HealthState.DEGRADED,
+    ProviderErrorCode.OUTSIDE_COVERAGE: HealthState.UP,
+    ProviderErrorCode.LICENSE_RESTRICTION: HealthState.UP,
+}
 
 QueryT = TypeVar("QueryT")
 RecordT = TypeVar("RecordT")
@@ -55,6 +68,24 @@ class ProviderRequest:
     cache_key_fields: dict[str, Any] | None = None
 
 
+class HealthRecorder(Protocol):
+    """Writes an observed provider state. Implemented by ProviderRepository.
+
+    Kept as a protocol so an adapter never imports the persistence layer, and so
+    a caller that has no database can simply pass nothing.
+    """
+
+    async def upsert_health(
+        self,
+        *,
+        provider_id: str,
+        state: HealthState,
+        latency_ms: int | None = None,
+        quota_remaining: int | None = None,
+        reason: str | None = None,
+    ) -> None: ...
+
+
 @dataclass(slots=True)
 class ProviderHealthReport:
     provider_id: str
@@ -74,11 +105,13 @@ class ProviderAdapter(abc.ABC, Generic[QueryT, RecordT]):
         cache: ProviderCache | None = None,
         *,
         env: str = "development",
+        health_recorder: HealthRecorder | None = None,
     ) -> None:
         self.provider = provider
         self.transport = transport
         self.cache = cache
         self.env = env
+        self.health_recorder = health_recorder
 
     # ------------------------------------------------------------- identity
     @property
@@ -226,11 +259,14 @@ class ProviderAdapter(abc.ABC, Generic[QueryT, RecordT]):
             response = await self.fetch(request, deadline_seconds=deadline_seconds)
             model = self.validate(response)
             records = self.normalize(model, response)
-        except ProviderError:
+        except ProviderError as error:
+            await self._record_observation(error=error)
             if self.cache is not None and cache_key is not None:
                 negative_ttl = self.provider.entry.cache.negative_ttl_seconds or 30
                 await self.cache.set_negative(cache_key, self.provider_id, negative_ttl)
             raise
+        else:
+            await self._record_observation(response=response)
         finally:
             if self.cache is not None and cache_key is not None:
                 await self.cache.release_lock(cache_key)
@@ -243,6 +279,46 @@ class ProviderAdapter(abc.ABC, Generic[QueryT, RecordT]):
                 self.provider.entry.cache.effective_ttl,
             )
         return records
+
+    async def _record_observation(
+        self,
+        *,
+        response: ProviderResponse | None = None,
+        error: ProviderError | None = None,
+    ) -> None:
+        """Persist what this call actually observed about the provider.
+
+        This is what turns /internal/v1/providers/health from a restatement of
+        configuration into a report of reality. Best-effort on purpose: a
+        database problem must not fail a request whose data already arrived.
+        """
+        if self.health_recorder is None:
+            return
+
+        if error is not None:
+            state = _HEALTH_BY_ERROR.get(error.code, HealthState.DEGRADED)
+            latency_ms = None
+            reason = str(error.code)
+        else:
+            assert response is not None
+            state = HealthState.UP
+            latency_ms = int(response.elapsed_seconds * 1000)
+            reason = None
+
+        try:
+            await self.health_recorder.upsert_health(
+                provider_id=self.provider_id,
+                state=state,
+                latency_ms=latency_ms,
+                quota_remaining=self.transport.guards_for(self.provider).quota.remaining,
+                reason=reason,
+            )
+        except Exception as exc:  # the observation is a side effect, not the answer
+            log.warning(
+                "health_record_failed",
+                provider=self.provider_id,
+                error_type=type(exc).__name__,
+            )
 
     # Adapters holding Pydantic records override these two; the defaults keep
     # plain dict payloads working without ceremony.

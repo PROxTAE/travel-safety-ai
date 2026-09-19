@@ -69,7 +69,8 @@ ignore_missing_imports = true
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
-addopts = "-q --strict-markers"
+# Canary tests hit real providers, so they stay out of the default run.
+addopts = "-q --strict-markers -m 'not canary'"
 markers = [
     "canary: hits a real provider over the network; excluded from the default run",
 ]

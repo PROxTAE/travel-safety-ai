@@ -103,7 +103,7 @@ class ProviderRepository:
         self,
         *,
         provider_id: str,
-        status: HealthState,
+        state: HealthState,
         latency_ms: int | None = None,
         quota_remaining: int | None = None,
         reason: str | None = None,
@@ -111,7 +111,7 @@ class ProviderRepository:
         async with session_scope(self._sessions) as session:
             statement = pg_insert(ProviderHealth).values(
                 provider_id=provider_id,
-                status=str(status),
+                status=str(state),
                 latency_ms=latency_ms,
                 quota_remaining=quota_remaining,
                 checked_at=datetime.now(UTC),
