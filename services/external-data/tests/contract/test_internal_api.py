@@ -141,3 +141,49 @@ def test_unknown_route_returns_the_error_envelope(client: TestClient) -> None:
     body = client.get("/internal/v1/does-not-exist", headers=AUTH).json()
     assert body["error"]["code"] == "NOT_FOUND"
     assert body["meta"]["contract_version"] == "1.0.0"
+
+
+def test_active_provider_without_observation_is_unknown_not_up(
+    client: TestClient,
+) -> None:
+    """An ACTIVE provider that has never been reached is UNKNOWN, not UP.
+
+    Reporting UP from configuration alone is an assumption about the outside
+    world, and modules 03/05 route requests on this answer.
+    """
+    providers = client.get(HEALTH_PATH, headers=AUTH).json()["data"]["providers"]
+    usgs = next(p for p in providers if p["provider"] == "usgs_earthquake")
+
+    assert usgs["effective_status"] == "ACTIVE"
+    assert usgs["health"] == "UNKNOWN"
+    assert usgs["last_checked_at"] is None
+
+
+def test_unobserved_providers_count_as_degraded(client: TestClient) -> None:
+    body = client.get(HEALTH_PATH, headers=AUTH).json()
+    degraded = set(body["meta"]["degraded_services"])
+    # Nothing has been probed in this suite, so every provider is degraded.
+    assert degraded == {p["provider"] for p in body["data"]["providers"]}
+
+
+def test_every_provider_reports_a_last_checked_field(client: TestClient) -> None:
+    providers = client.get(HEALTH_PATH, headers=AUTH).json()["data"]["providers"]
+    assert all("last_checked_at" in p for p in providers)
+
+
+def test_unmatched_paths_share_one_metric_label(client: TestClient) -> None:
+    """Regression: the route label was read before the router resolved it, so
+    it fell back to the raw URL and every scanned path minted a new series."""
+    for suffix in ("zzz-1", "zzz-2", "zzz-3"):
+        client.get(f"/internal/v1/{suffix}", headers=AUTH)
+
+    metrics = client.get("/metrics").text
+    assert 'route="unmatched"' in metrics
+    for suffix in ("zzz-1", "zzz-2", "zzz-3"):
+        assert f'route="/internal/v1/{suffix}"' not in metrics
+
+
+def test_matched_routes_keep_their_templated_path(client: TestClient) -> None:
+    client.get(HEALTH_PATH, headers=AUTH)
+    metrics = client.get("/metrics").text
+    assert f'route="{HEALTH_PATH}"' in metrics

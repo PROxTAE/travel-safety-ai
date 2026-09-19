@@ -63,6 +63,12 @@ inverse is also true and less obvious: supplying `ORS_API_KEY` does **not**
 promote openrouteservice to callable, because the `status` field records a Lead
 approval decision, not mere reachability.
 
+**Provider health comes from observation, never from configuration.** An
+`ACTIVE` provider with no row in `provider.health` reports `UNKNOWN` with
+`last_checked_at: null`, not `UP`, and counts as degraded. Modules 03/05 route
+requests on this answer, so "configured" must never be reported as "reachable".
+Rows appear once a Phase 2 adapter writes `upsert_health` after a fetch.
+
 **A blank environment variable counts as a missing credential.** `.env.example`
 ships `ORS_API_KEY=` with no value, so an unfilled deployment presents an empty
 string rather than an unset variable. This was caught against the live container
@@ -158,7 +164,8 @@ GET /health/live                        200  {"status":"UP"}
 GET /health/ready                       200  redis UP, postgres UP,
                                              internal_auth UP, provider_registry UP
 GET /internal/v1/providers/health       401  AUTHENTICATION_REQUIRED (no token)
-GET /internal/v1/providers/health       200  9 providers, 4 degraded
+GET /internal/v1/providers/health       200  9 providers, all 9 degraded
+                                             (none observed yet -> UNKNOWN)
 GET /metrics                            200  Prometheus text
 ```
 

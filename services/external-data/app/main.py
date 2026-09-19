@@ -37,6 +37,18 @@ from app.transport.http import ProviderTransport
 log = get_logger(__name__)
 
 
+def _route_label(request: Request) -> str:
+    """Metric label for a request.
+
+    Templated route path when one matched, the constant "unmatched" otherwise -
+    an unrouted URL must never become its own label value, or anyone scanning
+    for paths can grow the metric cardinality without bound.
+    """
+    route = request.scope.get("route")
+    path = getattr(route, "path", None)
+    return path if isinstance(path, str) else "unmatched"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
@@ -100,23 +112,26 @@ def create_app() -> FastAPI:
         request_id_var.set(request_id)
         correlation_id_var.set(correlation_id)
 
-        route = request.scope.get("route")
-        route_label = getattr(route, "path", request.url.path)
         started = time.perf_counter()
         try:
             response = await call_next(request)
         except Exception:
             http_requests.labels(
-                method=request.method, route=route_label, status="500"
+                method=request.method, route=_route_label(request), status="500"
             ).inc()
             raise
         finally:
-            http_latency.labels(method=request.method, route=route_label).observe(
-                time.perf_counter() - started
-            )
+            # Resolved only after the router has run. Reading it earlier always
+            # fell back to the raw URL, so every scanned path minted a new
+            # metric series.
+            http_latency.labels(
+                method=request.method, route=_route_label(request)
+            ).observe(time.perf_counter() - started)
 
         http_requests.labels(
-            method=request.method, route=route_label, status=str(response.status_code)
+            method=request.method,
+            route=_route_label(request),
+            status=str(response.status_code),
         ).inc()
         response.headers[REQUEST_ID_HEADER] = request_id
         response.headers[CORRELATION_ID_HEADER] = correlation_id

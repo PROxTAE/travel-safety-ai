@@ -16,9 +16,12 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from app.api.deps import InternalAuth
 from app.api.envelope import success
 from app.domain.enums import HealthState, ProviderStatus
+from app.observability.logging import get_logger
 from app.observability.metrics import REGISTRY
 from app.providers.registry import ResolvedRegistry
 from app.settings import get_settings
+
+log = get_logger(__name__)
 
 router = APIRouter()
 health_router = APIRouter(tags=["health"])
@@ -88,11 +91,27 @@ async def providers_health(request: Request, _: InternalAuth) -> dict[str, Any]:
 
     from app.transport.resilience import CircuitState
 
+    # Real observations, written by an adapter after a fetch. A provider with no
+    # row here has never been reached, so its state is UNKNOWN - reporting UP
+    # from configuration alone would be an assumption, and modules 03/05 route
+    # requests on this answer.
+    observed: dict[str, Any] = {}
+    repo = getattr(request.app.state, "repo", None)
+    if repo is not None:
+        try:
+            observed = {row.provider_id: row for row in await repo.list_health()}
+        except Exception as exc:
+            # Readiness reports the database separately; here an unreachable DB
+            # simply means we have no observations.
+            log.warning("health_lookup_failed", error_type=type(exc).__name__)
+
     providers: list[dict[str, Any]] = []
     degraded: list[str] = []
 
     for resolved in registry.all():
         entry = resolved.entry
+        checked_at: str | None = None
+
         if resolved.effective_status is not ProviderStatus.ACTIVE:
             state = (
                 HealthState.NOT_CONFIGURED
@@ -103,11 +122,14 @@ async def providers_health(request: Request, _: InternalAuth) -> dict[str, Any]:
         else:
             guards = transport.guards_for(resolved)
             quota = guards.quota.remaining
-            state = (
-                HealthState.CIRCUIT_OPEN
-                if guards.circuit.state is CircuitState.OPEN
-                else HealthState.UP
-            )
+            row = observed.get(resolved.id)
+            if guards.circuit.state is CircuitState.OPEN:
+                state = HealthState.CIRCUIT_OPEN
+            elif row is None:
+                state = HealthState.UNKNOWN
+            else:
+                state = HealthState(row.status)
+                checked_at = row.checked_at.isoformat()
 
         if state is not HealthState.UP:
             degraded.append(resolved.id)
@@ -119,6 +141,7 @@ async def providers_health(request: Request, _: InternalAuth) -> dict[str, Any]:
                 "registry_status": str(entry.status),
                 "effective_status": str(resolved.effective_status),
                 "health": str(state),
+                "last_checked_at": checked_at,
                 "quota_remaining": quota,
                 "quota_verified": not entry.quota.verification_required,
                 "authority": str(entry.authority),
