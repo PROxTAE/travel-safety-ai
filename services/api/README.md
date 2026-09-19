@@ -11,7 +11,7 @@ Contract: [`packages/contracts/openapi/public-api.yaml`](../../packages/contract
 
 ## What exists today
 
-Phase 1 of the plan: the scaffold everything else is built on.
+Phases 1 and 2 of the plan.
 
 | Area | State |
 | --- | --- |
@@ -21,16 +21,16 @@ Phase 1 of the plan: the scaffold everything else is built on.
 | Error handling — every failure becomes the contract envelope | Done |
 | SQLAlchemy engine, session scope, Alembic per schema | Done |
 | Docker: multi-stage, non-root, healthcheck, compose wiring | Done |
-| OIDC token verification | Phase 2 — **not implemented** |
-| `/api/v1/**` endpoints | Phases 3–6 — **not implemented** |
+| OIDC token verification, JWKS cache with rotation handling | Done |
+| Subject to internal user mapping, owner-scoped repository | Done |
+| Scope and role dependencies | Done |
+| `GET /api/v1/me` | Read only — `PATCH` is phase 3 |
+| Consent records, emergency profile | Phase 3 — **not implemented** |
+| Trips, assessments, SSE, the rest of `/api/v1/**` | Phases 4–6 — **not implemented** |
+| Rate limiting | Phase 7 — **not implemented** |
 
-There is no authentication yet, and no placeholder pretending to be authentication: a stub that
-returns a user is indistinguishable from working auth until someone deploys it. The middleware
-chain leaves the slot open and phase 2 fills it.
-
-**Readiness is currently red** on a fresh stack, and correctly so. It requires the OIDC discovery
-document, and the `smart-travel` realm does not exist until phase 2 imports it. Liveness is green,
-the container is healthy, and everything else works — see *Health* below.
+`GET /api/v1/me` returns `consents: []` and `has_emergency_profile: false`. Those are accurate, not
+placeholders: no consent can be granted and no emergency profile can exist until phase 3.
 
 ## Run it
 
@@ -41,7 +41,7 @@ docker compose -f compose.yaml -f compose.dev.yaml --profile core --profile app 
 docker compose -f compose.yaml -f compose.dev.yaml --profile core --profile app up -d --wait api
 
 curl -fsS http://localhost:8000/health/live
-curl -sS  http://localhost:8000/health/ready    # 503 until the Keycloak realm exists
+curl -fsS http://localhost:8000/health/ready
 curl -fsS http://localhost:8000/metrics | head
 ```
 
@@ -52,9 +52,25 @@ cd services/api
 uv sync
 uv run ruff check . && uv run ruff format --check .
 uv run mypy app
-uv run pytest                      # integration tests skip themselves without Docker
-uv run pytest -m integration       # migrations against a throwaway PostGIS container
+uv run pytest -m "not integration"   # fast tier: no database, no network
+uv run pytest -m integration         # needs Docker; starts a throwaway PostGIS container
 ```
+
+Or inside the container, against the same platform the service runs on — which is what the
+delivery rules ask for and what CI does:
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml --profile core --profile app run --rm api uv run ruff check .
+docker compose -f compose.yaml -f compose.dev.yaml --profile core --profile app run --rm api uv run mypy app
+docker compose -f compose.yaml -f compose.dev.yaml --profile core --profile app run --rm api uv run pytest
+```
+
+The integration tier finds its database two ways. Inside compose there is no Docker socket, so it
+creates a throwaway database on the PostgreSQL next door (`TEST_DATABASE_URL`); on a laptop it
+starts a container with Testcontainers. Either way the tests get a database nobody else is using —
+sharing one would let a migration test that drops a schema delete another test's tables.
+
+The Keycloak tests skip themselves unless the realm is actually up, and say how to start it.
 
 ## Health
 
@@ -78,13 +94,59 @@ letting it answer requests it cannot honour.
 A failing check reports the exception type, never its message: this endpoint is unauthenticated and
 a driver's error message contains the connection string.
 
+## Authentication
+
+An OIDC access token from the project's Keycloak realm. Verification lives in `app/auth/` and is
+applied as a **dependency**, not as middleware: a middleware would have to run for `/health/*` and
+`/metrics` too and then decide to skip them, and that skip list fails open as routes are added.
+
+What is checked, in this order:
+
+1. **Algorithm, from the header, against an allowlist** — before any key is loaded. `alg: none`
+   needs no key at all, and `HS256` would be verified using the provider's *public* key as a shared
+   secret, which is published in the JWKS. Both are rejected before a lookup happens.
+2. **Signature**, against the key named by `kid`.
+3. **Issuer, audience, expiry, not-before, issued-at**, with a configurable clock-skew leeway.
+4. **The subject resolves to a local user**, created on first sign-in.
+5. **The account is neither disabled nor deleted.** A JWT cannot be withdrawn once issued, so
+   without this a disabled account keeps working until its token expires.
+6. **Scope**, per route. A valid token with the wrong scope is **403, not 401** — 401 tells the
+   client to refresh, which returns the same token, and the client loops.
+
+Every rejection returns the same 401 with the same message. The specific reason goes to the log,
+where it is useful and not attacker-visible; a caller that could tell "expired" from "wrong
+audience" could map the configuration by sending tokens and reading the differences.
+
+### The JWKS cache
+
+Fetching keys per request would put an HTTP call in front of every API call; caching them forever
+would break every token the moment the provider rotates. So: served from memory for a TTL,
+refetched once when a token names a key id the cache has not seen, and that refetch rate-limited —
+`kid` comes from the token, so without a cooldown a stream of tokens carrying random key ids turns
+one request into one outbound fetch, with this service as the amplifier.
+
+### Ownership
+
+Enforced at the repository query, not in the handler. `app/repositories/user_profiles.py` has no
+method that can return a row without being given an owner, so an ownership check cannot be
+forgotten — it can only be deliberately removed. `/api/v1/me` has no id parameter at all: the row
+is chosen by the id in the verified principal, never by anything the client sent.
+
+### Logs
+
+The authenticated caller appears as `user_id` plus `subject_digest` — a truncated SHA-256 of the
+OIDC subject. Enough to correlate one person's requests during an investigation, without writing an
+identity-provider id into log storage.
+
 ## Layout
 
 ```text
 app/
 ├─ main.py            app factory and lifespan; middleware order is documented there
 ├─ settings.py        every environment value, validated at startup
-├─ api/               routers (health today; /api/v1 from phase 3)
+├─ api/               routers: health, and /api/v1/me
+├─ auth/              JWKS cache, token verification, principal, dependencies
+├─ repositories/      owner-scoped queries — the only way to reach a row
 ├─ db/                declarative base, engine, session scope
 ├─ errors/            contract error codes, exceptions, handlers
 ├─ health/            readiness checks and the concrete probes
@@ -101,7 +163,7 @@ public API, never through the tables.
 
 | Schema | Holds |
 | --- | --- |
-| `identity` | Profiles, consent records, emergency profiles |
+| `identity` | `user_profiles` today; consent records and emergency profiles in phase 3 |
 | `travel` | Trips, assessment requests, idempotency records |
 | `api` | This service's Alembic version table only — no user data |
 
@@ -151,9 +213,12 @@ In production, plain-HTTP CORS origins and a plain-HTTP OIDC issuer are rejected
 
 ## Known limitations
 
-- No authentication, so no endpoint is protected yet. Phase 2.
-- Readiness is red until the Keycloak realm is imported. Phase 2.
+- Only one protected endpoint exists, and it is read-only. Phases 3–6 add the rest.
 - No rate limiting yet, although Redis is already required and probed. Phase 7.
+- A token stays valid until it expires. Disabling an account takes effect immediately because the
+  local row is checked on every request, but there is no token introspection or revocation list.
+- The realm at `infra/keycloak/` is for local development and enables a direct-grant test client.
+  See that folder's README before using it anywhere else.
 - `infra/postgres/init/00-schemas.sql` creates `api` but not `identity` or `travel`. The migration
   creates them itself, so a fresh or existing database both work; the init script is a shared
   surface and reconciling it is an infra PR.

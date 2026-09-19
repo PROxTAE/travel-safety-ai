@@ -18,8 +18,10 @@ htmlcov
 *.pem
 *.key
 
-# Tests and local tooling are not part of the runtime.
-tests
+# Tests ARE in the build context: the `dev` stage copies them so the suite can run inside the
+# container against the same platform the service runs on. They never reach the `runtime` stage,
+# which copies only .venv, app, migrations and alembic.ini — and CI asserts /app/tests is absent
+# from the published image.
 README.md
 Makefile
 

@@ -33,6 +33,35 @@ COPY alembic.ini ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
+# --- dev -------------------------------------------------------------------------------------
+#
+# Used by compose.dev.yaml and by `docker compose run --rm api uv run pytest`, so the checks run
+# against the same Python, the same platform and the same locked dependency set as the runtime
+# image — not against whatever a developer's laptop happens to have. It is never published: the
+# `runtime` stage below is the only thing that ships.
+#
+# `uv` stays on the PATH here because the dev workflow drives everything through it.
+
+FROM build AS dev
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:$PATH" \
+    SERVICE_NAME=api \
+    UV_PROJECT_ENVIRONMENT=/app/.venv
+
+# The dev group: pytest, ruff, mypy and the rest. Installed after the runtime sync above so the
+# production dependency layers stay shared with the runtime image.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen
+
+COPY tests ./tests
+
+# Root on purpose. Source is bind-mounted read-only from the host, and the caches pytest, ruff and
+# mypy write live inside the container; a uid mismatch with the host would make every run fail on
+# a permission error before it reached a single test.
+CMD ["uv", "run", "pytest"]
+
 # --- runtime ---------------------------------------------------------------------------------
 
 FROM python:3.12.8-slim-bookworm AS runtime

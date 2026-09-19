@@ -29,14 +29,32 @@ services:
       - alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
 
   api:
+    build:
+      # The dev stage adds pytest, ruff and mypy on top of the same locked dependency set the
+      # runtime image uses, so `docker compose run --rm api uv run pytest` checks the code against
+      # the platform it will actually run on rather than against a developer's laptop.
+      target: dev
     ports: ["8000:8000"]
     environment:
       # The browser runs on the host, so the API must accept the host origin during development.
       API_CORS_ALLOWED_ORIGINS: http://localhost:3000
+      # The maintenance database the test suite creates its throwaway databases from. Inside
+      # compose there is no Docker socket, so Testcontainers cannot be used; this is the way in.
+      TEST_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-smart_travel}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-smart_travel}
+      # So the contract-parity tests can read packages/contracts from inside the container, where
+      # the repository root is not an ancestor of /app.
+      CONTRACTS_DIR: /contracts
     volumes:
-      # Read-only mount: the container reloads on save but cannot write back into the repository.
+      # Read-only mounts: the container reloads on save but cannot write back into the repository.
       - ./services/api/app:/app/app:ro
       - ./services/api/migrations:/app/migrations:ro
+      - ./services/api/tests:/app/tests:ro
+      - ./services/api/pyproject.toml:/app/pyproject.toml:ro
+      - ./services/api/alembic.ini:/app/alembic.ini:ro
+      - ./packages/contracts:/contracts:ro
+      # Writable, and deliberately not a bind mount: pytest, ruff and mypy write their caches here,
+      # and pointing them at the read-only source would fail before the first test ran.
+      - api-dev-cache:/app/.cache
     command:
       [
         "uvicorn",
@@ -64,3 +82,6 @@ services:
   #     - ./apps/web:/app
   #     - /app/node_modules
   #   command: ["pnpm", "dev"]
+
+volumes:
+  api-dev-cache:

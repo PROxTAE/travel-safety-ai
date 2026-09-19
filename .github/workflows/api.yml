@@ -67,9 +67,11 @@ jobs:
         if: steps.present.outputs.run == 'true'
         run: uv run pytest -m "not integration" --cov=app --cov-report=term-missing
 
-      - name: migration tests (PostGIS จริงผ่าน Testcontainers)
+      # Testcontainers starts PostGIS; the Keycloak tests skip themselves because no realm is
+      # running here. They are covered by the local run and by the acceptance runbook.
+      - name: integration tests (PostGIS จริงผ่าน Testcontainers)
         if: steps.present.outputs.run == 'true'
-        run: uv run pytest -m integration
+        run: uv run pytest -m integration -rs
 
       - name: build image
         if: steps.present.outputs.run == 'true'
@@ -87,7 +89,7 @@ jobs:
           fi
           echo "image รันด้วย uid $uid"
 
-          for path in /app/.env /app/tests /app/.git /app/uv.lock; do
+          for path in /app/.env /app/tests /app/.git /app/uv.lock /app/.venv/bin/uv; do
             if docker run --rm --entrypoint sh sta-api:ci -c "test -e $path"; then
               echo "::error::image ไม่ควรมี $path"
               exit 1
@@ -103,3 +105,41 @@ jobs:
             exit 1
           fi
           echo "ไม่พบ runtime mock switch"
+
+      # The one that would be catastrophic and silent: a verifier that accepts `none` or an HMAC
+      # algorithm can be forged with the provider's published public key.
+      - name: ตรวจว่า JWT verification ไม่รับ algorithm ที่ไม่ปลอดภัย
+        if: steps.present.outputs.run == 'true'
+        run: |
+          if grep -rnE "algorithms\s*=\s*\[?[\"']?(none|HS[0-9]{3})" app; then
+            echo "::error::พบ symmetric/none algorithm ใน JWT verification"
+            exit 1
+          fi
+          if grep -rn "verify_signature.*False" app; then
+            echo "::error::พบการปิด signature verification"
+            exit 1
+          fi
+          echo "JWT verification ใช้ asymmetric algorithm เท่านั้น"
+
+      - name: ตรวจว่า realm import ไม่มี credential
+        if: steps.present.outputs.run == 'true'
+        working-directory: .
+        run: |
+          realm=infra/keycloak/smart-travel-realm.json
+          test -f "$realm" || { echo "::error::ไม่มี realm import file"; exit 1; }
+          python - "$realm" <<'PY'
+          import json, sys
+          realm = json.load(open(sys.argv[1], encoding="utf-8"))
+          problems = []
+          if realm.get("users"):
+              problems.append("realm มี users ติดมาด้วย")
+          for client in realm.get("clients", []):
+              if client.get("secret"):
+                  problems.append(f"client {client['clientId']} มี secret")
+              if not client.get("publicClient", False) and not client.get("bearerOnly", False):
+                  problems.append(f"client {client['clientId']} เป็น confidential (ต้องมี secret)")
+          if problems:
+              print("::error::" + "; ".join(problems))
+              sys.exit(1)
+          print("realm import ไม่มี credential")
+          PY
