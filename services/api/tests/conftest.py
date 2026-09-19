@@ -30,6 +30,7 @@ from alembic.config import Config
 from fastapi import FastAPI
 from sqlalchemy.engine import make_url
 
+from app.security.envelope import EnvelopeCipher
 from app.settings import Settings, get_settings
 from tests.database import provision_database
 
@@ -58,6 +59,9 @@ TEST_ENV: dict[str, str] = {
     "OIDC_AUDIENCE": "smart-travel-api",
     "API_CORS_ALLOWED_ORIGINS": "http://localhost:3000",
     "API_READINESS_TIMEOUT_SECONDS": "1",
+    # Generated per run, never committed. A fixture key in the repository would be a key someone
+    # eventually copies into a deployment.
+    "API_EMERGENCY_ENCRYPTION_KEYS": f"v1:{EnvelopeCipher.generate_key()}",
 }
 
 

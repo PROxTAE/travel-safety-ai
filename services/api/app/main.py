@@ -33,6 +33,7 @@ from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
 
 from app.api import health as health_routes
+from app.api.v1 import consents as consent_routes
 from app.api.v1 import me as me_routes
 from app.auth.jwks import JwksCache
 from app.db.engine import create_engine, create_session_factory, dispose_engine
@@ -49,6 +50,7 @@ from app.middleware.request_context import (
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.observability.logging import configure_logging, get_logger
 from app.observability.tracing import configure_tracing, instrument_app
+from app.services.encryption import build_cipher
 from app.settings import Settings, get_settings
 
 logger = get_logger(__name__)
@@ -194,8 +196,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     register_exception_handlers(app, settings)
 
+    # Built here rather than in the lifespan so a malformed key stops the process at startup,
+    # where someone is watching, instead of on the first request that needs it.
+    app.state.cipher = build_cipher(settings)
+    if app.state.cipher is None:
+        logger.warning(
+            "emergency_profile_encryption_unconfigured",
+            event_type="lifecycle",
+            detail="the emergency profile endpoints will report themselves unavailable",
+        )
+
     app.include_router(health_routes.router)
     app.include_router(me_routes.router)
+    app.include_router(consent_routes.router)
 
     instrument_app(app)
     return app

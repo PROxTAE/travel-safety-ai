@@ -59,6 +59,9 @@ REDACTED_KEYS: frozenset[str] = frozenset(
         "blood_type",
         "emergency_profile",
         "encrypted_payload",
+        "contacts",
+        "insurance",
+        "policy_reference",
         # Precise location. Coarse `country_code` and `timezone` stay: they are what make a log
         # useful for debugging coverage without describing where a person was.
         "lat",
