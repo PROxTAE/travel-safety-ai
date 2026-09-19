@@ -85,6 +85,17 @@ services:
       - web-node-modules:/app/node_modules
     command: ["pnpm", "dev", "--hostname", "0.0.0.0"]
 
+  risk-knowledge:
+    ports: ["8004:8004"]
+    volumes:
+      - ./services/risk-knowledge/app:/app/app:ro
+      - ./services/risk-knowledge/governance:/app/governance:ro
+      - ./services/risk-knowledge/knowledge:/app/knowledge:ro
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8004", "--reload", "--no-server-header", "--no-access-log"]
+
+  mlflow:
+    ports: ["5000:5000"]
+
   # ตัวอย่าง override ของ module (เจ้าของเพิ่มพร้อม service ใน compose.yaml)
   #
   # external-data:
