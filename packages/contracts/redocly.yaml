@@ -1,0 +1,50 @@
+# Lint rules for the public API contract.
+# Run: npm run lint   (from packages/contracts)
+#
+# The rules below are the ones the team agreed to enforce in CI. They are deliberately strict
+# about description and operationId, because every generated client and every reviewer reads
+# this file as the specification rather than the implementation.
+
+extends:
+  - recommended
+
+apis:
+  public@v1:
+    root: openapi/public-api.yaml
+
+rules:
+  # Contract hygiene
+  operation-operationId: error
+  operation-operationId-unique: error
+  operation-summary: error
+  operation-description: warn
+  tag-description: error
+  tags-alphabetical: off
+  info-license: error
+  info-contact: error
+
+  # Responses: an operation that can fail must document how it fails.
+  # The two /health/* operations are the documented exception and are listed in
+  # .redocly.lint-ignore.yaml with the reason.
+  operation-4xx-response: error
+  operation-2xx-response: error
+  no-invalid-media-type-examples: error
+
+  # Parameters and schemas
+  path-parameters-defined: error
+  no-unused-components: warn
+  spec-components-invalid-map-name: error
+  no-ambiguous-paths: error
+  path-declaration-must-exist: error
+  no-identical-paths: error
+
+  # Servers must be declared so generated clients have a base URL.
+  no-empty-servers: error
+  # localhost and the internal container name are the only servers that exist for this project;
+  # there is no public deployment to point at.
+  no-server-example.com: off
+  # The project is internal and has no SPDX identifier or licence URL to publish.
+  info-license-strict: off
+
+  # Security must be explicit: either inherited from the document or set to [] on purpose.
+  security-defined: error
