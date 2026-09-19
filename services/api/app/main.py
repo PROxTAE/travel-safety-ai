@@ -15,9 +15,10 @@ the ones outside it:
 5. **Access log** — innermost of the cross-cutting layers, so the duration it records is the time
    the application actually spent, and the status it records is the final one.
 
-Authentication slots in between CORS and the access log in phase 2. It is deliberately absent
-here rather than stubbed: a placeholder that returns a user is indistinguishable from working
-auth until someone deploys it.
+Authentication is **not** a layer in this chain. It is a FastAPI dependency instead, declared per
+router (`app/auth/dependencies.py`). A middleware would have to run for `/health/*` and `/metrics`
+too and then decide to skip them, and that skip list fails open as routes are added; a dependency
+makes "unauthenticated" something someone wrote down, visible in the OpenAPI document.
 """
 
 from __future__ import annotations
@@ -32,6 +33,8 @@ from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
 
 from app.api import health as health_routes
+from app.api.v1 import me as me_routes
+from app.auth.jwks import JwksCache
 from app.db.engine import create_engine, create_session_factory, dispose_engine
 from app.errors.handlers import register_exception_handlers
 from app.health.probes import agent_check, database_check, oidc_discovery_check, redis_check
@@ -96,6 +99,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         headers={"user-agent": f"{settings.service_name}/{settings.service_version}"},
     )
     app.state.internal_http = internal_http
+
+    # One cache per process, sharing the internal HTTP client so its timeouts apply to the
+    # identity provider too.
+    app.state.jwks = JwksCache(settings=settings, client=internal_http)
+    await app.state.jwks.warm()
 
     app.state.readiness_checks = [
         database_check(engine, settings),
@@ -187,6 +195,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(app, settings)
 
     app.include_router(health_routes.router)
+    app.include_router(me_routes.router)
 
     instrument_app(app)
     return app

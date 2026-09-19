@@ -9,6 +9,7 @@ gains an error code or renames a field, these tests fail in this service rather 
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +18,27 @@ import pytest
 from app.errors.codes import ErrorCode, FieldErrorCode
 from app.schemas.envelope import ErrorBody, PageMeta, ResponseMeta
 
-CONTRACTS = Path(__file__).resolve().parents[3] / "packages" / "contracts"
+
+def _find_contracts() -> Path:
+    """Locate `packages/contracts`, from a checkout or from inside the container.
+
+    In the container the service lives at `/app` and the repository root is not an ancestor, so
+    walking up the tree finds nothing; compose mounts the folder and sets `CONTRACTS_DIR` instead.
+    Resolving this defensively rather than by index also means a future move of this file cannot
+    turn the parity check into an import error.
+    """
+    configured = os.environ.get("CONTRACTS_DIR")
+    if configured:
+        return Path(configured)
+
+    for ancestor in Path(__file__).resolve().parents:
+        candidate = ancestor / "packages" / "contracts"
+        if candidate.is_dir():
+            return candidate
+    return Path("packages/contracts")
+
+
+CONTRACTS = _find_contracts()
 COMMON = CONTRACTS / "jsonschema" / "common"
 
 pytestmark = pytest.mark.skipif(

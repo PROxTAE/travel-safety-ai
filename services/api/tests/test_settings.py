@@ -20,7 +20,16 @@ def build(**overrides: str) -> Settings:
     return Settings(**values)  # type: ignore[arg-type]
 
 
-def test_missing_database_password_fails_at_construction() -> None:
+def test_missing_database_password_fails_at_construction(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail at startup, not on the first user request an hour later.
+
+    The environment is cleared explicitly: inside the container POSTGRES_PASSWORD is genuinely set,
+    and a test that only passed because the host happened not to have it would be asserting
+    something about the test machine rather than about the code.
+    """
+    for key in ("POSTGRES_PASSWORD", "POSTGRES_USER"):
+        monkeypatch.delenv(key, raising=False)
+
     values = {key.lower(): value for key, value in TEST_ENV.items()}
     del values["postgres_password"]
 
