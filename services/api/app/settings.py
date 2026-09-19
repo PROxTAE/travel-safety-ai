@@ -128,6 +128,52 @@ class Settings(BaseSettings):
         ),
     )
 
+    # --- Emergency profile encryption ----------------------------------------------------------
+
+    emergency_encryption_keys: str | None = Field(
+        default=None,
+        alias="API_EMERGENCY_ENCRYPTION_KEYS",
+        description=(
+            "Versioned key-encryption keys as `v1:<base64>,v2:<base64>`. Generate one with "
+            "`python -m app.cli.generate_key`. Absent means the emergency profile endpoints "
+            "report themselves unavailable; there is no plaintext fallback."
+        ),
+    )
+    emergency_encryption_active_version: str | None = Field(
+        default=None,
+        alias="API_EMERGENCY_ENCRYPTION_ACTIVE_VERSION",
+        description="Which key new records are sealed under. Defaults to the last one listed.",
+    )
+
+    # --- Consent ---------------------------------------------------------------------------------
+    #
+    # Ceilings, not defaults: a client may ask for less, never for more. A location grant that
+    # outlives the reason it was given is indistinguishable from tracking.
+
+    consent_location_once_ttl_seconds: int = Field(
+        default=3600,
+        alias="API_CONSENT_LOCATION_ONCE_TTL_SECONDS",
+        ge=60,
+        le=86_400,
+        description="How long a one-off location grant survives. It is for a single errand.",
+    )
+    consent_location_live_max_ttl_seconds: int = Field(
+        default=86_400,
+        alias="API_CONSENT_LOCATION_LIVE_MAX_TTL_SECONDS",
+        ge=300,
+        le=2_592_000,
+        description="Ceiling on a live-location session, so one can never be granted indefinitely.",
+    )
+    consent_policy_retention_days: int = Field(
+        default=2_555,
+        alias="API_CONSENT_RETENTION_DAYS",
+        ge=365,
+        description=(
+            "How long revoked consent records are kept. Consent evidence outlives the consent "
+            "itself: proving what someone agreed to, and when, is the point of recording it."
+        ),
+    )
+
     # --- Internal services ----------------------------------------------------------------------
     #
     # Base URLs come from configuration and are never taken from a request. Anything else would
@@ -262,6 +308,12 @@ class Settings(BaseSettings):
             raise ValueError(
                 "OIDC_ISSUER must be https in production; tokens verified over plain HTTP can be "
                 "substituted in transit."
+            )
+        if not self.emergency_encryption_keys:
+            raise ValueError(
+                "API_EMERGENCY_ENCRYPTION_KEYS is required in production. The emergency profile "
+                "holds medical details, and starting without a key would mean the endpoint is "
+                "silently unavailable to people who may need it most."
             )
         return self
 
