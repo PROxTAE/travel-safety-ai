@@ -40,7 +40,7 @@ test-unit:       ## unit tests
 
 test-contract:   ## contract tests (tests/contract + packages/contracts)
 	cd packages/contracts && npm run --silent check
-	uv run --project tests/contract pytest
+	uv run --project tests/contract pytest tests/contract
 
 contracts-install: ## ติดตั้ง tooling ของ packages/contracts (ครั้งแรก/หลังแก้ package.json)
 	cd packages/contracts && npm ci

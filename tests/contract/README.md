@@ -9,10 +9,13 @@ deterministic enough that a failure always means the contract changed.
 ## Run
 
 ```bash
-uv run --project tests/contract pytest
+uv run --project tests/contract pytest tests/contract
 ```
 
-`uv.lock` is committed, so two machines install the same versions.
+`uv.lock` is committed, so two machines install the same versions. The path is passed explicitly
+because pytest resolves `testpaths` against the directory it was started from: from the repository
+root without it, pytest would also collect every service's own suite in an environment that has
+none of their dependencies.
 
 ## What each file is for
 

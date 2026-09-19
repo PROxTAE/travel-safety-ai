@@ -38,7 +38,7 @@ npm run generate       # bundle -> TypeScript -> Python  (needs uv on PATH)
 ```
 
 The Python contract tests live in [`tests/contract/`](../../tests/contract/) and run with
-`uv run --project tests/contract pytest`.
+`uv run --project tests/contract pytest tests/contract`.
 
 ## Conventions that are not obvious from the files
 

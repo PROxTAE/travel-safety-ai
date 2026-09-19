@@ -14,5 +14,9 @@ dependencies = [
 package = false
 
 [tool.pytest.ini_options]
+# Relative to whatever directory pytest is invoked from, so the repository wrapper passes the path
+# explicitly: `uv run --project tests/contract pytest tests/contract`. Without that, running from
+# the repository root would also collect every service's own suite, in an environment that has none
+# of their dependencies installed.
 testpaths = ["."]
 addopts = "-q --strict-markers"
