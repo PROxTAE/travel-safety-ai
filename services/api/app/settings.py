@@ -82,7 +82,7 @@ class Settings(BaseSettings):
         default=2.0, alias="API_REDIS_TIMEOUT_SECONDS", gt=0, le=30
     )
 
-    # --- OIDC (verified in phase 2; discovery is probed by readiness from phase 1) --------------
+    # --- OIDC ----------------------------------------------------------------------------------
 
     oidc_issuer: str = Field(
         default="http://keycloak:8080/realms/smart-travel", alias="OIDC_ISSUER"
@@ -90,6 +90,42 @@ class Settings(BaseSettings):
     oidc_audience: str = Field(default="smart-travel-api", alias="OIDC_AUDIENCE")
     oidc_discovery_timeout_seconds: float = Field(
         default=3.0, alias="API_OIDC_TIMEOUT_SECONDS", gt=0, le=30
+    )
+    oidc_allowed_algorithms: Annotated[tuple[str, ...], NoDecode] = Field(
+        default=("RS256", "RS384", "RS512", "ES256", "ES384"),
+        alias="API_OIDC_ALLOWED_ALGORITHMS",
+        description=(
+            "Asymmetric algorithms only, and checked against the header before verification. "
+            "Accepting `none` or an HMAC algorithm here is the classic JWT forgery: the public "
+            "signing key is published in the JWKS, so an attacker could sign a token with it."
+        ),
+    )
+    oidc_leeway_seconds: float = Field(
+        default=30.0,
+        alias="API_OIDC_LEEWAY_SECONDS",
+        ge=0,
+        le=300,
+        description=(
+            "Clock-skew tolerance on exp/nbf/iat. A large value extends a stolen token's life."
+        ),
+    )
+    oidc_jwks_ttl_seconds: float = Field(
+        default=600.0,
+        alias="API_OIDC_JWKS_TTL_SECONDS",
+        gt=0,
+        le=86400,
+        description="How long a fetched JWKS is reused before it is refetched on the next use.",
+    )
+    oidc_jwks_min_refresh_seconds: float = Field(
+        default=30.0,
+        alias="API_OIDC_JWKS_MIN_REFRESH_SECONDS",
+        ge=0,
+        le=3600,
+        description=(
+            "Cooldown between refreshes triggered by an unknown key id. Without it, tokens "
+            "carrying random `kid` values would let anyone turn one request into one outbound "
+            "fetch against the identity provider."
+        ),
     )
 
     # --- Internal services ----------------------------------------------------------------------
@@ -164,12 +200,34 @@ class Settings(BaseSettings):
         ),
     )
 
-    @field_validator("cors_allowed_origins", mode="before")
+    @field_validator("cors_allowed_origins", "oidc_allowed_algorithms", mode="before")
     @classmethod
-    def _split_origins(cls, value: object) -> object:
+    def _split_csv(cls, value: object) -> object:
         """Accept a comma-separated string, which is what an env var can carry."""
         if isinstance(value, str):
-            return tuple(origin.strip() for origin in value.split(",") if origin.strip())
+            return tuple(item.strip() for item in value.split(",") if item.strip())
+        return value
+
+    @field_validator("oidc_allowed_algorithms")
+    @classmethod
+    def _reject_symmetric_algorithms(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        """Asymmetric signatures only.
+
+        `none` needs no key at all. An HMAC algorithm is worse than it looks: the verifier would
+        use the identity provider's *public* signing key as the shared secret, and that key is
+        published in the JWKS, so anyone could mint a valid token.
+        """
+        allowed_prefixes = ("RS", "ES", "PS", "EdDSA")
+        rejected = [
+            algorithm
+            for algorithm in value
+            if not algorithm.startswith(allowed_prefixes) or algorithm.upper() == "NONE"
+        ]
+        if rejected or not value:
+            raise ValueError(
+                "OIDC algorithms must be asymmetric (RS*, PS*, ES*, EdDSA) and non-empty; "
+                f"rejected: {rejected or ['<empty>']}"
+            )
         return value
 
     @field_validator("cors_allowed_origins")

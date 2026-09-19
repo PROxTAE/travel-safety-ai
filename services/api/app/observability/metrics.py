@@ -62,6 +62,16 @@ readiness_state = Gauge(
     registry=REGISTRY,
 )
 
+auth_failures_total = Counter(
+    "api_auth_failures_total",
+    "Rejected authentication and authorisation attempts, by reason.",
+    labelnames=("reason",),
+    registry=REGISTRY,
+)
+"""A spike in one reason is the signal worth alerting on: `unknown_kid` in volume means either a
+key rotation nobody announced or someone probing with forged tokens. The label is a fixed
+vocabulary set by the code, never a value from the request."""
+
 request_body_rejected_total = Counter(
     "api_request_body_rejected_total",
     "Requests refused before the body was read, by reason.",
