@@ -5,13 +5,16 @@ from __future__ import annotations
 import time
 from typing import Any
 
+import httpx
 import pytest
+import respx
 
+from app.adapters.base import HealthRecorder
 from app.adapters.open_meteo_geocoding import (
     GeocodeQuery,
     OpenMeteoGeocodingAdapter,
 )
-from app.domain.enums import ProviderStatus, QualityFlag
+from app.domain.enums import HealthState, ProviderStatus, QualityFlag
 from app.domain.errors import ProviderError, ProviderErrorCode
 from app.providers.registry import Defaults, ResolvedProvider, load_registry
 from app.settings import get_settings
@@ -19,6 +22,7 @@ from app.transport.http import ProviderResponse, ProviderTransport
 from tests.conftest import REGISTRY_PATH, load_fixture
 
 FIXTURE = "open_meteo_geocoding/search_bangkok.json"
+GEOCODE_URL_PATH = "https://geocoding-api.open-meteo.com/v1/search"
 
 
 @pytest.fixture
@@ -32,6 +36,22 @@ def adapter() -> OpenMeteoGeocodingAdapter:
         base_url=get_settings().base_url_for(entry.base_url_env),
     )
     return OpenMeteoGeocodingAdapter(provider, ProviderTransport(Defaults()))
+
+
+def _adapter_with(recorder: HealthRecorder) -> OpenMeteoGeocodingAdapter:
+    entry = next(
+        p for p in load_registry(REGISTRY_PATH).providers if p.id == "open_meteo_geocoding"
+    )
+    provider = ResolvedProvider(
+        entry=entry,
+        effective_status=ProviderStatus.ACTIVE,
+        base_url=get_settings().base_url_for(entry.base_url_env),
+    )
+    defaults = Defaults()
+    defaults.retry.initial_backoff_seconds = 0.001
+    return OpenMeteoGeocodingAdapter(
+        provider, ProviderTransport(defaults), health_recorder=recorder
+    )
 
 
 def _response(payload: Any) -> ProviderResponse:
@@ -182,3 +202,72 @@ def test_locale_changes_the_cache_key(adapter: OpenMeteoGeocodingAdapter) -> Non
     english = adapter.build_request(GeocodeQuery(name="Bangkok", language="en"))
     thai = adapter.build_request(GeocodeQuery(name="Bangkok", language="th"))
     assert english.cache_key_fields != thai.cache_key_fields
+
+
+class _RecordingHealth:
+    """Stand-in for ProviderRepository; records what the adapter observed."""
+
+    def __init__(self, fail: bool = False) -> None:
+        self.calls: list[dict[str, object]] = []
+        self.fail = fail
+
+    async def upsert_health(self, **kwargs: object) -> None:
+        if self.fail:
+            raise RuntimeError("database unavailable")
+        self.calls.append(kwargs)
+
+
+@respx.mock
+async def test_a_successful_call_records_an_up_observation() -> None:
+    """This is what turns the health endpoint from a restatement of config into
+    a report of reality."""
+    respx.get(GEOCODE_URL_PATH).mock(
+        return_value=httpx.Response(200, json=load_fixture(FIXTURE))
+    )
+    recorder = _RecordingHealth()
+    adapter = _adapter_with(recorder)
+
+    await adapter.query(GeocodeQuery(name="Bangkok"))
+
+    assert len(recorder.calls) == 1
+    call = recorder.calls[0]
+    assert call["provider_id"] == "open_meteo_geocoding"
+    assert call["state"] is HealthState.UP
+    assert isinstance(call["latency_ms"], int)
+
+
+@respx.mock
+async def test_a_provider_outage_records_down() -> None:
+    respx.get(GEOCODE_URL_PATH).mock(return_value=httpx.Response(503))
+    recorder = _RecordingHealth()
+    adapter = _adapter_with(recorder)
+
+    with pytest.raises(ProviderError):
+        await adapter.query(GeocodeQuery(name="Bangkok"))
+
+    assert recorder.calls[0]["state"] is HealthState.DOWN
+
+
+@respx.mock
+async def test_an_auth_failure_records_not_configured_not_down() -> None:
+    """A 401 means our key is wrong, not that the provider is unhealthy."""
+    respx.get(GEOCODE_URL_PATH).mock(return_value=httpx.Response(401))
+    recorder = _RecordingHealth()
+    adapter = _adapter_with(recorder)
+
+    with pytest.raises(ProviderError):
+        await adapter.query(GeocodeQuery(name="Bangkok"))
+
+    assert recorder.calls[0]["state"] is HealthState.NOT_CONFIGURED
+
+
+@respx.mock
+async def test_a_failing_recorder_does_not_fail_the_request() -> None:
+    """The observation is a side effect. Data that already arrived must still
+    reach the caller when the database is unavailable."""
+    respx.get(GEOCODE_URL_PATH).mock(
+        return_value=httpx.Response(200, json=load_fixture(FIXTURE))
+    )
+    adapter = _adapter_with(_RecordingHealth(fail=True))
+
+    assert await adapter.query(GeocodeQuery(name="Bangkok"))

@@ -74,13 +74,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     app.state.cache = ProviderCache(app.state.redis, env=settings.app_env)
 
-    app.state.adapters = AdapterRegistry(
-        registry, app.state.transport, app.state.cache, env=settings.app_env
-    )
-
     app.state.engine = build_engine(settings.database_url)
     app.state.sessions = build_session_factory(app.state.engine)
     app.state.repo = ProviderRepository(app.state.sessions)
+
+    # The repository doubles as the health recorder, so every provider call
+    # leaves an observation behind for /internal/v1/providers/health.
+    app.state.adapters = AdapterRegistry(
+        registry,
+        app.state.transport,
+        app.state.cache,
+        env=settings.app_env,
+        health_recorder=app.state.repo,
+    )
 
     blocked = [p.id for p in registry.all() if not p.is_callable]
     log.info(

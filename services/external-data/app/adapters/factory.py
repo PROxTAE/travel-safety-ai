@@ -8,7 +8,7 @@ instead of a 500.
 
 from __future__ import annotations
 
-from app.adapters.base import ProviderAdapter
+from app.adapters.base import HealthRecorder, ProviderAdapter
 from app.adapters.open_meteo_geocoding import OpenMeteoGeocodingAdapter
 from app.adapters.open_meteo_weather import OpenMeteoWeatherAdapter
 from app.cache.provider_cache import ProviderCache
@@ -31,6 +31,7 @@ class AdapterRegistry:
         cache: ProviderCache | None,
         *,
         env: str,
+        health_recorder: HealthRecorder | None = None,
     ) -> None:
         self._registry = registry
         self._adapters: dict[str, ProviderAdapter] = {}  # type: ignore[type-arg]
@@ -40,7 +41,7 @@ class AdapterRegistry:
             if adapter_class is None or not resolved.is_callable:
                 continue
             self._adapters[resolved.id] = adapter_class(
-                resolved, transport, cache, env=env
+                resolved, transport, cache, env=env, health_recorder=health_recorder
             )
 
     def get(self, provider_id: str) -> ProviderAdapter | None:  # type: ignore[type-arg]
