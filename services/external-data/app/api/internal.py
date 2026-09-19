@@ -1,8 +1,8 @@
-"""Internal API surface for Phase 1.
+"""Internal API surface.
 
-Live and ready probes plus the provider health endpoint. The capability
-endpoints (geocode, weather, disasters, routes, transport, places, context)
-arrive with their adapters in Phases 2-6.
+Health and metrics probes, provider health, plus the geocoding and weather
+capabilities. The remaining capability endpoints (disasters, routes, transport,
+places, context) arrive with their adapters in Phases 3-6.
 """
 
 from __future__ import annotations
@@ -13,9 +13,13 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
+from app.adapters.factory import AdapterRegistry
+from app.adapters.open_meteo_geocoding import GeocodeQuery
+from app.adapters.open_meteo_weather import CoordinateSample, WeatherQuery
 from app.api.deps import InternalAuth
 from app.api.envelope import success
-from app.domain.enums import HealthState, ProviderStatus
+from app.api.schemas import GeocodeSearchRequest, WeatherQueryRequest
+from app.domain.enums import HealthState, ProviderKind, ProviderStatus
 from app.observability.logging import get_logger
 from app.observability.metrics import REGISTRY
 from app.providers.registry import ResolvedRegistry
@@ -153,3 +157,74 @@ async def providers_health(request: Request, _: InternalAuth) -> dict[str, Any]:
         )
 
     return success({"providers": providers}, degraded=degraded)
+
+
+@router.post("/internal/v1/geocode/search")
+async def geocode_search(
+    request: Request, body: GeocodeSearchRequest, _: InternalAuth
+) -> dict[str, Any]:
+    """Resolve a place name to canonical LocationRefs.
+
+    A blocked provider raises OUTSIDE_COVERAGE from the adapter registry, which
+    the app maps to UNSUPPORTED_COVERAGE. An empty `results` list means the
+    provider answered and found nothing - it never means "unavailable".
+    """
+    adapters: AdapterRegistry = request.app.state.adapters
+    registry: ResolvedRegistry = request.app.state.registry
+
+    adapter = adapters.for_kind(ProviderKind.GEOCODING)
+    results = await adapter.query(
+        GeocodeQuery(
+            name=body.query,
+            count=body.count,
+            language=body.language,
+            country_code=body.country_code,
+        )
+    )
+
+    return success(
+        {
+            "results": [result.model_dump(mode="json") for result in results],
+            "attribution": registry.attributions([adapter.provider_id]),
+        }
+    )
+
+
+@router.post("/internal/v1/weather/query")
+async def weather_query(
+    request: Request, body: WeatherQueryRequest, _: InternalAuth
+) -> dict[str, Any]:
+    """Forecast for a set of route samples.
+
+    A sample carrying an `eta` yields one point at the nearest forecast hour; a
+    sample without one yields every hour inside the window. Points beyond the
+    provider budget are dropped by even downsampling, and the surviving records
+    carry the reduced `quality.coverage`.
+    """
+    adapters: AdapterRegistry = request.app.state.adapters
+    registry: ResolvedRegistry = request.app.state.registry
+
+    adapter = adapters.for_kind(ProviderKind.WEATHER)
+    forecasts = await adapter.query(
+        WeatherQuery(
+            samples=[
+                CoordinateSample(
+                    latitude=sample.latitude,
+                    longitude=sample.longitude,
+                    eta=sample.eta,
+                    sample_id=sample.sample_id,
+                )
+                for sample in body.samples
+            ],
+            start=body.start,
+            end=body.end,
+        )
+    )
+
+    return success(
+        {
+            "forecasts": [point.model_dump(mode="json") for point in forecasts],
+            "requested_samples": len(body.samples),
+            "attribution": registry.attributions([adapter.provider_id]),
+        }
+    )

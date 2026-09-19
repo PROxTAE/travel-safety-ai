@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.adapters.factory import AdapterRegistry
 from app.api import internal
 from app.api.deps import InternalAuthError
 from app.api.envelope import FieldError, error_response, provider_error_response
@@ -62,8 +63,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.registry = registry
     app.state.transport = ProviderTransport(registry.defaults)
 
-    app.state.redis = Redis.from_url(str(settings.redis_url))
+    # Short, non-retrying socket settings: the cache is an optimisation, so a
+    # dead Redis must fail fast rather than add its timeout to every request.
+    app.state.redis = Redis.from_url(
+        str(settings.redis_url),
+        socket_connect_timeout=0.5,
+        socket_timeout=1.0,
+        retry_on_timeout=False,
+        single_connection_client=False,
+    )
     app.state.cache = ProviderCache(app.state.redis, env=settings.app_env)
+
+    app.state.adapters = AdapterRegistry(
+        registry, app.state.transport, app.state.cache, env=settings.app_env
+    )
 
     app.state.engine = build_engine(settings.database_url)
     app.state.sessions = build_session_factory(app.state.engine)
@@ -76,6 +89,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         providers_active=len(registry.all()) - len(blocked),
         providers_blocked=blocked,
         internal_auth_configured=settings.internal_service_token is not None,
+        adapters=app.state.adapters.ids,
     )
 
     # Mirroring the registry needs the database. A cold Postgres must not stop

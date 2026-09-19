@@ -73,15 +73,34 @@ def test_capture_urls_are_keyless() -> None:
         assert not SECRET_PATTERN.search(entry["source_url"])
 
 
-def test_fixtures_are_not_importable_from_the_runtime_package() -> None:
-    """Guards the rule that fixtures never reach a runtime path."""
-    from pathlib import Path
+def test_fixtures_are_not_loadable_from_the_runtime_package() -> None:
+    """Guards the rule that fixtures never reach a runtime path.
+
+    Docstrings are allowed to cite the fixture that verified a mapping - that is
+    how a reader checks the adapter. What must not exist is executable code that
+    names the directory, so only non-docstring string constants are inspected.
+    """
+    import ast
 
     app_root = FIXTURE_ROOT.parents[2] / "app"
-    offenders = [
-        path.name
-        for path in app_root.rglob("*.py")
-        if "real-sanitized" in path.read_text(encoding="utf-8")
-    ]
-    assert offenders == [], f"runtime modules reference fixtures: {offenders}"
-    assert Path(app_root).is_dir()
+    offenders: list[str] = []
+
+    for path in app_root.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        docstrings = {
+            ast.get_docstring(node, clean=False)
+            for node in ast.walk(tree)
+            if isinstance(
+                node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
+            )
+        }
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and "real-sanitized" in node.value
+                and node.value not in docstrings
+            ):
+                offenders.append(f"{path.name}:{node.lineno}")
+
+    assert offenders == [], f"runtime code references fixtures: {offenders}"

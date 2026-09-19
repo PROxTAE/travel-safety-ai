@@ -16,8 +16,24 @@ provenance, cache, quota
 | Phase | สถานะ |
 | --- | --- |
 | 0 — Provider governance | ✅ |
-| 1 — Service foundation | 🚧 |
-| 2–7 | ⬜ ยังไม่เริ่ม |
+| 1 — Service foundation | ✅ |
+| 2 — Geocoding + weather | ✅ |
+| 3–7 | ⬜ ยังไม่เริ่ม |
+
+## Endpoint
+
+| Method | Path | สถานะ |
+| --- | --- | --- |
+| GET | `/health/live` · `/health/ready` · `/metrics` | ✅ ไม่ต้อง auth |
+| GET | `/internal/v1/providers/health` | ✅ |
+| POST | `/internal/v1/geocode/search` | ✅ |
+| POST | `/internal/v1/weather/query` | ✅ |
+| POST | `/internal/v1/disasters/query` | ⬜ Phase 3 |
+| POST | `/internal/v1/routes/query` · `/places/nearby` | ⬜ Phase 4 (ไม่มี key) |
+| POST | `/internal/v1/transport/query` | ⬜ Phase 5 |
+| POST | `/internal/v1/context/query` | ⬜ Phase 6 |
+
+ทุก endpoint ใต้ `/internal/v1` ต้องมี `Authorization: Bearer $INTERNAL_SERVICE_TOKEN`
 
 ## เอกสาร
 
@@ -55,4 +71,12 @@ python services/external-data/scripts/capture_fixtures.py
 ```
 
 เรียก provider จริงเจ้าละ 1 ครั้ง ตรวจว่าไม่มี credential ปนใน payload แล้วเขียนทับ
-fixture พร้อม regenerate `MANIFEST.json`
+fixture พร้อม regenerate `MANIFEST.json` ใช้ `--only <fixture_id>` เพื่อ capture
+เจ้าเดียวโดยไม่แตะ timestamp ของเจ้าอื่น
+
+## Test
+
+```bash
+uv run pytest              # ไม่รวม canary
+uv run pytest -m canary    # ยิง provider จริง — ใช้ตรวจ schema drift
+```

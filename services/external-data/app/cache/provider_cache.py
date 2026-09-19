@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
 
 from app.observability.logging import get_logger
 from app.observability.metrics import cache_events
@@ -60,7 +61,14 @@ class ProviderCache:
         self._lock_wait = lock_wait_seconds
 
     async def get(self, key: str, provider_id: str) -> CacheHit | None:
-        raw = await self._redis.get(key)
+        # Redis being down must not take a capability with it: the provider is
+        # still reachable, so a cache failure degrades to a miss.
+        try:
+            raw = await self._redis.get(key)
+        except (RedisError, OSError) as exc:
+            cache_events.labels(provider=provider_id, event="unavailable").inc()
+            log.warning("cache_unavailable", operation="get", error=str(exc))
+            return None
         if raw is None:
             cache_events.labels(provider=provider_id, event="miss").inc()
             return None
@@ -74,28 +82,51 @@ class ProviderCache:
     async def set(self, key: str, provider_id: str, payload: Any, ttl_seconds: int) -> None:
         if ttl_seconds <= 0:
             raise ValueError("cache entries must have a positive TTL")
-        await self._redis.set(
-            key, json.dumps(payload, ensure_ascii=False, default=str), ex=ttl_seconds
-        )
+        try:
+            await self._redis.set(
+                key,
+                json.dumps(payload, ensure_ascii=False, default=str),
+                ex=ttl_seconds,
+            )
+        except (RedisError, OSError) as exc:
+            cache_events.labels(provider=provider_id, event="unavailable").inc()
+            log.warning("cache_unavailable", operation="set", error=str(exc))
+            return
         cache_events.labels(provider=provider_id, event="store").inc()
 
     async def set_negative(self, key: str, provider_id: str, ttl_seconds: int) -> None:
         """Remember a failure briefly. TTL is intentionally short: a stale
         'unavailable' is as misleading as stale data."""
-        await self._redis.set(key, _NEGATIVE_MARKER, ex=max(1, ttl_seconds))
+        try:
+            await self._redis.set(key, _NEGATIVE_MARKER, ex=max(1, ttl_seconds))
+        except (RedisError, OSError) as exc:
+            cache_events.labels(provider=provider_id, event="unavailable").inc()
+            log.warning("cache_unavailable", operation="set_negative", error=str(exc))
+            return
         cache_events.labels(provider=provider_id, event="store_negative").inc()
 
     async def acquire_lock(self, key: str, provider_id: str) -> bool:
-        acquired = await self._redis.set(
-            f"sta:{self._env}:lock:provider-cache:{key}",
-            "1",
-            nx=True,
-            ex=int(self._lock_timeout),
-        )
+        try:
+            acquired = await self._redis.set(
+                f"sta:{self._env}:lock:provider-cache:{key}",
+                "1",
+                nx=True,
+                ex=int(self._lock_timeout),
+            )
+        except (RedisError, OSError) as exc:
+            # No lock service means no stampede protection. Proceeding is the
+            # lesser evil: waiting on a lock that can never be granted would
+            # stall every request instead of just duplicating a few.
+            cache_events.labels(provider=provider_id, event="unavailable").inc()
+            log.warning("cache_unavailable", operation="lock", error=str(exc))
+            return True
         return bool(acquired)
 
     async def release_lock(self, key: str) -> None:
-        await self._redis.delete(f"sta:{self._env}:lock:provider-cache:{key}")
+        try:
+            await self._redis.delete(f"sta:{self._env}:lock:provider-cache:{key}")
+        except (RedisError, OSError) as exc:
+            log.warning("cache_unavailable", operation="unlock", error=str(exc))
 
     async def wait_for_other_fetch(self, key: str, provider_id: str) -> CacheHit | None:
         """Someone else holds the lock: poll briefly for their result instead of
