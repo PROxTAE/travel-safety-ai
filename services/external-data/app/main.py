@@ -98,10 +98,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         adapters=app.state.adapters.ids,
     )
 
-    # Mirroring the registry needs the database. A cold Postgres must not stop
-    # the process from starting - readiness reports the problem instead.
+    # Mirroring the registry needs the database, and on a first boot the tables
+    # do not exist yet - the documented order runs `alembic upgrade head` after
+    # the container is up. A cold or unmigrated Postgres must not stop the
+    # process from starting, so the failure is recorded and readiness retries
+    # it. Without the retry the mirror stays empty for the life of the process
+    # and every health write fails its foreign key, silently.
+    app.state.registry_synced = False
     try:
         count = await app.state.repo.sync_registry(registry)
+        app.state.registry_synced = True
         log.info("registry_synced", rows=count)
     except Exception as exc:
         log.warning("registry_sync_failed", error=str(exc))

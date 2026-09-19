@@ -39,7 +39,14 @@ _ISO_DATETIME = re.compile(
     r"\d{4}-\d{2}-\d{2}"
     r"(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?"
 )
-_PLACEHOLDER = "\x00ts{}\x00"
+# Same trap, same shape: a uuid4 is runs of hex digits joined by dashes, so the
+# phone pattern eats roughly one in four of them — and those are exactly the
+# request_id and correlation_id values the observability contract depends on.
+_UUID = re.compile(
+    r"(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b"
+)
+
+_PLACEHOLDER = "\x00keep{}\x00"
 
 
 def _redact_text(value: str) -> str:
@@ -50,6 +57,7 @@ def _redact_text(value: str) -> str:
         return _PLACEHOLDER.format(len(preserved) - 1)
 
     value = _ISO_DATETIME.sub(_stash, value)
+    value = _UUID.sub(_stash, value)
     for pattern, replacement in _PATTERNS:
         value = pattern.sub(replacement, value)
     for index, original in enumerate(preserved):

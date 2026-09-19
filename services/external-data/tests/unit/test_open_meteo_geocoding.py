@@ -23,6 +23,7 @@ from tests.conftest import REGISTRY_PATH, load_fixture
 
 FIXTURE = "open_meteo_geocoding/search_bangkok.json"
 GEOCODE_URL_PATH = "https://geocoding-api.open-meteo.com/v1/search"
+QUERY = GeocodeQuery(name="Bangkok", count=3)
 
 
 @pytest.fixture
@@ -74,7 +75,7 @@ def test_coordinates_are_flipped_to_geojson_order(
     first = raw["results"][0]
 
     response = _response(raw)
-    result = adapter.normalize(adapter.validate(response), response)[0]
+    result = adapter.normalize(adapter.validate(response), response, QUERY)[0]
 
     longitude, latitude = result.location.coordinates.coordinates
     assert latitude == pytest.approx(first["latitude"])
@@ -87,7 +88,7 @@ def test_coordinates_are_flipped_to_geojson_order(
 
 def test_place_id_is_provider_scoped(adapter: OpenMeteoGeocodingAdapter) -> None:
     response = _response(load_fixture(FIXTURE))
-    result = adapter.normalize(adapter.validate(response), response)[0]
+    result = adapter.normalize(adapter.validate(response), response, QUERY)[0]
     assert result.location.place_id.startswith("open_meteo_geocoding:")
 
 
@@ -95,7 +96,7 @@ def test_display_name_is_composed_from_parts(
     adapter: OpenMeteoGeocodingAdapter,
 ) -> None:
     response = _response(load_fixture(FIXTURE))
-    result = adapter.normalize(adapter.validate(response), response)[0]
+    result = adapter.normalize(adapter.validate(response), response, QUERY)[0]
     assert "Bangkok" in result.location.display_name
     assert not result.location.display_name.startswith(",")
     assert ", ," not in result.location.display_name
@@ -105,7 +106,7 @@ def test_country_code_is_iso_alpha2_uppercase(
     adapter: OpenMeteoGeocodingAdapter,
 ) -> None:
     response = _response(load_fixture(FIXTURE))
-    for result in adapter.normalize(adapter.validate(response), response):
+    for result in adapter.normalize(adapter.validate(response), response, QUERY):
         code = result.location.country_code
         if code is not None:
             assert len(code) == 2
@@ -118,7 +119,7 @@ def test_observed_at_is_null_with_a_quality_flag(
     """A place-name index has no observation time. Copying fetched_at in would
     make a static record look freshly measured."""
     response = _response(load_fixture(FIXTURE))
-    result = adapter.normalize(adapter.validate(response), response)[0]
+    result = adapter.normalize(adapter.validate(response), response, QUERY)[0]
 
     assert result.source.observed_at is None
     assert QualityFlag.MISSING in result.quality.flags
@@ -130,7 +131,7 @@ def test_provenance_carries_licence_and_record_id(
 ) -> None:
     raw = load_fixture(FIXTURE)
     response = _response(raw)
-    result = adapter.normalize(adapter.validate(response), response)[0]
+    result = adapter.normalize(adapter.validate(response), response, QUERY)[0]
 
     assert result.source.provider == "open_meteo_geocoding"
     assert result.source.provider_record_id == str(raw["results"][0]["id"])
@@ -143,7 +144,7 @@ def test_module_04_never_marks_a_location_confirmed(
     adapter: OpenMeteoGeocodingAdapter,
 ) -> None:
     response = _response(load_fixture(FIXTURE))
-    for result in adapter.normalize(adapter.validate(response), response):
+    for result in adapter.normalize(adapter.validate(response), response, QUERY):
         assert result.location.confirmed_by_user is False
 
 
@@ -153,7 +154,7 @@ def test_no_match_yields_an_empty_list_not_an_error(
     """The provider omits `results` entirely when nothing matches. That is a
     successful answer of "no such place", not a failure."""
     response = _response({"generationtime_ms": 0.2})
-    assert adapter.normalize(adapter.validate(response), response) == []
+    assert adapter.normalize(adapter.validate(response), response, QUERY) == []
 
 
 def test_missing_required_field_is_a_schema_change(
@@ -173,7 +174,7 @@ def test_unknown_extra_field_does_not_break_the_capability(
     raw = load_fixture(FIXTURE)
     raw["results"][0]["some_new_field"] = {"nested": True}
     response = _response(raw)
-    assert adapter.normalize(adapter.validate(response), response)
+    assert adapter.normalize(adapter.validate(response), response, QUERY)
 
 
 def test_coverage_rejects_an_empty_search_term(

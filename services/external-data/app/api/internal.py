@@ -74,6 +74,27 @@ async def ready(request: Request) -> JSONResponse:
     registry: ResolvedRegistry | None = getattr(state, "registry", None)
     checks["provider_registry"] = "UP" if registry is not None else "DOWN"
 
+    # The registry file being readable says nothing about whether its rows
+    # reached the database. Until they have, every health observation fails its
+    # foreign key and /internal/v1/providers/health can only ever answer
+    # UNKNOWN - so report NOT ready, and keep retrying the mirror here rather
+    # than waiting for someone to restart the container.
+    repo = getattr(state, "repo", None)
+    if getattr(state, "registry_synced", False):
+        checks["registry_mirror"] = "UP"
+    elif repo is None or registry is None:
+        checks["registry_mirror"] = "DOWN"
+    else:
+        try:
+            await repo.sync_registry(registry)
+        except Exception as exc:
+            log.warning("registry_sync_retry_failed", error_type=type(exc).__name__)
+            checks["registry_mirror"] = "DOWN"
+        else:
+            state.registry_synced = True
+            log.info("registry_synced_on_readiness")
+            checks["registry_mirror"] = "UP"
+
     ok = all(value == "UP" for value in checks.values())
     return JSONResponse(
         status_code=200 if ok else 503,

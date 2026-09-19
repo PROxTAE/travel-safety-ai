@@ -58,9 +58,8 @@ def _response(payload: Any) -> ProviderResponse:
 def _run(
     adapter: OpenMeteoWeatherAdapter, payload: Any, query: WeatherQuery
 ) -> list[Any]:
-    adapter._query = query
     response = _response(payload)
-    return adapter.normalize(adapter.validate(response), response)
+    return adapter.normalize(adapter.validate(response), response, query)
 
 
 def _sample(lat: float = 13.7563, lon: float = 100.5018, **kw: Any) -> CoordinateSample:

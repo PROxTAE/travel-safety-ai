@@ -158,6 +158,20 @@ class OpenMeteoWeatherAdapter(ProviderAdapter[WeatherQuery, WeatherForecastPoint
                     [round(s.latitude, 2), round(s.longitude, 2)] for s in selected
                 ],
                 "hours": _window_bucket(query),
+                # What gets cached is the *normalised* records, which ETA
+                # selection has already narrowed to one hour per sample and
+                # labelled with that caller's ids. Both therefore have to be
+                # part of the key, or a later traveller with a different ETA
+                # gets the first traveller's hour back under their own name.
+                "etas": [
+                    s.eta.astimezone(UTC)
+                    .replace(minute=0, second=0, microsecond=0)
+                    .isoformat()
+                    if s.eta
+                    else None
+                    for s in selected
+                ],
+                "ids": [s.sample_id for s in selected],
                 "fields": list(HOURLY_VARIABLES),
                 "units": "c_kmh_mm",
             },
@@ -194,9 +208,11 @@ class OpenMeteoWeatherAdapter(ProviderAdapter[WeatherQuery, WeatherForecastPoint
         return forecasts
 
     def normalize(
-        self, model: list[OpenMeteoForecast], response: ProviderResponse
+        self,
+        model: list[OpenMeteoForecast],
+        response: ProviderResponse,
+        query: WeatherQuery,
     ) -> list[WeatherForecastPoint]:
-        query = self._query  # set by query(); see below
         selected = _select_samples(query.samples)
 
         if len(model) != len(selected):
@@ -263,17 +279,6 @@ class OpenMeteoWeatherAdapter(ProviderAdapter[WeatherQuery, WeatherForecastPoint
                 )
 
         return points
-
-    # `normalize` needs the original query to align ETAs, and the base class
-    # signature does not carry it. Stashing it for the duration of one call is
-    # simpler than widening the interface for a single adapter.
-    _query: WeatherQuery
-
-    async def query(
-        self, query: WeatherQuery, *, deadline_seconds: float | None = None
-    ) -> list[WeatherForecastPoint]:
-        self._query = query
-        return await super().query(query, deadline_seconds=deadline_seconds)
 
     def _dehydrate(self, records: list[WeatherForecastPoint]) -> list[dict[str, object]]:
         return [record.model_dump(mode="json") for record in records]

@@ -21,7 +21,12 @@ services:
     volumes:
       - ./services/external-data/app:/app/app:ro
       - ./services/external-data/config:/app/config:ro
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
+    # Migrate before serving so a fresh clone works from `up` alone. Dev only:
+    # the image CMD stays uvicorn, and readiness reports the mirror either way.
+    command:
+      - sh
+      - -c
+      - alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
 
   # ตัวอย่าง override ของ module (เจ้าของเพิ่มพร้อม service ใน compose.yaml)
   #

@@ -7,7 +7,7 @@ Mirrors the concept list in the module plan:
     build_request(query) -> approved URL + params
     fetch(request)       -> provider response          (shared transport)
     validate(response)   -> typed provider model
-    normalize(model)     -> canonical records
+    normalize(model, query) -> canonical records
     provenance(response) -> SourceProvenance
     health()             -> ProviderHealth
 
@@ -140,8 +140,16 @@ class ProviderAdapter(abc.ABC, Generic[QueryT, RecordT]):
         """Parse into a typed provider model, or raise PROVIDER_SCHEMA_CHANGED."""
 
     @abc.abstractmethod
-    def normalize(self, model: Any, response: ProviderResponse) -> list[RecordT]:
-        """Provider model -> canonical records, units and time converted."""
+    def normalize(
+        self, model: Any, response: ProviderResponse, query: QueryT
+    ) -> list[RecordT]:
+        """Provider model -> canonical records, units and time converted.
+
+        The query is passed explicitly rather than stashed on the adapter: one
+        adapter instance serves every request, and there is an `await` between
+        building the request and normalising the response. Anything kept on
+        `self` across that await belongs to whichever request wrote it last.
+        """
 
     # ------------------------------------------------------------ machinery
     def provenance(
@@ -258,7 +266,7 @@ class ProviderAdapter(abc.ABC, Generic[QueryT, RecordT]):
         try:
             response = await self.fetch(request, deadline_seconds=deadline_seconds)
             model = self.validate(response)
-            records = self.normalize(model, response)
+            records = self.normalize(model, response, query)
         except ProviderError as error:
             await self._record_observation(error=error)
             if self.cache is not None and cache_key is not None:

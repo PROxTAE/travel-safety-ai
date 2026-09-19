@@ -212,6 +212,14 @@ after one call:   open_meteo_geocoding  UP       814 ms
 - **404s escaped the error envelope.** Starlette raises its own `HTTPException` for unmatched routes.
 - **A blank `ORS_API_KEY=` was read as a present credential**, caught against the live container.
 
+Four more came from the PR #7 review, two of them able to hand a caller a
+plausible-looking forecast with no error raised:
+
+- **Concurrent weather requests swapped samples.** One adapter instance serves every request, and the query was stashed on `self` across an `await` — a second request arriving mid-flight relabelled the first one's forecast. The query is now passed into `normalize` explicitly, which makes the whole class of bug impossible for future adapters too.
+- **A cached forecast ignored the caller's ETA.** The cache key covered coordinates and window, but the cached records had already been narrowed to the first caller's hour and labelled with their sample ids. A second traveller at the same point got the wrong hour under their own name. ETA and sample ids are now part of the key.
+- **The registry mirror never recovered from a first boot.** Bringing the container up before `alembic upgrade head` meant the startup sync failed against missing tables and was never retried, so every later health write failed its foreign key while `/health/ready` still answered UP. Readiness now retries the mirror and reports `registry_mirror`; the dev container migrates before serving.
+- **Log redaction ate request and correlation ids.** A uuid4 is digits joined by dashes, so the phone pattern mangled roughly one in four — the same trap as the timestamp case, found by measuring 2,000 of them.
+
 ## 11. Safety, security and privacy
 
 - [x] No credential value in the repository, a log, a trace or a fixture; health returns credential *names* only
@@ -260,9 +268,10 @@ the parsing traps documented in the field mapping.
 cp .env.example .env
 # fill POSTGRES_PASSWORD, KEYCLOAK_ADMIN_PASSWORD, INTERNAL_SERVICE_TOKEN
 
+# The dev override runs `alembic upgrade head` before serving, so a fresh
+# clone needs nothing else. Migrating separately after this line was the
+# ordering bug found in review: the container came up against missing tables.
 docker compose -f compose.yaml -f compose.dev.yaml --profile core --profile app up -d --wait
-docker compose -f compose.yaml -f compose.dev.yaml --profile core --profile app \
-  run --rm external-data alembic upgrade head
 
 curl -s localhost:8002/health/ready
 curl -s -X POST localhost:8002/internal/v1/geocode/search \

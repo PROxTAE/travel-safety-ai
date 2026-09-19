@@ -187,3 +187,45 @@ def test_matched_routes_keep_their_templated_path(client: TestClient) -> None:
     client.get(HEALTH_PATH, headers=AUTH)
     metrics = client.get("/metrics").text
     assert f'route="{HEALTH_PATH}"' in metrics
+
+
+def test_readiness_reports_the_registry_mirror_as_down_without_a_database(
+    client: TestClient,
+) -> None:
+    """Loading providers.yaml says nothing about whether its rows reached the
+    database. Until they have, every health observation fails its foreign key,
+    so reporting ready would be a lie."""
+    body = client.get("/health/ready").json()
+
+    assert body["checks"]["provider_registry"] == "UP"  # the file parsed
+    assert body["checks"]["registry_mirror"] == "DOWN"  # the rows did not land
+    assert body["status"] == "DOWN"
+
+
+def test_readiness_retries_the_mirror_instead_of_waiting_for_a_restart(
+    client: TestClient,
+) -> None:
+    """On a first boot the tables do not exist yet, so the startup sync fails.
+    Readiness has to keep trying, or the mirror stays empty for the life of the
+    process and provider health can only ever answer UNKNOWN."""
+
+    class _RepoOnceMigrated:
+        def __init__(self) -> None:
+            self.syncs = 0
+
+        async def sync_registry(self, registry: object) -> int:
+            self.syncs += 1
+            return 9
+
+        async def list_health(self) -> list[object]:
+            return []
+
+    repo = _RepoOnceMigrated()
+    client.app.state.repo = repo  # type: ignore[attr-defined]
+
+    assert client.get("/health/ready").json()["checks"]["registry_mirror"] == "UP"
+    assert repo.syncs == 1
+
+    # Once it has succeeded it is not re-run on every probe.
+    assert client.get("/health/ready").json()["checks"]["registry_mirror"] == "UP"
+    assert repo.syncs == 1

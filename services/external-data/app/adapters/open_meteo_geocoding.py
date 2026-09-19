@@ -98,7 +98,10 @@ class OpenMeteoGeocodingAdapter(ProviderAdapter[GeocodeQuery, GeocodeResult]):
             ) from exc
 
     def normalize(
-        self, model: OpenMeteoGeocodingResponse, response: ProviderResponse
+        self,
+        model: OpenMeteoGeocodingResponse,
+        response: ProviderResponse,
+        query: GeocodeQuery,
     ) -> list[GeocodeResult]:
         results: list[GeocodeResult] = []
 
