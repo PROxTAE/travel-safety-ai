@@ -16,7 +16,7 @@ cd "$root"
 
 npm run --silent bundle
 npm run --silent generate:ts
-./scripts/generate-python.sh
+bash "$here/generate-python.sh"
 
 if ! git diff --quiet -- generated; then
   echo

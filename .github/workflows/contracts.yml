@@ -78,10 +78,13 @@ jobs:
         run: npm run typecheck
 
       # ต้องมาหลัง lint/validate: ถ้า schema พัง generated code จะ "ดูถูก" แต่ผิด
+      # `bash <script>` rather than `./<script>`: the executable bit cannot survive a Windows
+      # checkout (core.fileMode=false), so depending on it alone makes CI break again the next time
+      # this file is edited from Windows. The bit is set in the index too, for humans.
       - name: regenerate แล้วตรวจว่า working tree ไม่เปลี่ยน
         if: steps.changed.outputs.run == 'true'
         working-directory: packages/contracts
-        run: ./scripts/check-generated-clean.sh
+        run: bash ./scripts/check-generated-clean.sh
 
       - name: contract tests (producer + consumer)
         if: steps.changed.outputs.run == 'true'

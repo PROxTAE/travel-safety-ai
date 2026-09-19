@@ -97,23 +97,29 @@ def test_real_sanitized_fixtures_record_where_they_came_from(
 
 
 def test_no_fixture_is_referenced_from_runtime_code() -> None:
-    """Fixtures are for tests. A fixture reaching a user is a fabricated safety answer."""
+    """Fixtures are for tests. One reaching a user is a fabricated safety answer.
+
+    Scoped to `app/` directories and to references to *this* folder. Earlier versions matched the
+    phrase "real-sanitized" anywhere under services/, which flagged module 04 for having its own
+    fixture directory of that name and for a docstring saying where its fixtures came from — both
+    of which are exactly what a service should do.
+    """
     repo_root = COMMON_SCHEMAS.parents[3]
-    searchable = [
-        directory
-        for directory in (repo_root / "services", repo_root / "apps")
-        if directory.exists()
+    runtime_dirs = [
+        path
+        for parent in ("services", "apps")
+        for path in (repo_root / parent).glob("*/app")
+        if path.is_dir()
     ]
 
     offenders: list[str] = []
-    for directory in searchable:
+    for directory in runtime_dirs:
         for path in directory.rglob("*"):
             if not path.is_file() or path.suffix not in {".py", ".ts", ".tsx", ".js", ".mjs"}:
                 continue
             if "node_modules" in path.parts or ".venv" in path.parts:
                 continue
-            text = path.read_text(encoding="utf-8", errors="ignore")
-            if "contracts/examples" in text or "real-sanitized" in text:
+            if "contracts/examples" in path.read_text(encoding="utf-8", errors="ignore"):
                 offenders.append(str(path.relative_to(repo_root)))
 
     assert not offenders, f"Runtime code must not read contract fixtures: {offenders}"
