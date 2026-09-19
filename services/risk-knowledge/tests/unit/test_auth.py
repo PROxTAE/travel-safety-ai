@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from app.auth import require_internal_auth
@@ -29,11 +29,15 @@ def _app(settings: Settings) -> FastAPI:
     async def internal() -> dict[str, bool]:
         return {"ok": True}
 
+    @app.get("/forbidden")
+    async def forbidden() -> None:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
     return app
 
 
 def test_internal_api_rejects_missing_token() -> None:
-    settings = Settings(RISK_KNOWLEDGE_INTERNAL_API_TOKEN="unit-test-service-token")
+    settings = Settings(INTERNAL_SERVICE_TOKEN="unit-test-service-token")
     with TestClient(_app(settings)) as client:
         response = client.get("/internal")
     assert response.status_code == 401
@@ -41,7 +45,7 @@ def test_internal_api_rejects_missing_token() -> None:
 
 
 def test_internal_api_rejects_missing_contract_headers() -> None:
-    settings = Settings(RISK_KNOWLEDGE_INTERNAL_API_TOKEN="unit-test-service-token")
+    settings = Settings(INTERNAL_SERVICE_TOKEN="unit-test-service-token")
     with TestClient(_app(settings)) as client:
         response = client.get(
             "/internal", headers={"Authorization": "Bearer unit-test-service-token"}
@@ -51,8 +55,18 @@ def test_internal_api_rejects_missing_contract_headers() -> None:
 
 
 def test_internal_api_accepts_constant_time_token_and_headers() -> None:
-    settings = Settings(RISK_KNOWLEDGE_INTERNAL_API_TOKEN="unit-test-service-token")
+    settings = Settings(INTERNAL_SERVICE_TOKEN="unit-test-service-token")
     with TestClient(_app(settings)) as client:
         response = client.get("/internal", headers=VALID_HEADERS)
     assert response.status_code == 200
     assert response.json() == {"ok": True}
+
+
+def test_fastapi_http_exception_uses_standard_error_envelope() -> None:
+    settings = Settings(INTERNAL_SERVICE_TOKEN="unit-test-service-token")
+    with TestClient(_app(settings)) as client:
+        response = client.get("/forbidden")
+
+    assert response.status_code == 403
+    assert response.headers["X-Error-Code"] == "FORBIDDEN"
+    assert response.json()["error"]["code"] == "FORBIDDEN"

@@ -45,7 +45,7 @@ Alembic intentionally does not require database-wide `CREATE` permission.
 ```powershell
 Copy-Item .env.example .env
 # Set POSTGRES_PASSWORD, RISK_KNOWLEDGE_DB_PASSWORD,
-# KEYCLOAK_ADMIN_PASSWORD, and RISK_KNOWLEDGE_INTERNAL_API_TOKEN.
+# KEYCLOAK_ADMIN_PASSWORD, and the shared INTERNAL_SERVICE_TOKEN.
 docker compose -f compose.yaml -f compose.dev.yaml --profile core up -d --wait
 docker compose -f compose.yaml -f compose.dev.yaml run --rm risk-knowledge alembic upgrade head
 docker compose -f compose.yaml -f compose.dev.yaml --profile app up -d risk-knowledge

@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-if [[ -z "${RISK_KNOWLEDGE_DB_USER:-}" || -z "${RISK_KNOWLEDGE_DB_PASSWORD:-}" ]]; then
-  echo "RISK_KNOWLEDGE_DB_USER and RISK_KNOWLEDGE_DB_PASSWORD are required" >&2
-  exit 1
+if [[ -z "${RISK_KNOWLEDGE_DB_PASSWORD:-}" ]]; then
+  echo "Skipping Module 06 role bootstrap: RISK_KNOWLEDGE_DB_PASSWORD is not set"
+  exit 0
 fi
+
+RISK_KNOWLEDGE_DB_USER="${RISK_KNOWLEDGE_DB_USER:-risk_knowledge}"
 
 psql \
   --username "$POSTGRES_USER" \

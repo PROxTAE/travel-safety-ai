@@ -22,7 +22,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       RISK_KNOWLEDGE_DB_USER: ${RISK_KNOWLEDGE_DB_USER:-risk_knowledge}
-      RISK_KNOWLEDGE_DB_PASSWORD: ${RISK_KNOWLEDGE_DB_PASSWORD:?set RISK_KNOWLEDGE_DB_PASSWORD in .env}
+      # Optional for the shared database container. The Module 06 bootstrap
+      # script skips its role when this module-specific secret is absent.
+      RISK_KNOWLEDGE_DB_PASSWORD: ${RISK_KNOWLEDGE_DB_PASSWORD:-}
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -180,9 +182,9 @@ services:
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-smart_travel}
       POSTGRES_USER: ${RISK_KNOWLEDGE_DB_USER:-risk_knowledge}
-      POSTGRES_PASSWORD: ${RISK_KNOWLEDGE_DB_PASSWORD:?set RISK_KNOWLEDGE_DB_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${RISK_KNOWLEDGE_DB_PASSWORD:-}
       QDRANT_URL: http://qdrant:6333
-      RISK_KNOWLEDGE_INTERNAL_API_TOKEN: ${RISK_KNOWLEDGE_INTERNAL_API_TOKEN:?set RISK_KNOWLEDGE_INTERNAL_API_TOKEN in .env}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
       RISK_KNOWLEDGE_REQUIRE_ARTIFACT_SIGNATURE: ${RISK_KNOWLEDGE_REQUIRE_ARTIFACT_SIGNATURE:-true}
       RISK_KNOWLEDGE_ARTIFACT_PUBLIC_KEY_PATH: ${RISK_KNOWLEDGE_ARTIFACT_PUBLIC_KEY_PATH:-}
       RISK_KNOWLEDGE_ACTIVE_MODEL_NAME: ${RISK_KNOWLEDGE_ACTIVE_MODEL_NAME:-route-risk-baseline}

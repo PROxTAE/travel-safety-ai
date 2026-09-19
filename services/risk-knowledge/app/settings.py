@@ -26,7 +26,7 @@ class Settings(BaseSettings):
 
     internal_api_token: SecretStr | None = Field(
         default=None,
-        validation_alias="RISK_KNOWLEDGE_INTERNAL_API_TOKEN",
+        validation_alias="INTERNAL_SERVICE_TOKEN",
     )
 
     database_url: SecretStr | None = Field(

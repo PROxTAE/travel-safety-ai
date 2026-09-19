@@ -72,7 +72,7 @@ def make_client(
     app = FastAPI()
     app.state.settings = Settings(
         APP_ENV="test",
-        RISK_KNOWLEDGE_INTERNAL_API_TOKEN=token,
+        INTERNAL_SERVICE_TOKEN=token,
         RISK_KNOWLEDGE_DEPENDENCY_TIMEOUT_SECONDS=0.2,
     )
     app.state.runtime = runtime or FakeRuntime()
@@ -184,6 +184,21 @@ def test_status_evidence_and_error_contracts(snapshot_payload: dict[str, Any]) -
     )
     assert invalid.status_code == 422
     assert invalid.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_unknown_route_returns_standard_error_envelope() -> None:
+    response = make_client().get("/internal/v1/does-not-exist", headers=HEADERS)
+
+    assert response.status_code == 404
+    assert response.headers["X-Error-Code"] == "NOT_FOUND"
+    assert response.json()["error"] == {
+        "code": "NOT_FOUND",
+        "message": "Not Found",
+        "field_errors": [],
+        "retryable": False,
+        "retry_after_seconds": None,
+    }
+    assert response.json()["meta"]["contract_version"] == "1.0.0"
 
 
 def test_persistence_unavailable_and_failure_return_retryable_503(

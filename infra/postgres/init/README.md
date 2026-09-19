@@ -16,3 +16,7 @@ Existing local volumes must provision the same role before running Module 06
 migrations; do not delete a volume to force re-initialization. The required
 credentials are `RISK_KNOWLEDGE_DB_USER` and the secret
 `RISK_KNOWLEDGE_DB_PASSWORD` from the deployment secret store or local `.env`.
+Because PostgreSQL is shared infrastructure, the role script exits successfully
+without making Module 06 changes when `RISK_KNOWLEDGE_DB_PASSWORD` is absent.
+The risk-knowledge service then reports database configuration as unavailable;
+it does not substitute a default credential.
