@@ -21,23 +21,44 @@
     "created_at"
   ],
   "properties": {
-    "decision_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
-    "request_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
-    "snapshot_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
-    "action_code": { "$ref": "enums.schema.json#/$defs/ActionCode" },
-    "risk_level": { "$ref": "enums.schema.json#/$defs/RiskLevel" },
-    "confidence": { "$ref": "primitives.schema.json#/$defs/UnitInterval" },
+    "decision_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "request_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "snapshot_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "action_code": {
+      "$ref": "enums.schema.json#/$defs/ActionCode"
+    },
+    "risk_level": {
+      "$ref": "enums.schema.json#/$defs/RiskLevel"
+    },
+    "confidence": {
+      "$ref": "primitives.schema.json#/$defs/UnitInterval"
+    },
     "selected_route_id": {
       "oneOf": [
-        { "$ref": "primitives.schema.json#/$defs/Uuid" },
-        { "type": "null" }
+        {
+          "$ref": "primitives.schema.json#/$defs/Uuid"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
     "rules_fired": {
       "type": "array",
-      "items": { "type": "string", "maxLength": 128 }
+      "items": {
+        "type": "string",
+        "maxLength": 128
+      }
     },
-    "escalation_required": { "type": "boolean" },
+    "escalation_required": {
+      "type": "boolean"
+    },
     "summary": {
       "description": "One or two sentences, safe to render after sanitisation.",
       "type": "string",
@@ -45,37 +66,63 @@
     },
     "reasons": {
       "type": "array",
-      "items": { "$ref": "#/$defs/DecisionReason" }
+      "items": {
+        "$ref": "#/$defs/DecisionReason"
+      }
     },
     "immediate_actions": {
       "type": "array",
-      "items": { "$ref": "#/$defs/ImmediateAction" },
+      "items": {
+        "$ref": "#/$defs/ImmediateAction"
+      },
       "default": []
     },
     "citations": {
       "type": "array",
-      "items": { "$ref": "#/$defs/Citation" }
+      "items": {
+        "$ref": "#/$defs/Citation"
+      }
     },
     "limitations": {
       "type": "array",
-      "items": { "$ref": "#/$defs/Limitation" }
+      "items": {
+        "$ref": "#/$defs/Limitation"
+      }
     },
-    "versions": { "$ref": "#/$defs/DecisionVersions" },
-    "validation": { "$ref": "#/$defs/DecisionValidation" },
-    "created_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" }
+    "versions": {
+      "$ref": "#/$defs/DecisionVersions"
+    },
+    "validation": {
+      "$ref": "#/$defs/DecisionValidation"
+    },
+    "created_at": {
+      "$ref": "primitives.schema.json#/$defs/Timestamp"
+    }
   },
   "$defs": {
     "DecisionReason": {
       "title": "DecisionReason",
       "type": "object",
-      "required": ["code", "text"],
+      "required": [
+        "code",
+        "text"
+      ],
       "properties": {
-        "code": { "$ref": "risk-assessment.schema.json#/$defs/RiskReasonCode" },
-        "text": { "type": "string", "maxLength": 1000 },
-        "severity": { "$ref": "enums.schema.json#/$defs/Severity" },
+        "code": {
+          "$ref": "risk-assessment.schema.json#/$defs/RiskReasonCode"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "severity": {
+          "$ref": "enums.schema.json#/$defs/Severity"
+        },
         "source_ids": {
           "type": "array",
-          "items": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+          "items": {
+            "$ref": "primitives.schema.json#/$defs/RecordId"
+          },
           "default": []
         }
       }
@@ -83,14 +130,28 @@
     "ImmediateAction": {
       "title": "ImmediateAction",
       "type": "object",
-      "required": ["text"],
+      "required": [
+        "text"
+      ],
       "properties": {
-        "text": { "type": "string", "maxLength": 512 },
-        "priority": { "type": "integer", "minimum": 1, "maximum": 10, "default": 5 },
+        "text": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 5
+        },
         "evidence_id": {
           "oneOf": [
-            { "$ref": "primitives.schema.json#/$defs/Uuid" },
-            { "type": "null" }
+            {
+              "$ref": "primitives.schema.json#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
           ]
         }
       }
@@ -99,17 +160,36 @@
       "title": "Citation",
       "description": "Every factual claim in the summary must be covered by one of these. Citations are produced from retrieved evidence and provenance records, never written by the language model.",
       "type": "object",
-      "required": ["source_id", "title", "source_url"],
+      "required": [
+        "source_id",
+        "title",
+        "source_url"
+      ],
       "properties": {
-        "source_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
-        "title": { "type": "string", "maxLength": 512 },
-        "source_url": { "$ref": "primitives.schema.json#/$defs/HttpsUrl" },
-        "authority": { "$ref": "enums.schema.json#/$defs/SourceAuthority" },
-        "observed_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+        "source_id": {
+          "$ref": "primitives.schema.json#/$defs/RecordId"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "source_url": {
+          "$ref": "primitives.schema.json#/$defs/HttpsUrl"
+        },
+        "authority": {
+          "$ref": "enums.schema.json#/$defs/SourceAuthority"
+        },
+        "observed_at": {
+          "$ref": "primitives.schema.json#/$defs/NullableTimestamp"
+        },
         "evidence_id": {
           "oneOf": [
-            { "$ref": "primitives.schema.json#/$defs/Uuid" },
-            { "type": "null" }
+            {
+              "$ref": "primitives.schema.json#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
           ]
         }
       }
@@ -117,7 +197,9 @@
     "Limitation": {
       "title": "Limitation",
       "type": "object",
-      "required": ["code"],
+      "required": [
+        "code"
+      ],
       "properties": {
         "code": {
           "type": "string",
@@ -133,31 +215,61 @@
             "CONFLICTING_SOURCES"
           ]
         },
-        "text": { "type": ["string", "null"], "maxLength": 512 }
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 512
+        }
       }
     },
     "DecisionVersions": {
       "title": "DecisionVersions",
       "type": "object",
-      "required": ["policy", "contract"],
+      "required": [
+        "policy",
+        "contract"
+      ],
       "properties": {
-        "policy": { "$ref": "primitives.schema.json#/$defs/SemVer" },
-        "prompt": { "type": ["string", "null"], "maxLength": 64 },
+        "policy": {
+          "$ref": "primitives.schema.json#/$defs/SemVer"
+        },
+        "prompt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 64
+        },
         "llm_model": {
           "description": "Provider model id actually used, or null when the deterministic template produced the prose.",
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "maxLength": 128
         },
-        "contract": { "$ref": "primitives.schema.json#/$defs/SemVer" }
+        "contract": {
+          "$ref": "primitives.schema.json#/$defs/SemVer"
+        }
       }
     },
     "DecisionValidation": {
       "title": "DecisionValidation",
       "type": "object",
-      "required": ["schema", "citations", "locked_action"],
+      "required": [
+        "schema",
+        "citations",
+        "locked_action"
+      ],
       "properties": {
-        "schema": { "type": "boolean" },
-        "citations": { "type": "boolean" },
+        "schema": {
+          "type": "boolean"
+        },
+        "citations": {
+          "type": "boolean"
+        },
         "locked_action": {
           "description": "True when the action the policy locked is byte-identical to the action being returned.",
           "type": "boolean"

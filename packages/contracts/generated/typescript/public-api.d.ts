@@ -22,7 +22,6 @@ export interface paths {
          * Opt in to live alerts for a trip
          * @description Requires an active `ALERT_NOTIFICATION` consent, whose id is recorded on the
          *     subscription; revoking that consent cancels it.
-         *
          */
         post: operations["createAlertSubscription"];
         delete?: never;
@@ -47,7 +46,6 @@ export interface paths {
          * Opt out of live alerts
          * @description Cancels the subscription and stops delivery immediately. The delivery log is retained for
          *     audit; only future notifications are affected.
-         *
          */
         delete: operations["deleteAlertSubscription"];
         options?: never;
@@ -69,7 +67,6 @@ export interface paths {
          * @description Appends a consent decision against a specific policy version. Revoking writes a new
          *     record rather than deleting the old one, so what was agreed and when stays auditable.
          *     Revoking `LOCATION_LIVE` also cancels any subscription that depends on it.
-         *
          */
         post: operations["recordConsent"];
         delete?: never;
@@ -89,7 +86,6 @@ export interface paths {
          * List the caller's recent assistant threads
          * @description Powers the recent-chats panel. Summaries only: message bodies are fetched per thread, so
          *     the list view never carries the full transcript.
-         *
          */
         get: operations["listConversations"];
         put?: never;
@@ -116,7 +112,6 @@ export interface paths {
          * @description Continues an existing thread and starts a new run. The thread keeps its id, but evidence
          *     is not reused past its freshness window: a question about current conditions triggers a
          *     fresh fetch. The question text is untrusted input and is never treated as an instruction.
-         *
          */
         post: operations["postConversationMessage"];
         delete?: never;
@@ -142,7 +137,6 @@ export interface paths {
          *
          *     Coordinates are rounded to the configured precision before use and are not written to
          *     access logs.
-         *
          */
         get: operations["getEmergencyContacts"];
         put?: never;
@@ -165,7 +159,6 @@ export interface paths {
          * @description Looks up facilities through the configured places provider. Requires an active location
          *     consent (`LOCATION_ONCE` or `LOCATION_LIVE`); without one the request is refused rather
          *     than served from a cached position.
-         *
          */
         get: operations["getEmergencyNearby"];
         put?: never;
@@ -189,7 +182,6 @@ export interface paths {
          * Submit explicit feedback on a recommendation
          * @description Explicit feedback is stored apart from behavioural telemetry. `UNSAFE` opens a safety
          *     review record. Nothing here changes a model or a threshold at runtime.
-         *
          */
         post: operations["createFeedback"];
         delete?: never;
@@ -215,7 +207,6 @@ export interface paths {
          *     When no geocoding provider is configured or reachable, this returns 503 with
          *     `DEPENDENCY_UNAVAILABLE` rather than an empty list, so the UI can distinguish
          *     "nothing matched" from "search is down".
-         *
          */
         get: operations["searchLocations"];
         put?: never;
@@ -238,7 +229,6 @@ export interface paths {
          * @description Resolves the OIDC subject to an internal user, creating the profile on first sight.
          *     The emergency profile is not included here: it is fetched separately so that the
          *     common path never decrypts medical data.
-         *
          */
         get: operations["getMe"];
         put?: never;
@@ -251,7 +241,6 @@ export interface paths {
          * @description Changes presentation preferences only. Identity itself lives in Keycloak and is not
          *     editable here, and consent is recorded through `/api/v1/consents` so that each decision
          *     keeps its own policy version.
-         *
          */
         patch: operations["updateMe"];
         trace?: never;
@@ -268,14 +257,12 @@ export interface paths {
          * @description Decrypts and returns the profile to its owner only. Requires an active
          *     `EMERGENCY_PROFILE` consent; if that consent was revoked the stored payload is
          *     retained under the retention policy but is not returned.
-         *
          */
         get: operations["getEmergencyProfile"];
         /**
          * Create or replace the caller's emergency profile
          * @description Replaces the whole profile. The payload is sealed with the current application key
          *     version before it reaches the database, and never appears in logs, metrics or traces.
-         *
          */
         put: operations["putEmergencyProfile"];
         post?: never;
@@ -299,7 +286,6 @@ export interface paths {
          * @description The API revalidates the stored response against the contract schema before returning it.
          *     A result that no longer validates is reported as an error rather than rendered, because a
          *     malformed safety answer is worse than a missing one.
-         *
          */
         get: operations["getRecommendation"];
         put?: never;
@@ -330,7 +316,6 @@ export interface paths {
          * Cancel an assessment run
          * @description Propagates cancellation to the agent and downstream services. The audit trail of what
          *     already ran is kept; only the work still outstanding is abandoned.
-         *
          */
         delete: operations["cancelRun"];
         options?: never;
@@ -370,7 +355,6 @@ export interface paths {
          *
          *     No event carries a raw provider body, a prompt, chain-of-thought, an access token or
          *     personal data. The number of concurrent streams per user and per IP is capped.
-         *
          */
         get: operations["streamRunEvents"];
         put?: never;
@@ -393,7 +377,6 @@ export interface paths {
          * @description Serves the map layers. The bounding box and time window are bounded server-side so a
          *     client cannot ask for the whole planet; oversized requests are rejected rather than
          *     truncated silently.
-         *
          */
         get: operations["listSafetyEvents"];
         put?: never;
@@ -416,7 +399,6 @@ export interface paths {
          * @description Every query is filtered by the owner resolved from the token, at the repository layer
          *     rather than in the handler, so an ownership check can never be forgotten. Soft-deleted
          *     trips are excluded unless `status=DELETED` is requested explicitly.
-         *
          */
         get: operations["listTrips"];
         put?: never;
@@ -425,7 +407,6 @@ export interface paths {
          * @description Both endpoints must be confirmed locations. Departure time is validated against the
          *     configured backdating allowance and the travel modes against provider coverage for the
          *     region: a mode with no real data source is rejected here rather than silently assessed.
-         *
          */
         post: operations["createTrip"];
         delete?: never;
@@ -447,7 +428,6 @@ export interface paths {
          * Get one trip
          * @description Returns the trip with an `ETag` carrying its revision. Clients send that value back in
          *     `If-Match` when updating.
-         *
          */
         get: operations["getTrip"];
         put?: never;
@@ -457,7 +437,6 @@ export interface paths {
          * @description Marks the trip deleted immediately and schedules the purge of its child data. The
          *     response reports the deletion status so the UI can tell the user that removal is in
          *     progress rather than implying it already finished everywhere.
-         *
          */
         delete: operations["deleteTrip"];
         options?: never;
@@ -468,7 +447,6 @@ export interface paths {
          *     with 412 so that a second tab cannot overwrite a change it never saw. Changing anything
          *     that affects the journey invalidates the current assessment: the client must start a new
          *     one rather than keep showing the old result.
-         *
          */
         patch: operations["updateTrip"];
         trace?: never;
@@ -492,7 +470,6 @@ export interface paths {
          *     A route the server knows to be closed is refused even when the client sends an
          *     acknowledgement: accepting a risky-but-open route is the user's call, entering a closed
          *     one is not.
-         *
          */
         post: operations["applyRoute"];
         delete?: never;
@@ -520,7 +497,6 @@ export interface paths {
          *
          *     `Idempotency-Key` is strongly recommended. The same key with the same payload returns the
          *     original run; the same key with a different payload is `IDEMPOTENCY_CONFLICT`.
-         *
          */
         post: operations["createAssessment"];
         delete?: never;
@@ -540,7 +516,6 @@ export interface paths {
          * Process liveness
          * @description True whenever the process itself is running. It deliberately touches no dependency:
          *     a database outage must not restart a healthy container.
-         *
          */
         get: operations["healthLive"];
         put?: never;
@@ -565,7 +540,6 @@ export interface paths {
          *     required dependency is down, so the container is taken out of rotation instead of
          *     answering requests it cannot honour. Optional dependencies are reported but do not fail
          *     readiness.
-         *
          */
         get: operations["healthReady"];
         put?: never;
@@ -613,7 +587,6 @@ export interface components {
             /**
              * @description Required when the chosen route is MEDIUM or HIGH. Records that the traveller was
              *     shown the risk and accepted it. It never overrides a closure.
-             *
              * @default false
              */
             risk_acknowledged?: boolean;
@@ -634,7 +607,7 @@ export interface components {
             authority?: components["schemas"]["SourceAuthority"];
             evidence_id?: components["schemas"]["Uuid"] | null;
             observed_at?: components["schemas"]["NullableTimestamp"];
-            source_id: components["schemas"]["Uuid"];
+            source_id: components["schemas"]["RecordId"];
             source_url: components["schemas"]["HttpsUrl"];
             title: string;
         };
@@ -654,9 +627,10 @@ export interface components {
             type: components["schemas"]["ConsentType"];
         };
         ConsentRequest: {
-            /** @description Requested expiry for a scoped grant such as a live-location session. The server caps
+            /**
+             * @description Requested expiry for a scoped grant such as a live-location session. The server caps
              *     it at the configured maximum.
-             *      */
+             */
             expires_at?: components["schemas"]["NullableTimestamp"];
             granted: boolean;
             policy_version: components["schemas"]["SemVer"];
@@ -671,6 +645,11 @@ export interface components {
          * @enum {string}
          */
         ConsentType: "LOCATION_ONCE" | "LOCATION_LIVE" | "ALERT_NOTIFICATION" | "ANALYTICS" | "EMERGENCY_PROFILE";
+        /**
+         * ContentHash
+         * @description Digest of the payload a record was derived from, prefixed with the algorithm that produced it. The prefix is the point: a bare hex string is ambiguous the moment a second algorithm is introduced, and an unprefixed value silently compares unequal to a prefixed one rather than failing. Used for deduplication and for detecting provider schema drift.
+         */
+        ContentHash: string;
         /**
          * Conversation
          * @description A thread of assistant turns about a trip. Continuing a conversation reuses its id but never reuses stale evidence: a follow-up that asks about current conditions triggers a fresh assessment when the previous one is past its freshness window.
@@ -708,13 +687,15 @@ export interface components {
             min_severity?: components["schemas"]["Severity"];
             trip_id: components["schemas"]["Uuid"];
         };
-        /** @description Everything here is optional: the journey itself comes from the stored trip, so a client
+        /**
+         * @description Everything here is optional: the journey itself comes from the stored trip, so a client
          *     cannot assess one trip while claiming another.
-         *      */
+         */
         CreateAssessmentRequest: {
-            /** @description Areas the traveller asked to avoid, drawn on the safety map. Advisory input to route
+            /**
+             * @description Areas the traveller asked to avoid, drawn on the safety map. Advisory input to route
              *     evaluation, not a way to hide an official warning.
-             *      */
+             */
             avoid_areas?: components["schemas"]["Polygon"][];
             /** @description Continue an existing thread instead of starting a new one. */
             conversation_id?: components["schemas"]["Uuid"] | null;
@@ -734,7 +715,7 @@ export interface components {
         };
         /**
          * DataQuality
-         * @description Quality envelope attached to every canonical record. The score never replaces the flags: a consumer that reads score alone and ignores flags is non-conforming.
+         * @description Quality envelope attached to every canonical record. The score never replaces the flags: a consumer that reads score alone and ignores flags is non-conforming. score is nullable, and a null score is not a quality problem — it means no agreed formula has been applied yet. A producer must leave it null rather than invent a number, because a fabricated score is indistinguishable from a measured one once it is downstream.
          */
         DataQuality: {
             /** @description Share of required fields the provider supplied. */
@@ -748,15 +729,16 @@ export interface components {
             coverage?: components["schemas"]["UnitInterval"] | null;
             /** @default [] */
             flags: components["schemas"]["QualityFlag"][];
-            /** @description Version of the scoring formula and weights that produced score. */
-            formula_version: components["schemas"]["SemVer"];
             /** @description Age of the underlying observation at generation time. Null when the source publishes no observation time. */
             freshness_seconds?: number | null;
             /** @default [] */
             notes?: string[];
-            score: components["schemas"]["UnitInterval"];
+            /** @description Weighted quality score. Null until a producer applies an agreed formula; never a placeholder. */
+            score: components["schemas"]["UnitInterval"] | null;
+            /** @description Version of the scoring formula and weights that produced `score` — not a revision counter for the value itself. Required whenever `score` is non-null, and null alongside a null score: a number that cannot be attributed to a formula cannot be compared across time. */
+            score_version: components["schemas"]["SemVer"] | null;
             status: components["schemas"]["DataStatus"];
-        };
+        } & unknown;
         /**
          * DataStatus
          * @enum {string}
@@ -767,7 +749,7 @@ export interface components {
             code: components["schemas"]["RiskReasonCode"];
             severity?: components["schemas"]["Severity"];
             /** @default [] */
-            source_ids?: components["schemas"]["Uuid"][];
+            source_ids?: components["schemas"]["RecordId"][];
             text: string;
         };
         /**
@@ -813,24 +795,28 @@ export interface components {
              * @default false
              */
             closes_transport?: boolean;
+            /** @description Hypocentre depth in kilometres, where the hazard type has one. A shallow earthquake and a deep one of equal magnitude do very different things at the surface, so the depth is part of the evidence rather than a detail. */
+            depth_km?: number | null;
             /** @description Provider text. Untrusted: sanitised before display and never treated as an instruction to the system. */
             description: string | null;
             effective_at: components["schemas"]["NullableTimestamp"];
             ends_at: components["schemas"]["NullableTimestamp"];
-            event_id: components["schemas"]["Uuid"];
+            event_id: components["schemas"]["RecordId"];
             event_type: components["schemas"]["DisasterEventType"];
             geometry: components["schemas"]["Geometry"];
             /** @description Protective action text as published by the issuing authority, verbatim. */
             instruction: string | null;
-            /** @description Event-type specific magnitude, for example earthquake Mw. Null when not applicable. */
+            /** @description Provider's own magnitude number, carried through rather than interpreted. Meaningless on its own: it must be read together with magnitude_unit, because 5.8 Mw and 5.8 mb are different measurements of different things. */
             magnitude?: number | null;
+            /** @description Scale the magnitude is expressed on, as the provider names it — Mw, mb, Ms, ml for earthquakes, or a provider-specific scale for other hazards. Required whenever magnitude is non-null: a bare number invites a consumer to compare two scales as though they were one, and for a hazard that is a safety error, not a rounding one. */
+            magnitude_unit?: string | null;
             /** @description True when the issuing body is a government or intergovernmental authority. */
             official: boolean;
             quality: components["schemas"]["DataQuality"];
             severity: components["schemas"]["Severity"];
             source: components["schemas"]["SourceProvenance"];
             title: string;
-        };
+        } & unknown;
         /**
          * DisasterEventType
          * @enum {string}
@@ -867,7 +853,7 @@ export interface components {
             open_now?: boolean | null;
             /** @description As published by the places provider. Never presented as an official emergency number. */
             phone?: string | null;
-            poi_id: components["schemas"]["Uuid"];
+            poi_id: components["schemas"]["RecordId"];
             /** @enum {string} */
             poi_type: "HOSPITAL" | "CLINIC" | "PHARMACY" | "POLICE" | "FIRE_STATION" | "EMBASSY" | "CONSULATE" | "SHELTER";
             quality: components["schemas"]["DataQuality"];
@@ -960,9 +946,10 @@ export interface components {
         FeedbackRequest: {
             category: components["schemas"]["FeedbackCategory"];
             recommendation_id: components["schemas"]["Uuid"];
-            /** @description Free text. Redacted for phone numbers, e-mail addresses and precise coordinates
+            /**
+             * @description Free text. Redacted for phone numbers, e-mail addresses and precise coordinates
              *     before storage.
-             *      */
+             */
             text?: string | null;
         };
         FeedbackResponse: {
@@ -1152,7 +1139,7 @@ export interface components {
             field_path: string;
             /** @enum {string|null} */
             resolution?: "HIGHEST_AUTHORITY" | "MOST_RECENT" | "MOST_CONSERVATIVE" | "UNRESOLVED" | null;
-            source_ids: components["schemas"]["Uuid"][];
+            source_ids: components["schemas"]["RecordId"][];
         };
         /**
          * QualityFlag
@@ -1204,6 +1191,11 @@ export interface components {
             data: components["schemas"]["RecommendationResponse"];
             meta: components["schemas"]["ResponseMeta"];
         };
+        /**
+         * RecordId
+         * @description Identifier of a record as the producer mints it. Stable and reproducible: fetching the same fact twice must yield the same RecordId, because that is what lets module 05 deduplicate across sources and what lets an operator trace one fact back through a log. A provider adapter therefore derives it from the provider key and the provider's own record id (for example `usgs:us7000abcd`), never from a random UUID, which would differ on every fetch and defeat both. A service that mints a record with no upstream identity may use a UUID here; the format is deliberately wide enough for both.
+         */
+        RecordId: string;
         /** ResponseMeta */
         ResponseMeta: {
             contract_version: components["schemas"]["SemVer"];
@@ -1264,7 +1256,7 @@ export interface components {
             /** @description True when an official closure covers part of this route. */
             closed: boolean;
             /** @default [] */
-            closure_source_ids?: components["schemas"]["Uuid"][];
+            closure_source_ids?: components["schemas"]["RecordId"][];
             /** @default [] */
             hazard_event_ids?: components["schemas"]["Uuid"][];
             score: components["schemas"]["UnitInterval"];
@@ -1397,7 +1389,7 @@ export interface components {
         SafetyEvent: {
             /** @description Relative public API path for the full canonical record. */
             detail_url?: string | null;
-            event_id: components["schemas"]["Uuid"];
+            event_id: components["schemas"]["RecordId"];
             event_type: components["schemas"]["DisasterEventType"];
             geometry: components["schemas"]["Geometry"];
             layer: components["schemas"]["SafetyLayer"];
@@ -1427,8 +1419,6 @@ export interface components {
          * @enum {string}
          */
         Severity: "INFO" | "MINOR" | "MODERATE" | "SEVERE" | "EXTREME" | "UNKNOWN";
-        /** Sha256Hex */
-        Sha256Hex: string;
         /**
          * SourceAuthority
          * @enum {string}
@@ -1442,7 +1432,8 @@ export interface components {
             /** @description Attribution text that must be displayed wherever this source is shown. */
             attribution?: string | null;
             authority: components["schemas"]["SourceAuthority"];
-            content_hash: components["schemas"]["Sha256Hex"];
+            /** @description Digest of the upstream payload this record was derived from, so provider schema drift is detectable rather than silent. Null when the adapter had no raw payload to hash, which is the case for a record assembled from several responses. */
+            content_hash: components["schemas"]["ContentHash"] | null;
             expires_at?: components["schemas"]["NullableTimestamp"];
             fetched_at: components["schemas"]["Timestamp"];
             /** @description Licence or terms identifier the provider publishes under. */
@@ -1454,8 +1445,10 @@ export interface components {
             provider_record_id?: string | null;
             published_at?: components["schemas"]["NullableTimestamp"];
             schema_version: components["schemas"]["SemVer"];
-            source_id: components["schemas"]["Uuid"];
-            source_url: components["schemas"]["HttpsUrl"];
+            /** @description Stable identifier for this source record. Reproducible on purpose: fetching the same fact twice must produce the same value, because deduplication in module 05 and tracing one fact through a log both depend on it. A random UUID per fetch would defeat both. */
+            source_id: components["schemas"]["RecordId"];
+            /** @description Canonical URL for the record, or the request URL the adapter used. Null only when the provider publishes neither — a bulk feed with no per-record address, for example. */
+            source_url: components["schemas"]["HttpsUrl"] | null;
         };
         SseHeartbeat: components["schemas"]["Heartbeat"];
         SseRunAccepted: components["schemas"]["RunAccepted"];
@@ -1498,7 +1491,7 @@ export interface components {
              * @description How much extra travel time the user will accept for a safer route.
              * @default 90
              */
-            max_extra_duration_minutes?: number;
+            max_extra_duration_minutes?: number | null;
             /** @default false */
             prefer_lower_cost?: boolean;
             /** @default false */
@@ -1612,9 +1605,10 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
-        /** @description A dependency this operation needs is unavailable. The response says which capability is
+        /**
+         * @description A dependency this operation needs is unavailable. The response says which capability is
          *     degraded; it never substitutes a plausible value for missing data.
-         *      */
+         */
         DependencyUnavailable: {
             headers: {
                 [name: string]: unknown;
@@ -1641,9 +1635,10 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
-        /** @description No such resource for this caller. Resources owned by another user are reported as not
+        /**
+         * @description No such resource for this caller. Resources owned by another user are reported as not
          *     found rather than forbidden, so that ids cannot be probed.
-         *      */
+         */
         NotFound: {
             headers: {
                 [name: string]: unknown;
@@ -1706,19 +1701,21 @@ export interface components {
         ContractVersion: string;
         /** @description Opaque cursor from a previous page. Not to be constructed by the client. */
         Cursor: string;
-        /** @description Client-generated key that makes a retry safe. The same key with the same payload returns
+        /**
+         * @description Client-generated key that makes a retry safe. The same key with the same payload returns
          *     the original result; the same key with a different payload is rejected with
          *     `IDEMPOTENCY_CONFLICT`. Keys expire after the configured retention window.
-         *      */
+         */
         IdempotencyKey: string;
         /** @description The ETag (trip revision) the client last read. */
         IfMatch: string;
         Latitude: number;
         Limit: number;
         Longitude: number;
-        /** @description Client-supplied correlation handle. The server generates one when absent and always
+        /**
+         * @description Client-supplied correlation handle. The server generates one when absent and always
          *     echoes the value it used in `meta.request_id`.
-         *      */
+         */
         RequestId: components["schemas"]["Uuid"];
         RequestIdPath: components["schemas"]["Uuid"];
         TripId: components["schemas"]["Uuid"];
@@ -1733,16 +1730,18 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Client-generated key that makes a retry safe. The same key with the same payload returns
+                /**
+                 * @description Client-generated key that makes a retry safe. The same key with the same payload returns
                  *     the original result; the same key with a different payload is rejected with
                  *     `IDEMPOTENCY_CONFLICT`. Keys expire after the configured retention window.
-                 *      */
+                 */
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path?: never;
@@ -1783,9 +1782,10 @@ export interface operations {
             header?: {
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path: {
@@ -1810,16 +1810,18 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Client-generated key that makes a retry safe. The same key with the same payload returns
+                /**
+                 * @description Client-generated key that makes a retry safe. The same key with the same payload returns
                  *     the original result; the same key with a different payload is rejected with
                  *     `IDEMPOTENCY_CONFLICT`. Keys expire after the configured retention window.
-                 *      */
+                 */
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path?: never;
@@ -1856,9 +1858,10 @@ export interface operations {
             header?: {
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path?: never;
@@ -1882,16 +1885,18 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Client-generated key that makes a retry safe. The same key with the same payload returns
+                /**
+                 * @description Client-generated key that makes a retry safe. The same key with the same payload returns
                  *     the original result; the same key with a different payload is rejected with
                  *     `IDEMPOTENCY_CONFLICT`. Keys expire after the configured retention window.
-                 *      */
+                 */
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path: {
@@ -1931,9 +1936,10 @@ export interface operations {
             header?: {
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path?: never;
@@ -1941,9 +1947,10 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Verified contacts. An empty list means the directory has no current entry for that
+            /**
+             * @description Verified contacts. An empty list means the directory has no current entry for that
              *     country, which the client must show as unavailable.
-             *      */
+             */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -1969,9 +1976,10 @@ export interface operations {
             header?: {
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path?: never;
@@ -2006,16 +2014,18 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Client-generated key that makes a retry safe. The same key with the same payload returns
+                /**
+                 * @description Client-generated key that makes a retry safe. The same key with the same payload returns
                  *     the original result; the same key with a different payload is rejected with
                  *     `IDEMPOTENCY_CONFLICT`. Keys expire after the configured retention window.
-                 *      */
+                 */
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path?: never;
@@ -2055,9 +2065,10 @@ export interface operations {
             header?: {
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path?: never;
@@ -2087,9 +2098,10 @@ export interface operations {
             header?: {
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path?: never;
@@ -2117,16 +2129,18 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Client-generated key that makes a retry safe. The same key with the same payload returns
+                /**
+                 * @description Client-generated key that makes a retry safe. The same key with the same payload returns
                  *     the original result; the same key with a different payload is rejected with
                  *     `IDEMPOTENCY_CONFLICT`. Keys expire after the configured retention window.
-                 *      */
+                 */
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path?: never;
@@ -2159,9 +2173,10 @@ export interface operations {
             header?: {
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path?: never;
@@ -2189,16 +2204,18 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Client-generated key that makes a retry safe. The same key with the same payload returns
+                /**
+                 * @description Client-generated key that makes a retry safe. The same key with the same payload returns
                  *     the original result; the same key with a different payload is rejected with
                  *     `IDEMPOTENCY_CONFLICT`. Keys expire after the configured retention window.
-                 *      */
+                 */
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path?: never;
@@ -2221,8 +2238,7 @@ export interface operations {
             };
             400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
-            /** @description `EMERGENCY_PROFILE` consent has not been granted. The profile is not stored.
-             *      */
+            /** @description `EMERGENCY_PROFILE` consent has not been granted. The profile is not stored. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2240,9 +2256,10 @@ export interface operations {
             header?: {
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path: {
@@ -2280,9 +2297,10 @@ export interface operations {
             header?: {
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path: {
@@ -2311,9 +2329,10 @@ export interface operations {
             header?: {
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path: {
@@ -2361,9 +2380,10 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description An open `text/event-stream`. Sent with `Cache-Control: no-cache` and
+            /**
+             * @description An open `text/event-stream`. Sent with `Cache-Control: no-cache` and
              *     `X-Accel-Buffering: no` so no proxy buffers the progress events.
-             *      */
+             */
             200: {
                 headers: {
                     "Cache-Control"?: string;
@@ -2390,8 +2410,7 @@ export interface operations {
     listSafetyEvents: {
         parameters: {
             query: {
-                /** @description Instant to evaluate, defaulting to now. Drives the Now / +6h / +12h switch.
-                 *      */
+                /** @description Instant to evaluate, defaulting to now. Drives the Now / +6h / +12h switch. */
                 at?: components["schemas"]["Timestamp"];
                 /** @description `west,south,east,north` in degrees. Maximum span is configured server-side. */
                 bbox: string;
@@ -2402,9 +2421,10 @@ export interface operations {
             header?: {
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path?: never;
@@ -2438,9 +2458,10 @@ export interface operations {
             header?: {
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path?: never;
@@ -2465,16 +2486,18 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Client-generated key that makes a retry safe. The same key with the same payload returns
+                /**
+                 * @description Client-generated key that makes a retry safe. The same key with the same payload returns
                  *     the original result; the same key with a different payload is rejected with
                  *     `IDEMPOTENCY_CONFLICT`. Keys expire after the configured retention window.
-                 *      */
+                 */
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path?: never;
@@ -2501,9 +2524,10 @@ export interface operations {
             400: components["responses"]["ValidationError"];
             401: components["responses"]["Unauthorized"];
             409: components["responses"]["IdempotencyConflict"];
-            /** @description The request is well-formed but cannot be served: for example a travel mode with no
+            /**
+             * @description The request is well-formed but cannot be served: for example a travel mode with no
              *     provider coverage in that region (`UNSUPPORTED_COVERAGE`).
-             *      */
+             */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2521,9 +2545,10 @@ export interface operations {
             header?: {
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path: {
@@ -2553,9 +2578,10 @@ export interface operations {
             header?: {
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path: {
@@ -2586,9 +2612,10 @@ export interface operations {
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path: {
@@ -2623,18 +2650,20 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
-                /** @description Client-generated key that makes a retry safe. The same key with the same payload returns
+                /**
+                 * @description Client-generated key that makes a retry safe. The same key with the same payload returns
                  *     the original result; the same key with a different payload is rejected with
                  *     `IDEMPOTENCY_CONFLICT`. Keys expire after the configured retention window.
-                 *      */
+                 */
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
                 /** @description The ETag (trip revision) the client last read. */
                 "If-Match": components["parameters"]["IfMatch"];
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path: {
@@ -2663,9 +2692,10 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["IdempotencyConflict"];
             412: components["responses"]["PreconditionFailed"];
-            /** @description The route is closed by an official source, or the acknowledgement required for a
+            /**
+             * @description The route is closed by an official source, or the acknowledgement required for a
              *     MEDIUM/HIGH route is missing (`POLICY_VALIDATION_FAILED`).
-             *      */
+             */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2680,16 +2710,18 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Client-generated key that makes a retry safe. The same key with the same payload returns
+                /**
+                 * @description Client-generated key that makes a retry safe. The same key with the same payload returns
                  *     the original result; the same key with a different payload is rejected with
                  *     `IDEMPOTENCY_CONFLICT`. Keys expire after the configured retention window.
-                 *      */
+                 */
                 "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
                 /** @description Major contract version the client was built against. Currently `1`. */
                 "X-Contract-Version"?: components["parameters"]["ContractVersion"];
-                /** @description Client-supplied correlation handle. The server generates one when absent and always
+                /**
+                 * @description Client-supplied correlation handle. The server generates one when absent and always
                  *     echoes the value it used in `meta.request_id`.
-                 *      */
+                 */
                 "X-Request-ID"?: components["parameters"]["RequestId"];
             };
             path: {
@@ -2718,9 +2750,10 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["IdempotencyConflict"];
-            /** @description The trip cannot be assessed as it stands — for example an endpoint the user never
+            /**
+             * @description The trip cannot be assessed as it stands — for example an endpoint the user never
              *     confirmed, or a mode without coverage.
-             *      */
+             */
             422: {
                 headers: {
                     [name: string]: unknown;

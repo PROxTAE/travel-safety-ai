@@ -24,31 +24,87 @@
         "source"
       ],
       "properties": {
-        "id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
-        "location": { "$ref": "geojson.schema.json#/$defs/Point" },
+        "id": {
+          "$ref": "primitives.schema.json#/$defs/RecordId"
+        },
+        "location": {
+          "$ref": "geojson.schema.json#/$defs/Point"
+        },
         "valid_at": {
           "description": "Instant this forecast point describes.",
           "$ref": "primitives.schema.json#/$defs/Timestamp"
         },
-        "temperature_c": { "type": ["number", "null"] },
-        "apparent_temperature_c": { "type": ["number", "null"] },
-        "precipitation_mm": { "type": ["number", "null"], "minimum": 0 },
+        "temperature_c": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "apparent_temperature_c": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "precipitation_mm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
         "precipitation_probability": {
-          "type": ["number", "null"],
+          "type": [
+            "number",
+            "null"
+          ],
           "minimum": 0,
           "maximum": 100
         },
-        "snowfall_cm": { "type": ["number", "null"], "minimum": 0 },
-        "wind_speed_kmh": { "type": ["number", "null"], "minimum": 0 },
-        "wind_gust_kmh": { "type": ["number", "null"], "minimum": 0 },
-        "visibility_m": { "type": ["number", "null"], "minimum": 0 },
+        "snowfall_cm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "wind_speed_kmh": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "wind_gust_kmh": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "visibility_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
         "weather_code": {
           "description": "WMO weather interpretation code as published by the provider.",
-          "type": ["integer", "null"]
+          "type": [
+            "integer",
+            "null"
+          ]
         },
-        "severity": { "$ref": "enums.schema.json#/$defs/Severity" },
-        "quality": { "$ref": "data-quality.schema.json" },
-        "source": { "$ref": "source-provenance.schema.json" }
+        "severity": {
+          "$ref": "enums.schema.json#/$defs/Severity"
+        },
+        "quality": {
+          "$ref": "data-quality.schema.json"
+        },
+        "source": {
+          "$ref": "source-provenance.schema.json"
+        }
       }
     },
     "WeatherObservation": {
@@ -68,19 +124,70 @@
         "source"
       ],
       "properties": {
-        "id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
-        "location": { "$ref": "geojson.schema.json#/$defs/Point" },
-        "observed_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
-        "temperature_c": { "type": ["number", "null"] },
-        "apparent_temperature_c": { "type": ["number", "null"] },
-        "precipitation_mm": { "type": ["number", "null"], "minimum": 0 },
-        "wind_speed_kmh": { "type": ["number", "null"], "minimum": 0 },
-        "wind_gust_kmh": { "type": ["number", "null"], "minimum": 0 },
-        "visibility_m": { "type": ["number", "null"], "minimum": 0 },
-        "weather_code": { "type": ["integer", "null"] },
-        "severity": { "$ref": "enums.schema.json#/$defs/Severity" },
-        "quality": { "$ref": "data-quality.schema.json" },
-        "source": { "$ref": "source-provenance.schema.json" }
+        "id": {
+          "$ref": "primitives.schema.json#/$defs/RecordId"
+        },
+        "location": {
+          "$ref": "geojson.schema.json#/$defs/Point"
+        },
+        "observed_at": {
+          "$ref": "primitives.schema.json#/$defs/Timestamp"
+        },
+        "temperature_c": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "apparent_temperature_c": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "precipitation_mm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "wind_speed_kmh": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "wind_gust_kmh": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "visibility_m": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "weather_code": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "severity": {
+          "$ref": "enums.schema.json#/$defs/Severity"
+        },
+        "quality": {
+          "$ref": "data-quality.schema.json"
+        },
+        "source": {
+          "$ref": "source-provenance.schema.json"
+        }
       }
     }
   }

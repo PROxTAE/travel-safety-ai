@@ -23,21 +23,39 @@
     "content_hash"
   ],
   "properties": {
-    "snapshot_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
-    "request_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
-    "trip_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "snapshot_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "request_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "trip_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
     "supersedes_snapshot_id": {
       "oneOf": [
-        { "$ref": "primitives.schema.json#/$defs/Uuid" },
-        { "type": "null" }
+        {
+          "$ref": "primitives.schema.json#/$defs/Uuid"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
-    "schema_version": { "$ref": "primitives.schema.json#/$defs/SemVer" },
-    "feature_schema_version": { "$ref": "primitives.schema.json#/$defs/SemVer" },
-    "travel_window": { "$ref": "#/$defs/TravelWindow" },
+    "schema_version": {
+      "$ref": "primitives.schema.json#/$defs/SemVer"
+    },
+    "feature_schema_version": {
+      "$ref": "primitives.schema.json#/$defs/SemVer"
+    },
+    "travel_window": {
+      "$ref": "#/$defs/TravelWindow"
+    },
     "route_candidates": {
       "type": "array",
-      "items": { "$ref": "route-candidate.schema.json" }
+      "items": {
+        "$ref": "route-candidate.schema.json"
+      }
     },
     "route_corridor_geojson": {
       "description": "Buffered corridor used for the spatial intersection. Hazards are matched against this, not against the endpoints.",
@@ -45,52 +63,89 @@
     },
     "weather": {
       "type": "array",
-      "items": { "$ref": "weather.schema.json#/$defs/WeatherForecastPoint" }
+      "items": {
+        "$ref": "weather.schema.json#/$defs/WeatherForecastPoint"
+      }
     },
     "observations": {
       "type": "array",
-      "items": { "$ref": "weather.schema.json#/$defs/WeatherObservation" },
+      "items": {
+        "$ref": "weather.schema.json#/$defs/WeatherObservation"
+      },
       "default": []
     },
     "transport": {
       "type": "array",
-      "items": { "$ref": "transport-status.schema.json" }
+      "items": {
+        "$ref": "transport-status.schema.json"
+      }
     },
     "disaster_events": {
       "type": "array",
-      "items": { "$ref": "disaster-event.schema.json" }
+      "items": {
+        "$ref": "disaster-event.schema.json"
+      }
     },
     "official_alerts": {
       "type": "array",
-      "items": { "$ref": "disaster-event.schema.json" }
+      "items": {
+        "$ref": "disaster-event.schema.json"
+      }
     },
     "features": {
       "description": "Derived model features keyed by name, versioned by feature_schema_version.",
       "type": "object",
-      "additionalProperties": { "type": ["number", "string", "boolean", "null"] }
+      "additionalProperties": {
+        "type": [
+          "number",
+          "string",
+          "boolean",
+          "null"
+        ]
+      }
     },
-    "quality_summary": { "$ref": "data-quality.schema.json" },
+    "quality_summary": {
+      "$ref": "data-quality.schema.json"
+    },
     "conflict_summary": {
       "type": "array",
-      "items": { "$ref": "data-quality.schema.json#/$defs/QualityConflict" },
+      "items": {
+        "$ref": "data-quality.schema.json#/$defs/QualityConflict"
+      },
       "default": []
     },
     "source_ids": {
       "type": "array",
-      "items": { "$ref": "primitives.schema.json#/$defs/Uuid" }
+      "items": {
+        "$ref": "primitives.schema.json#/$defs/RecordId"
+      }
     },
-    "created_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
-    "content_hash": { "$ref": "primitives.schema.json#/$defs/Sha256Hex" }
+    "created_at": {
+      "$ref": "primitives.schema.json#/$defs/Timestamp"
+    },
+    "content_hash": {
+      "$ref": "primitives.schema.json#/$defs/ContentHash"
+    }
   },
   "$defs": {
     "TravelWindow": {
       "title": "TravelWindow",
       "type": "object",
-      "required": ["starts_at", "ends_at", "timezone"],
+      "required": [
+        "starts_at",
+        "ends_at",
+        "timezone"
+      ],
       "properties": {
-        "starts_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
-        "ends_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
-        "timezone": { "$ref": "primitives.schema.json#/$defs/Timezone" }
+        "starts_at": {
+          "$ref": "primitives.schema.json#/$defs/Timestamp"
+        },
+        "ends_at": {
+          "$ref": "primitives.schema.json#/$defs/Timestamp"
+        },
+        "timezone": {
+          "$ref": "primitives.schema.json#/$defs/Timezone"
+        }
       }
     }
   }

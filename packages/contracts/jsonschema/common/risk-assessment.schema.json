@@ -15,38 +15,66 @@
     "created_at"
   ],
   "properties": {
-    "assessment_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
-    "snapshot_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
-    "route_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
-    "score": { "$ref": "primitives.schema.json#/$defs/UnitInterval" },
+    "assessment_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "snapshot_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "route_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "score": {
+      "$ref": "primitives.schema.json#/$defs/UnitInterval"
+    },
     "probability_high": {
       "oneOf": [
-        { "$ref": "primitives.schema.json#/$defs/UnitInterval" },
-        { "type": "null" }
+        {
+          "$ref": "primitives.schema.json#/$defs/UnitInterval"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
-    "risk_level": { "$ref": "enums.schema.json#/$defs/RiskLevel" },
+    "risk_level": {
+      "$ref": "enums.schema.json#/$defs/RiskLevel"
+    },
     "uncertainty": {
       "oneOf": [
-        { "$ref": "primitives.schema.json#/$defs/UnitInterval" },
-        { "type": "null" }
+        {
+          "$ref": "primitives.schema.json#/$defs/UnitInterval"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
     "reason_codes": {
       "description": "Controlled vocabulary. Explanations may restate these but may not assert causality beyond them.",
       "type": "array",
-      "items": { "$ref": "#/$defs/RiskReasonCode" },
+      "items": {
+        "$ref": "#/$defs/RiskReasonCode"
+      },
       "default": []
     },
     "safety_overrides": {
       "description": "Deterministic rules that fired regardless of the model score.",
       "type": "array",
-      "items": { "$ref": "#/$defs/SafetyOverride" },
+      "items": {
+        "$ref": "#/$defs/SafetyOverride"
+      },
       "default": []
     },
-    "model": { "$ref": "#/$defs/ModelRef" },
-    "quality": { "$ref": "data-quality.schema.json" },
-    "created_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" }
+    "model": {
+      "$ref": "#/$defs/ModelRef"
+    },
+    "quality": {
+      "$ref": "data-quality.schema.json"
+    },
+    "created_at": {
+      "$ref": "primitives.schema.json#/$defs/Timestamp"
+    }
   },
   "$defs": {
     "RiskReasonCode": {
@@ -77,17 +105,30 @@
     "SafetyOverride": {
       "title": "SafetyOverride",
       "type": "object",
-      "required": ["rule_id", "effect"],
+      "required": [
+        "rule_id",
+        "effect"
+      ],
       "properties": {
-        "rule_id": { "type": "string", "maxLength": 128 },
+        "rule_id": {
+          "type": "string",
+          "maxLength": 128
+        },
         "effect": {
           "description": "An override may only raise risk or force a more conservative outcome.",
           "type": "string",
-          "enum": ["FORCE_HIGH", "FORCE_MEDIUM", "FORCE_CLOSED", "RAISE_ONE_LEVEL"]
+          "enum": [
+            "FORCE_HIGH",
+            "FORCE_MEDIUM",
+            "FORCE_CLOSED",
+            "RAISE_ONE_LEVEL"
+          ]
         },
         "evidence_source_ids": {
           "type": "array",
-          "items": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+          "items": {
+            "$ref": "primitives.schema.json#/$defs/RecordId"
+          },
           "default": []
         }
       }
@@ -95,11 +136,23 @@
     "ModelRef": {
       "title": "ModelRef",
       "type": "object",
-      "required": ["name", "version", "feature_schema_version"],
+      "required": [
+        "name",
+        "version",
+        "feature_schema_version"
+      ],
       "properties": {
-        "name": { "type": "string", "maxLength": 128 },
-        "version": { "type": "string", "maxLength": 64 },
-        "feature_schema_version": { "$ref": "primitives.schema.json#/$defs/SemVer" }
+        "name": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "version": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "feature_schema_version": {
+          "$ref": "primitives.schema.json#/$defs/SemVer"
+        }
       }
     }
   }

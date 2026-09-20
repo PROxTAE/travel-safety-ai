@@ -9,6 +9,14 @@
       "type": "string",
       "format": "uuid"
     },
+    "RecordId": {
+      "title": "RecordId",
+      "description": "Identifier of a record as the producer mints it. Stable and reproducible: fetching the same fact twice must yield the same RecordId, because that is what lets module 05 deduplicate across sources and what lets an operator trace one fact back through a log. A provider adapter therefore derives it from the provider key and the provider's own record id (for example `usgs:us7000abcd`), never from a random UUID, which would differ on every fetch and defeat both. A service that mints a record with no upstream identity may use a UUID here; the format is deliberately wide enough for both.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:,+@/=-]*$"
+    },
     "Timestamp": {
       "title": "Timestamp",
       "description": "ISO-8601 instant with an explicit offset, e.g. 2026-09-17T08:30:00Z.",
@@ -17,7 +25,10 @@
     },
     "NullableTimestamp": {
       "title": "NullableTimestamp",
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "format": "date-time"
     },
     "CountryCode": {
@@ -45,6 +56,12 @@
       "title": "Sha256Hex",
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
+    },
+    "ContentHash": {
+      "title": "ContentHash",
+      "description": "Digest of the payload a record was derived from, prefixed with the algorithm that produced it. The prefix is the point: a bare hex string is ambiguous the moment a second algorithm is introduced, and an unprefixed value silently compares unequal to a prefixed one rather than failing. Used for deduplication and for detecting provider schema drift.",
+      "type": "string",
+      "pattern": "^(sha256:[0-9a-f]{64}|sha512:[0-9a-f]{128})$"
     },
     "SemVer": {
       "title": "SemVer",

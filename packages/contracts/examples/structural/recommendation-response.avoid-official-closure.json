@@ -29,7 +29,7 @@
         "code": "OFFICIAL_CLOSURE",
         "text": "The issuing authority has closed a section of this corridor for the period that overlaps your departure.",
         "severity": "SEVERE",
-        "source_ids": ["f6a7b8c9-d0e1-4234-a5d6-e7f8a9b0c1d2"]
+        "source_ids": ["gdacs:TC1000123:2026-09-19T21:00:00Z"]
       },
       {
         "code": "SPARSE_DATA_COVERAGE",
@@ -61,7 +61,7 @@
         "hazard_event_ids": ["b8c9d0e1-f2a3-4456-9708-a9b0c1d2e3f4"],
         "weather_window_ids": [],
         "closed": true,
-        "closure_source_ids": ["f6a7b8c9-d0e1-4234-a5d6-e7f8a9b0c1d2"]
+        "closure_source_ids": ["gdacs:TC1000123:2026-09-19T21:00:00Z"]
       },
       "risk_level": "HIGH",
       "quality": {
@@ -73,11 +73,11 @@
         "freshness_seconds": 240,
         "conflicts": [],
         "notes": ["Real-time transport feed was not reachable for this operator."],
-        "formula_version": "1.0.0"
+        "score_version": "1.0.0"
       },
       "sources": [
         {
-          "source_id": "f6a7b8c9-d0e1-4234-a5d6-e7f8a9b0c1d2",
+          "source_id": "gdacs:TC1000123:2026-09-19T21:00:00Z",
           "provider": "example_authority",
           "provider_record_id": "CLOSURE-0001",
           "authority": "OFFICIAL",
@@ -88,7 +88,7 @@
           "published_at": "2026-09-19T07:52:00Z",
           "fetched_at": "2026-09-19T08:14:30Z",
           "expires_at": "2026-09-21T00:00:00Z",
-          "content_hash": "3b1f2c8d4a5e6f70819a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f70",
+          "content_hash": "sha256:3b1f2c8d4a5e6f70819a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f70",
           "schema_version": "1.0.0"
         }
       ]
@@ -99,7 +99,7 @@
     "official_contacts": [],
     "sources": [
       {
-        "source_id": "f6a7b8c9-d0e1-4234-a5d6-e7f8a9b0c1d2",
+        "source_id": "gdacs:TC1000123:2026-09-19T21:00:00Z",
         "provider": "example_authority",
         "provider_record_id": "CLOSURE-0001",
         "authority": "OFFICIAL",
@@ -110,7 +110,7 @@
         "published_at": "2026-09-19T07:52:00Z",
         "fetched_at": "2026-09-19T08:14:30Z",
         "expires_at": "2026-09-21T00:00:00Z",
-        "content_hash": "3b1f2c8d4a5e6f70819a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f70",
+        "content_hash": "sha256:3b1f2c8d4a5e6f70819a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f70",
         "schema_version": "1.0.0"
       }
     ],

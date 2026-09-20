@@ -29,7 +29,7 @@ Module numbers follow `00_SHARED_PROJECT_CONTEXT.md` §6: 01 web, 02 api, 03 age
 | `RunRef`, `RunState` | 02 | 01 | 02 owns the public run state; 03 owns the internal one and 02 projects it. |
 | `LocationRef` | 04 | 01, 02, 05 | 04 produces it from a geocoding provider; 02 proxies. `confirmed_by_user` is set by 01 and enforced by 02. |
 | `SourceProvenance` | 04 | all | Every module attaches it; only 04 mints one from a provider fetch. |
-| `DataQuality` | 05 | 06, 07, 08, 01 | `formula_version` belongs to 05; consumers read flags, never recompute the score. |
+| `DataQuality` | 05 | 06, 07, 08, 01 | `score_version` belongs to 05; consumers read flags, never recompute the score. A null `score` means no agreed formula has been applied — not that quality is poor. |
 | `WeatherForecastPoint`, `WeatherObservation` | 04 → 05 | 06, 07 | 04 normalises per provider, 05 makes it canonical and deduplicates. |
 | `TransportStatus` | 04 → 05 | 06, 07, 01 | `ON_TIME` may only be set from real-time evidence. |
 | `DisasterEvent` / official alert | 04 → 05 | 06, 07, 08, 01 | An active official alert may not be removed by any downstream module. |
@@ -60,7 +60,9 @@ These are the ones where a second writer would be a safety problem rather than a
 | `Trip.selected_route_id` | 02 | Set only by apply-route, after the server has checked the route is not closed. |
 | `ConsentRecord.granted` / `revoked_at` | 02 | The record of what the user agreed to. Append-only so it stays auditable. |
 | `SourceProvenance.observed_at` | 04 | Null when the provider publishes no observation time. Substituting `fetched_at` would make stale data look current, which is the failure mode this system exists to avoid. |
-| `DataQuality.formula_version` | 05 | Without it, a score cannot be compared across time. |
+| `SourceProvenance.source_id` | 04 | A stable `RecordId`, reproducible across fetches. Module 05 deduplicates on it, so a value that changes per fetch would make the same hazard arrive as a new event on every poll. |
+| `DisasterEvent.magnitude_unit` | 04 | The scale the magnitude is on. Without it, comparing 5.8 Mw against 5.8 mb reads as one number, which is a safety error rather than a rounding one. |
+| `DataQuality.score_version` | 05 | Without it, a score cannot be compared across time. It is conditionally required: a non-null score with no version does not validate. |
 
 ## Shared surfaces and who reviews them
 

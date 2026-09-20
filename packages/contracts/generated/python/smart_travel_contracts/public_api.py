@@ -402,6 +402,19 @@ class DisasterEventType(Enum):
     OTHER = 'OTHER'
 
 
+class RecordId(RootModel[str]):
+    root: str = Field(
+        ...,
+        max_length=256,
+        min_length=1,
+        pattern='^[A-Za-z0-9][A-Za-z0-9._:,+@/=-]*$',
+        title='RecordId',
+    )
+    """
+    Identifier of a record as the producer mints it. Stable and reproducible: fetching the same fact twice must yield the same RecordId, because that is what lets module 05 deduplicate across sources and what lets an operator trace one fact back through a log. A provider adapter therefore derives it from the provider key and the provider's own record id (for example `usgs:us7000abcd`), never from a random UUID, which would differ on every fetch and defeat both. A service that mints a record with no upstream identity may use a UUID here; the format is deliberately wide enough for both.
+    """
+
+
 class HttpsUrl(RootModel[AnyUrl]):
     root: AnyUrl = Field(..., title='HttpsUrl')
 
@@ -419,7 +432,7 @@ class Citation(BaseModel):
     Every factual claim in the summary must be covered by one of these. Citations are produced from retrieved evidence and provenance records, never written by the language model.
     """
 
-    source_id: Uuid
+    source_id: RecordId
     title: str = Field(..., max_length=512)
     source_url: HttpsUrl
     authority: SourceAuthority | None = None
@@ -493,7 +506,7 @@ class DecisionReason(BaseModel):
     code: RiskReasonCode
     text: str = Field(..., max_length=1000)
     severity: Severity | None = None
-    source_ids: list[Uuid] | None = []
+    source_ids: list[RecordId] | None = []
 
 
 class LineString(BaseModel):
@@ -534,7 +547,7 @@ class RouteExposure(BaseModel):
     """
     True when an official closure covers part of this route.
     """
-    closure_source_ids: list[Uuid] | None = []
+    closure_source_ids: list[RecordId] | None = []
 
 
 class DataStatus(Enum):
@@ -564,12 +577,17 @@ class Resolution(Enum):
 
 class QualityConflict(BaseModel):
     field_path: str = Field(..., max_length=256)
-    source_ids: list[Uuid] = Field(..., min_length=2)
+    source_ids: list[RecordId] = Field(..., min_length=2)
     resolution: Resolution | None = None
 
 
-class Sha256Hex(RootModel[str]):
-    root: str = Field(..., pattern='^[0-9a-f]{64}$', title='Sha256Hex')
+class ContentHash(RootModel[str]):
+    root: str = Field(
+        ..., pattern='^(sha256:[0-9a-f]{64}|sha512:[0-9a-f]{128})$', title='ContentHash'
+    )
+    """
+    Digest of the payload a record was derived from, prefixed with the algorithm that produced it. The prefix is the point: a bare hex string is ambiguous the moment a second algorithm is introduced, and an unprefixed value silently compares unequal to a prefixed one rather than failing. Used for deduplication and for detecting provider schema drift.
+    """
 
 
 class Coordinate1Item(RootModel[list[Position]]):
@@ -994,11 +1012,14 @@ class OfficialContact(BaseModel):
 
 class DataQuality(BaseModel):
     """
-    Quality envelope attached to every canonical record. The score never replaces the flags: a consumer that reads score alone and ignores flags is non-conforming.
+    Quality envelope attached to every canonical record. The score never replaces the flags: a consumer that reads score alone and ignores flags is non-conforming. score is nullable, and a null score is not a quality problem — it means no agreed formula has been applied yet. A producer must leave it null rather than invent a number, because a fabricated score is indistinguishable from a measured one once it is downstream.
     """
 
     status: DataStatus
-    score: UnitInterval
+    score: UnitInterval | None = None
+    """
+    Weighted quality score. Null until a producer applies an agreed formula; never a placeholder.
+    """
     flags: list[QualityFlag]
     coverage: UnitInterval | None = None
     """
@@ -1017,9 +1038,9 @@ class DataQuality(BaseModel):
     Conflicting values seen for the same fact across sources.
     """
     notes: list[Note] | None = []
-    formula_version: SemVer
+    score_version: SemVer | None = None
     """
-    Version of the scoring formula and weights that produced score.
+    Version of the scoring formula and weights that produced `score` — not a revision counter for the value itself. Required whenever `score` is non-null, and null alongside a null score: a number that cannot be attributed to a formula cannot be compared across time.
     """
 
 
@@ -1028,7 +1049,10 @@ class SourceProvenance(BaseModel):
     Every fact that can influence a decision must resolve back to one of these. When a provider publishes no observation time, observed_at is null and the record carries a quality flag; fetched_at is never presented as an observation time.
     """
 
-    source_id: Uuid
+    source_id: RecordId
+    """
+    Stable identifier for this source record. Reproducible on purpose: fetching the same fact twice must produce the same value, because deduplication in module 05 and tracing one fact through a log both depend on it. A random UUID per fetch would defeat both.
+    """
     provider: str = Field(..., pattern='^[a-z][a-z0-9_]{1,63}$')
     """
     Stable provider key from the provider catalogue, for example open_meteo, usgs, gdacs, openrouteservice.
@@ -1038,7 +1062,10 @@ class SourceProvenance(BaseModel):
     Provider-scoped identifier for the record, for example a USGS event id.
     """
     authority: SourceAuthority
-    source_url: HttpsUrl
+    source_url: HttpsUrl | None = None
+    """
+    Canonical URL for the record, or the request URL the adapter used. Null only when the provider publishes neither — a bulk feed with no per-record address, for example.
+    """
     license: str | None = Field(None, max_length=256)
     """
     Licence or terms identifier the provider publishes under.
@@ -1051,7 +1078,10 @@ class SourceProvenance(BaseModel):
     published_at: NullableTimestamp | None = None
     fetched_at: Timestamp
     expires_at: NullableTimestamp | None = None
-    content_hash: Sha256Hex
+    content_hash: ContentHash | None = None
+    """
+    Digest of the upstream payload this record was derived from, so provider schema drift is detectable rather than silent. Null when the adapter had no raw payload to hash, which is the case for a record assembled from several responses.
+    """
     schema_version: SemVer
 
 
@@ -1083,7 +1113,7 @@ class DisasterEvent(BaseModel):
     A hazard published by a real feed. An OfficialAlert is the same shape with official = true and an authority of OFFICIAL or INTERGOVERNMENTAL; an active official alert is never dropped because a different provider stopped answering.
     """
 
-    event_id: Uuid
+    event_id: RecordId
     event_type: DisasterEventType
     title: str = Field(..., max_length=512)
     description: str | None = Field(..., max_length=8000)
@@ -1108,7 +1138,15 @@ class DisasterEvent(BaseModel):
     """
     magnitude: float | None = None
     """
-    Event-type specific magnitude, for example earthquake Mw. Null when not applicable.
+    Provider's own magnitude number, carried through rather than interpreted. Meaningless on its own: it must be read together with magnitude_unit, because 5.8 Mw and 5.8 mb are different measurements of different things.
+    """
+    magnitude_unit: str | None = Field(None, max_length=32)
+    """
+    Scale the magnitude is expressed on, as the provider names it — Mw, mb, Ms, ml for earthquakes, or a provider-specific scale for other hazards. Required whenever magnitude is non-null: a bare number invites a consumer to compare two scales as though they were one, and for a hazard that is a safety error, not a rounding one.
+    """
+    depth_km: float | None = Field(None, ge=0.0)
+    """
+    Hypocentre depth in kilometres, where the hazard type has one. A shallow earthquake and a deep one of equal magnitude do very different things at the surface, so the depth is part of the evidence rather than a detail.
     """
     quality: DataQuality
     source: SourceProvenance
@@ -1446,7 +1484,7 @@ class SafetyEvent(BaseModel):
     Map-sized summary of one hazard for the safety map. It is a projection of a canonical DisasterEvent or weather window: enough to draw a marker and open a detail panel, with the freshness the UI is required to show, and never a substitute for the full record.
     """
 
-    event_id: Uuid
+    event_id: RecordId
     layer: SafetyLayer
     event_type: DisasterEventType
     title: str = Field(..., max_length=512)
@@ -1468,7 +1506,7 @@ class EmergencyPoi(BaseModel):
     A nearby hospital, police station or embassy returned by a licensed places provider. A POI is a navigation aid, not a verified phone directory: any number shown here is the provider's and is labelled as such, while dialable emergency numbers come from OfficialContact.
     """
 
-    poi_id: Uuid
+    poi_id: RecordId
     poi_type: PoiType
     name: str = Field(..., max_length=512)
     location: Point
