@@ -47,29 +47,15 @@ pytestmark = pytest.mark.skipif(
     reason="packages/contracts is not present in this checkout",
 )
 
-# Mismatches raised in issue #26 and accepted by module 02, but not yet on main:
-# the schema fixes are in PR #29. Every waiver here is expected to stop matching
-# the moment that merges, which the ratchet test below turns into a failure so
-# the list gets cleaned up rather than quietly outliving the problem.
+# Empty, and that is the point.
 #
-# Module 04 has already made the two changes asked of it - poi_id / poi_type,
-# and sources as a list - so those no longer appear.
-OPEN_CONTRACT_GAPS: dict[str, tuple[str, ...]] = {
-    "route-candidate.schema.json": (
-        # route_id and segment_id are still Uuid on main while event_id and
-        # source_id were changed to RecordId for exactly the same reason.
-        "is not a 'uuid'",
-        # exposure is required and non-nullable on main. Module 02 is making it
-        # nullable with an invariant that an unassessed route must also carry
-        # risk_level UNKNOWN - which is what this module already emits.
-        "None is not of type 'object'",
-    ),
-    "emergency-poi.schema.json": (
-        # `name` is required and non-nullable on main. Two of nineteen real
-        # hospitals near Victory Monument have no name in OpenStreetMap.
-        "None is not of type 'string'",
-    ),
-}
+# Every mismatch reported in issue #26 was accepted by module 02 and fixed in
+# PR #29, which merged while this branch was being written - the ratchet test
+# below is what noticed, by failing when each waiver stopped matching anything.
+#
+# Add an entry here only for a mismatch that is raised upstream and genuinely
+# blocked, never to make a failing test pass.
+OPEN_CONTRACT_GAPS: dict[str, tuple[str, ...]] = {}
 
 
 def _registry_of_schemas() -> Any:
@@ -278,15 +264,58 @@ def test_transport_status_matches_the_contract(
 # -------------------------------------------------- records with known gaps
 
 
-def test_route_candidate_has_no_new_mismatches(
+def test_route_candidate_matches_the_contract(
     route_candidate: dict[str, Any],
 ) -> None:
-    """Anything beyond the gaps tracked in issue #26 is a regression."""
     messages = _validate("route-candidate.schema.json", None, route_candidate)
     assert _unexpected("route-candidate.schema.json", messages) == []
 
 
-def test_emergency_places_have_no_new_mismatches(
+def test_an_unevaluated_route_cannot_claim_a_risk_level() -> None:
+    """The invariant module 02 added in PR #29, checked from the producer side.
+
+    `exposure: null` beside `risk_level: LOW` would read as "checked, and fine"
+    - which is precisely the failure that made `exposure` non-nullable worth
+    arguing about in the first place. Making it nullable alone would have moved
+    the hole rather than closed it.
+    """
+    from app.domain.canonical import DataQuality, SourceProvenance
+    from app.domain.enums import (
+        DataStatus,
+        RiskLevel,
+        RouteLabel,
+        SourceAuthority,
+    )
+    from app.domain.records import GeoLineString, RouteCandidate
+
+    route = RouteCandidate(
+        route_id="openrouteservice:abc123",
+        label=RouteLabel.ORIGINAL,
+        mode=TravelMode.CAR,
+        geometry=GeoLineString(coordinates=[(100.5, 13.7), (100.6, 13.8)]),
+        distance_m=1000.0,
+        duration_seconds=600.0,
+        exposure=None,
+        risk_level=RiskLevel.UNKNOWN,
+        quality=DataQuality(status=DataStatus.FRESH),
+        sources=[
+            SourceProvenance(
+                source_id="openrouteservice:abc123",
+                provider="openrouteservice",
+                authority=SourceAuthority.LICENSED_PROVIDER,
+                observed_at=None,
+            )
+        ],
+    ).model_dump(mode="json")
+
+    assert _validate("route-candidate.schema.json", None, route) == []
+
+    # The same record claiming low risk must be refused by the contract.
+    route["risk_level"] = "LOW"
+    assert _validate("route-candidate.schema.json", None, route) != []
+
+
+def test_emergency_places_match_the_contract(
     emergency_places: list[dict[str, Any]],
 ) -> None:
     messages = _all_messages("emergency-poi.schema.json", emergency_places)
@@ -323,6 +352,8 @@ def test_a_closed_gap_is_reported_rather_than_forgotten(
     `OPEN_CONTRACT_GAPS` stops matching anything - and this fails, so the
     waiver gets deleted instead of quietly outliving the problem it excused.
     """
+    if schema_file not in OPEN_CONTRACT_GAPS:
+        pytest.skip("no waivers recorded for this schema")
     value = request.getfixturevalue(fixture_name)
     records = value if isinstance(value, list) else [value]
     messages = _all_messages(schema_file, records)
@@ -398,6 +429,7 @@ def test_the_poi_type_enum_gap_is_still_what_was_reported() -> None:
     ours = {member.value for member in PlaceType}
 
     missing = sorted(ours - contract_values)
-    # Fixed in PR #29; this narrows to an empty list when that merges, and then
-    # the assertion below starts failing so the waiver gets removed.
-    assert missing in ([], ["DOCTOR", "OTHER", "TOWNHALL"]), missing
+    assert missing == [], (
+        f"module 04 emits {missing}, which the contract has no value for - a "
+        "record carrying one cannot be deserialised by any generated client"
+    )
