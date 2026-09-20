@@ -1,0 +1,492 @@
+{
+  "type": "FeatureCollection",
+  "bbox": [
+    100.523571,
+    13.759414,
+    100.554834,
+    13.78067
+  ],
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.540575,
+          13.770155
+        ]
+      },
+      "properties": {
+        "osm_id": 124851954,
+        "osm_type": 2,
+        "distance": 631.279837,
+        "category_ids": {
+          "206": {
+            "category_name": "hospital",
+            "category_group": "healthcare"
+          }
+        },
+        "osm_tags": {
+          "name": "โรงพยาบาลพญาไท 2"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.536235,
+          13.763936
+        ]
+      },
+      "properties": {
+        "osm_id": 125735340,
+        "osm_type": 2,
+        "distance": 247.44073224,
+        "category_ids": {
+          "206": {
+            "category_name": "hospital",
+            "category_group": "healthcare"
+          }
+        },
+        "osm_tags": {
+          "name": "โรงพยาบาลราชวิถี"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.535366,
+          13.763915
+        ]
+      },
+      "properties": {
+        "osm_id": 156924967,
+        "osm_type": 2,
+        "distance": 335.47298744,
+        "category_ids": {
+          "206": {
+            "category_name": "hospital",
+            "category_group": "healthcare"
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.52715,
+          13.768418
+        ]
+      },
+      "properties": {
+        "osm_id": 156924968,
+        "osm_type": 2,
+        "distance": 1266.98996167,
+        "category_ids": {
+          "206": {
+            "category_name": "hospital",
+            "category_group": "healthcare"
+          }
+        },
+        "osm_tags": {
+          "name": "สถาบันประสาทวิทยา"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.527135,
+          13.767644
+        ]
+      },
+      "properties": {
+        "osm_id": 156924988,
+        "osm_type": 2,
+        "distance": 1244.97702641,
+        "category_ids": {
+          "206": {
+            "category_name": "hospital",
+            "category_group": "healthcare"
+          }
+        },
+        "osm_tags": {
+          "name": "สถาบันมะเร็งแห่งชาติ"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.527987,
+          13.76862
+        ]
+      },
+      "properties": {
+        "osm_id": 156924989,
+        "osm_type": 3,
+        "distance": 1188.82611571,
+        "category_ids": {
+          "206": {
+            "category_name": "hospital",
+            "category_group": "healthcare"
+          }
+        },
+        "osm_tags": {
+          "name": "โรงพยาบาลรามาธิบดี"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.53571,
+          13.765585
+        ]
+      },
+      "properties": {
+        "osm_id": 178788073,
+        "osm_type": 2,
+        "distance": 290.11661322,
+        "category_ids": {
+          "206": {
+            "category_name": "hospital",
+            "category_group": "healthcare"
+          }
+        },
+        "osm_tags": {
+          "name": "สถาบันโรคผิวหนัง"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.535187,
+          13.765496
+        ]
+      },
+      "properties": {
+        "osm_id": 178788075,
+        "osm_type": 2,
+        "distance": 343.02054855,
+        "category_ids": {
+          "206": {
+            "category_name": "hospital",
+            "category_group": "healthcare"
+          }
+        },
+        "osm_tags": {
+          "name": "สถาบันสุขภาพเด็กแห่งชาติมหาราชินี"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.530253,
+          13.759414
+        ]
+      },
+      "properties": {
+        "osm_id": 222126064,
+        "osm_type": 2,
+        "distance": 1060.93663456,
+        "category_ids": {
+          "369": {
+            "category_name": "police",
+            "category_group": "public_places"
+          }
+        },
+        "osm_tags": {
+          "name": "สถานีตำรวจนครบาลพญาไท",
+          "website": "https://phayathai.metro.police.go.th/"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.542141,
+          13.777502
+        ]
+      },
+      "properties": {
+        "osm_id": 228789306,
+        "osm_type": 2,
+        "distance": 1454.83476784,
+        "category_ids": {
+          "206": {
+            "category_name": "hospital",
+            "category_group": "healthcare"
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.532888,
+          13.78067
+        ]
+      },
+      "properties": {
+        "osm_id": 368110372,
+        "osm_type": 2,
+        "distance": 1840.3225463,
+        "category_ids": {
+          "206": {
+            "category_name": "hospital",
+            "category_group": "healthcare"
+          }
+        },
+        "osm_tags": {
+          "wheelchair": "yes",
+          "phone": "(+66) 02 265 7777, 02 618 6200",
+          "name": "โรงพยาบาลศูนย์การแพทย์วิชัยยุทธ"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.534401,
+          13.760212
+        ]
+      },
+      "properties": {
+        "osm_id": 863258748,
+        "osm_type": 2,
+        "distance": 668.4734832,
+        "category_ids": {
+          "206": {
+            "category_name": "hospital",
+            "category_group": "healthcare"
+          }
+        },
+        "osm_tags": {
+          "website": "https://www.brkidney.org",
+          "name": "โรงพยาบาลสถาบันโรคไตภูมิราชนครินทร์"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.526773,
+          13.761927
+        ]
+      },
+      "properties": {
+        "osm_id": 863297144,
+        "osm_type": 2,
+        "distance": 1289.17258924,
+        "category_ids": {
+          "206": {
+            "category_name": "hospital",
+            "category_group": "healthcare"
+          }
+        },
+        "osm_tags": {
+          "name": "โรงพยาบาลสงฆ์"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.534543,
+          13.768201
+        ]
+      },
+      "properties": {
+        "osm_id": 863465253,
+        "osm_type": 2,
+        "distance": 546.2676625,
+        "category_ids": {
+          "206": {
+            "category_name": "hospital",
+            "category_group": "healthcare"
+          }
+        },
+        "osm_tags": {
+          "website": "https://www.pmk.ac.th/",
+          "name": "โรงพยาบาลพระมงกุฎเกล้า"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.554834,
+          13.765716
+        ]
+      },
+      "properties": {
+        "osm_id": 1319867503,
+        "osm_type": 2,
+        "distance": 1790.36553611,
+        "category_ids": {
+          "369": {
+            "category_name": "police",
+            "category_group": "public_places"
+          }
+        },
+        "osm_tags": {
+          "name": "ศูนย์ปฏิบัติการตำรวจชุมชนเคหะดินแดง 2"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.554169,
+          13.762104
+        ]
+      },
+      "properties": {
+        "osm_id": 1324050601,
+        "osm_type": 2,
+        "distance": 1743.80904171,
+        "category_ids": {
+          "206": {
+            "category_name": "hospital",
+            "category_group": "healthcare"
+          }
+        },
+        "osm_tags": {
+          "name": "สถาบันราชานุกูล"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.52622,
+          13.76063
+        ]
+      },
+      "properties": {
+        "osm_id": 1331393965,
+        "osm_type": 2,
+        "distance": 1389.15714767,
+        "category_ids": {
+          "369": {
+            "category_name": "police",
+            "category_group": "public_places"
+          }
+        },
+        "osm_tags": {
+          "name": "ศูนย์สืบนครบาล"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.551573,
+          13.772228
+        ]
+      },
+      "properties": {
+        "osm_id": 1369201067,
+        "osm_type": 2,
+        "distance": 1648.52669033,
+        "category_ids": {
+          "206": {
+            "category_name": "hospital",
+            "category_group": "healthcare"
+          }
+        },
+        "osm_tags": {
+          "name": "โรงพยาบาล​ทหารผ่านศึก​"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          100.523571,
+          13.762477
+        ]
+      },
+      "properties": {
+        "osm_id": 1387749248,
+        "osm_type": 2,
+        "distance": 1615.20065359,
+        "category_ids": {
+          "369": {
+            "category_name": "police",
+            "category_group": "public_places"
+          }
+        },
+        "osm_tags": {
+          "name": "กองตำรวจทางหลวง"
+        }
+      }
+    }
+  ],
+  "information": {
+    "attribution": "© openpoiservice by HeiGIT | Data from OpenStreetMap",
+    "version": "0.1",
+    "timestamp": 1789890613,
+    "query": {
+      "request": "pois",
+      "geometry": {
+        "geojson": {
+          "type": "Point",
+          "coordinates": [
+            100.5383,
+            13.7649
+          ]
+        },
+        "buffer": 2000
+      },
+      "filters": {
+        "category_ids": [
+          206,
+          369,
+          361
+        ]
+      },
+      "limit": 20
+    }
+  }
+}

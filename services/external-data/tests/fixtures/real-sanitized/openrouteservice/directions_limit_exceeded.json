@@ -1,0 +1,16 @@
+{
+  "error": {
+    "code": 2003,
+    "message": "Parameter 'alternative_routes' has incorrect value of '4'. The target alternative routes count has to be equal to or less than 3"
+  },
+  "info": {
+    "engine": {
+      "build_date": "2026-08-13T11:53:14Z",
+      "graph_version": "5",
+      "graph_date": "2026-09-12T17:48:32Z",
+      "osm_date": "2026-08-30T23:59:56Z",
+      "version": "9.10.0"
+    },
+    "timestamp": 1789890784371
+  }
+}

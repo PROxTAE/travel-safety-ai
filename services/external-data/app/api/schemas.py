@@ -1,4 +1,4 @@
-"""Request bodies for the Phase 2 internal endpoints.
+"""Request bodies for the internal endpoints.
 
 Validation is strict at the boundary (`extra="forbid"`): a caller sending an
 unexpected field is told, rather than having it silently dropped and wondering
@@ -12,9 +12,14 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.domain.enums import EventType
+from app.domain.enums import EventType, PlaceType, TravelMode
 
 MAX_SAMPLES = 200
+# Mirrors the provider limits verified in app/domain/queries.py; repeated here
+# so an impossible request is refused at the boundary with a field error rather
+# than travelling all the way to a provider 400.
+MAX_ALTERNATIVES = 3
+MAX_PLACE_RADIUS_M = 10_000
 
 
 class GeocodeSearchRequest(BaseModel):
@@ -90,3 +95,50 @@ class DisasterQueryRequest(BaseModel):
             if min_lat > max_lat:
                 raise ValueError("bbox latitudes are inverted")
         return self
+
+
+class RouteQueryRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    # GeoJSON order, origin first: [[lon, lat], ...]. Via points are allowed,
+    # but the provider will not return alternatives alongside them.
+    waypoints: list[tuple[float, float]] = Field(min_length=2, max_length=50)
+    mode: TravelMode = TravelMode.CAR
+    alternatives: int = Field(default=0, ge=0, le=MAX_ALTERNATIVES)
+    # GeoJSON Polygon or MultiPolygon the route must stay out of. Module 06
+    # sends hazard areas here.
+    avoid_polygons: dict[str, object] | None = None
+    preference: str = Field(default="recommended", max_length=32)
+    departure_at: datetime | None = None
+    language: str = Field(default="en", min_length=2, max_length=5)
+
+    @model_validator(mode="after")
+    def _coordinates_are_sane(self) -> Self:
+        for longitude, latitude in self.waypoints:
+            if not -180.0 <= longitude <= 180.0:
+                raise ValueError("waypoint longitude out of range")
+            if not -90.0 <= latitude <= 90.0:
+                # Almost always lon/lat written the wrong way round.
+                raise ValueError("waypoint latitude out of range")
+        if self.departure_at is not None and self.departure_at.tzinfo is None:
+            raise ValueError("departure_at must carry a timezone offset")
+        if self.avoid_polygons is not None:
+            geometry_type = self.avoid_polygons.get("type")
+            if geometry_type not in ("Polygon", "MultiPolygon"):
+                raise ValueError(
+                    "avoid_polygons must be a GeoJSON Polygon or MultiPolygon"
+                )
+        return self
+
+
+class NearbyPlacesRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    longitude: float = Field(ge=-180.0, le=180.0)
+    latitude: float = Field(ge=-90.0, le=90.0)
+    radius_m: int = Field(default=2000, ge=1, le=MAX_PLACE_RADIUS_M)
+    # Typed at the boundary for the same reason as event_types: an unknown
+    # category is the caller's mistake and should say so.
+    place_types: list[PlaceType] = Field(default_factory=list)
+    limit: int = Field(default=20, ge=1, le=100)
+    language: str = Field(default="en", min_length=2, max_length=5)

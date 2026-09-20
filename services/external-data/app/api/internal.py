@@ -1,8 +1,9 @@
 """Internal API surface.
 
 Health and metrics probes, provider health, plus the geocoding and weather
-capabilities. The remaining capability endpoints (disasters, routes, transport,
-places, context) arrive with their adapters in Phases 3-6.
+capabilities, plus disasters, routes and the emergency directory. The
+remaining capability endpoints (transport, context) arrive with their adapters
+in Phases 5-6.
 """
 
 from __future__ import annotations
@@ -22,11 +23,13 @@ from app.api.envelope import success
 from app.api.schemas import (
     DisasterQueryRequest,
     GeocodeSearchRequest,
+    NearbyPlacesRequest,
+    RouteQueryRequest,
     WeatherQueryRequest,
 )
 from app.domain.enums import HealthState, ProviderKind, ProviderStatus
 from app.domain.errors import ProviderError, ProviderErrorCode
-from app.domain.queries import DisasterQuery
+from app.domain.queries import DisasterQuery, NearbyPlacesQuery, RouteQuery
 from app.observability.logging import get_logger
 from app.observability.metrics import REGISTRY
 from app.providers.registry import ResolvedRegistry
@@ -356,4 +359,90 @@ async def disasters_query(
             "attribution": registry.attributions(answered),
         },
         degraded=degraded,
+    )
+
+
+@router.post("/internal/v1/routes/query")
+async def routes_query(
+    request: Request, body: RouteQueryRequest, _: InternalAuth
+) -> dict[str, Any]:
+    """Raw-canonical road routes (contract § 5.2).
+
+    "Raw" is the important word. The routes come back with geometry, distance,
+    duration and turn instructions, and with `exposure` null and `risk_level`
+    UNKNOWN, because a routing engine has no view on hazards. Ranking them is
+    `/routes/evaluate` in module 05, after the corridor has been intersected
+    with weather and disaster events.
+
+    A coordinate with no road near it is a coverage answer, not an outage: the
+    provider says so explicitly (error 2010) and it arrives as
+    UNSUPPORTED_COVERAGE with the provider's own explanation.
+    """
+    adapters: AdapterRegistry = request.app.state.adapters
+    registry: ResolvedRegistry = request.app.state.registry
+
+    adapter = adapters.for_kind(ProviderKind.ROUTE)
+    query = RouteQuery(
+        waypoints=[(lon, lat) for lon, lat in body.waypoints],
+        mode=body.mode,
+        alternatives=body.alternatives,
+        avoid_polygons=body.avoid_polygons,
+        preference=body.preference,
+        departure_at=body.departure_at,
+        language=body.language,
+    )
+    routes = await adapter.query(query)
+
+    return success(
+        {
+            "routes": [route.model_dump(mode="json") for route in routes],
+            "requested_waypoints": len(body.waypoints),
+            "attribution": registry.attributions([adapter.provider_id]),
+        }
+    )
+
+
+@router.post("/internal/v1/places/nearby")
+async def places_nearby(
+    request: Request, body: NearbyPlacesRequest, _: InternalAuth
+) -> dict[str, Any]:
+    """Police, hospitals and embassies near a coordinate (contract § 5.2).
+
+    Two things a consumer of this endpoint must carry through to the user:
+
+    An empty list means nothing is tagged in OpenStreetMap within the radius.
+    It does not mean there is no hospital there, and it must never be rendered
+    as "no help nearby".
+
+    This is not an official emergency directory. The shared context is explicit
+    about it, the records carry quality flags saying which fields are missing,
+    and embassies in particular are flagged as unreliable on every record.
+    """
+    adapters: AdapterRegistry = request.app.state.adapters
+    registry: ResolvedRegistry = request.app.state.registry
+
+    adapter = adapters.for_kind(ProviderKind.EMERGENCY_DIRECTORY)
+    query = NearbyPlacesQuery(
+        longitude=body.longitude,
+        latitude=body.latitude,
+        radius_m=body.radius_m,
+        place_types=list(body.place_types),
+        limit=body.limit,
+        language=body.language,
+    )
+    places = await adapter.query(query)
+
+    return success(
+        {
+            "places": [place.model_dump(mode="json") for place in places],
+            "searched_radius_m": body.radius_m,
+            # Said out loud in the payload, not only in a doc comment, because
+            # whoever renders this may never read the doc.
+            "directory_caveat": (
+                "community-maintained OpenStreetMap data; not an official "
+                "emergency directory and not a substitute for local emergency "
+                "numbers"
+            ),
+            "attribution": registry.attributions([adapter.provider_id]),
+        }
     )

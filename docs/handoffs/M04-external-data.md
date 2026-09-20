@@ -1,22 +1,23 @@
-# [M04] External Data Services — Phase 0–2 Handoff
+# [M04] External Data Services — Phase 0–4 Handoff
 
-> **This is not a module completion report.** Phases 0, 1 and 2 of
+> **This is not a module completion report.** Phases 0–4 of
 > `IMPLEMENTATION_PLANS/04_EXTERNAL_DATA_SERVICES_IMPLEMENTATION.md` are done.
-> Phases 3–7 are not started, so the module acceptance checklist is **not** met.
-> Two of seven user-visible capabilities work; the rest are unavailable and say so.
+> Phases 5–7 are not started, so the module acceptance checklist is **not** met.
+> Six of seven user-visible capabilities work; flight and transit realtime are
+> unavailable and say so.
 
 ## 1. Metadata
 
 | Field | Value |
 | --- | --- |
 | Module/owner | 04 — external-data · คน 4 |
-| Branch | `contract/04-provider-canonical-schema` |
-| Base commit | `a814558` (`origin/main`) |
-| Commits on branch | 7, on top of `a814558` |
+| Branch | `feat/04-route-adapter` |
+| Base commit | `b633480` (`origin/main`) |
+| Merged so far | `29a1798` (Phase 0–2, PR #7) · `b633480` (Phase 3, PR #8–#11) |
 | Contract version | `1.0.0` |
 | Docker image | `smart-travel-external-data:latest` · 320 MB |
-| Date | 2026-09-19 |
-| Scope delivered | Phase 0 (governance), Phase 1 (foundation), Phase 2 (geocoding + weather) |
+| Date | 2026-09-20 |
+| Scope delivered | Phase 0 (governance) · 1 (foundation) · 2 (geocoding + weather) · 3 (disaster sources) · 4 (routing + emergency POI) |
 
 ## 2. Executive summary
 
@@ -66,6 +67,45 @@ can load them.
 **Phase 2 exit criterion met:** Bangkok, Chiang Mai, Tokyo and Reykjavik resolve
 for real, with forecast and freshness.
 
+### Phase 3 — disaster sources
+
+USGS, GDACS and NASA EONET adapters, `POST /internal/v1/disasters/query`, a
+cross-source duplicate grouper and a periodic provider health probe. The three
+sources fan out in parallel and are complementary, not interchangeable: the same
+earthquake appears in more than one, and the grouper annotates duplicates
+without ever removing one.
+
+Eleven provider traps are absorbed and each has a test: epoch-millisecond
+timestamps, a three-ordinate Point that hides a depth, feeds with no bbox or
+time parameter, PAGER alert vs magnitude, naive UTC timestamps, string
+`"false"` booleans, empty event names, a Green/Orange/Red scale that is not
+`Severity`, geometry that is a storm track rather than a point, `closed: null`
+meaning "still running", and per-category magnitude units.
+
+### Phase 4 — routing and the emergency directory
+
+openrouteservice Directions v2 and POIs, `POST /internal/v1/routes/query` and
+`POST /internal/v1/places/nearby`, activated on 2026-09-20 once a real key
+existed and both endpoints answered for real.
+
+Four things worth knowing:
+
+- **Two provider limits were measured, not recalled.** ORS refuses
+  `alternative_routes` alongside via points, and caps `target_count` at 3. Both
+  rejections are stored as fixtures, and both are checked client-side so a
+  caller gets a coverage answer instead of a provider 400.
+- **A 404 from this provider is often not an outage.** Error 2010 means the
+  coordinate is off the road network. Treating it as a failure would mislead the
+  caller and, after a few such requests, open the circuit breaker against a
+  healthy provider.
+- **The POI category ids were read from the provider's own list endpoint.** The
+  first attempt used a plausible-looking group id and a "nearest hospital"
+  search returned a pub 250 m away. There is now a canary that would catch it.
+- **Quota is per endpoint, and now verified.** Measured from the provider's own
+  `X-Ratelimit-*` headers: 200 directions calls a day, 50 POI calls a day.
+  Sharing one account does not mean sharing one budget — treating them as one
+  pool would let route lookups quietly exhaust the emergency directory.
+
 ## 4. Capability status
 
 | Capability | Endpoint | Status |
@@ -73,10 +113,12 @@ for real, with forecast and freshness.
 | Geocoding | `POST /internal/v1/geocode/search` | ✅ live |
 | Weather | `POST /internal/v1/weather/query` | ✅ live |
 | Provider health | `GET /internal/v1/providers/health` | ✅ live |
-| Disaster events | — | ⬜ Phase 3 (providers ACTIVE and reachable, no adapter yet) |
-| Road route · emergency POI | — | ❌ no `ORS_API_KEY` |
-| Flight | — | ❌ no Amadeus production credential |
-| Transit realtime | — | ❌ Lead has not chosen a GTFS region |
+| Disaster events | `POST /internal/v1/disasters/query` | ✅ live (USGS + GDACS + EONET) |
+| Road route | `POST /internal/v1/routes/query` | ✅ live |
+| Emergency POI | `POST /internal/v1/places/nearby` | ✅ live |
+| Combined context | — | ⬜ Phase 6, not started |
+| Flight | — | ❌ no Amadeus **production** credential; test data must not be served (§ 5 of the shared context) |
+| Transit realtime | — | ❌ nobody has chosen a GTFS region yet |
 
 ## 5. Four design decisions worth reviewing
 
@@ -163,20 +205,63 @@ still open.
 derives `severity` and what the `DataQuality.score` formula is.
 `docs/coverage-and-degraded-ux.md` carries U1–U3 for คน 1/2.
 
+### 9.4 `RouteCandidate.exposure` cannot be filled by its producer
+
+Contract § 3.8 marks `exposure` required and PR #15 freezes it as
+`required: ["score", "closed"]`, both non-nullable. Module 04 is the producer
+(§ 5.2, `/internal/v1/routes/query` → "raw-canonical `RouteCandidate[]`") and it
+cannot supply either value: exposure needs the route intersected with hazards
+and weather, which is module 05/06 work.
+
+Emitting `score: 0, closed: false` would be the most dangerous thing this module
+could do. A route across a closed bridge would arrive at module 07 asserting, in
+the contract's own vocabulary, that nothing is wrong — and § 2 is explicit that
+official closures must never be weakened.
+
+So module 04 emits `exposure: null`, `risk_level: UNKNOWN`, and flags every
+route `INCOMPLETE`. **Decision needed:** either make `exposure` nullable in the
+frozen schema, or split a raw producer shape from the evaluated one. Raised on
+PR #15.
+
+### 9.5 Disaster freshness measures the wrong thing — a real defect
+
+`app/adapters/usgs.py:338` computes `age_seconds` as `fetched_at - occurred_at`,
+so `FRESH_WITHIN_SECONDS = 600` marks every earthquake older than ten minutes
+`STALE`. A live query on 2026-09-20 returned 268 events, **268 of them STALE and
+none FRESH**, including all 32 quakes of magnitude 5.0 and above.
+
+A field with the same value on every record carries no information, and a
+consumer filtering `status != STALE` as the contract suggests would receive
+nothing at all.
+
+The fix exists in the data already: the USGS feed carries `metadata.generated`,
+the moment the feed itself was built, which is what "how fresh is our read"
+actually means. The adapter does not currently reference it. Event age belongs
+in its own field.
+
+The same question applies to GDACS and EONET, which share the pattern. This was
+found by auditing the running service, not by a test, and it is **not fixed in
+this branch** — it is in merged Phase 3 code and deserves its own PR. The
+routing adapter added here deliberately does not repeat it: it measures
+freshness from the road graph build date, and a route reports `observed_at:
+null` because a route is computed, never observed.
+
 ## 10. Verification evidence
+
+Re-run on 2026-09-20 on `feat/04-route-adapter`:
 
 ```text
 command: uv run ruff check .
 result:  All checks passed!
 
 command: uv run mypy app
-result:  Success: no issues found in 34 source files
+result:  Success: no issues found in 43 source files
 
 command: uv run pytest
-result:  178 passed, 8 deselected (canary), 0 failed
+result:  428 passed, 22 deselected (canary), 0 failed  [5m43s]
 
 command: uv run pytest -m canary
-result:  8 passed against the live provider
+result:  22 passed against the live providers  [25s]
 
 command: docker compose ... --profile core --profile app up -d --wait external-data
 result:  Up (healthy)
@@ -195,6 +280,46 @@ bkk  valid_at=2026-09-19T10:00:00Z  28.8C  feels 34.2C  rain 0.0mm/95%  wind 8.5
 cnx  valid_at=2026-09-19T14:00:00Z  24.6C  feels 30.0C  rain 0.6mm/89%  wind 3.3km/h
      severity=UNKNOWN  score=None  coverage=1.0  eta_offset=0s  observed_at=None
 attribution: ['Weather data by Open-Meteo.com (CC BY 4.0)']
+```
+
+Phase 4, live from the running container — a real road route and a real
+emergency-directory lookup:
+
+```text
+POST /internal/v1/routes/query  {"waypoints": [[100.5383,13.7649],[100.5878,14.3532]],
+                                 "mode": "CAR", "alternatives": 2}
+ -> 200
+    ORIGINAL      73.7 km  53.1 min   risk_level=UNKNOWN  exposure=None  quality=FRESH [INCOMPLETE]
+    ALTERNATIVE   78.7 km  60.8 min   risk_level=UNKNOWN  exposure=None
+    attribution: ['Directions courtesy of openrouteservice.org | OpenStreetMap contributors']
+    quality note: "freshness is the age of the road graph (built 2026-09-12),
+                   not the age of this request"
+
+POST /internal/v1/places/nearby {"longitude":100.5383,"latitude":13.7649,
+                                 "radius_m":2000,"place_types":["HOSPITAL","POLICE"]}
+ -> 200  19 places
+    HOSPITAL  โรงพยาบาลราชวิถี          247.4 m   PARTIAL
+    HOSPITAL  โรงพยาบาลพญาไท 2          631.3 m   PARTIAL
+    POLICE    สถานีตำรวจนครบาลพญาไท    1060.9 m   PARTIAL
+    directory_caveat: "community-maintained OpenStreetMap data; not an official
+                       emergency directory ..."
+```
+
+Failure paths, same container, none of which is a 500:
+
+```text
+waypoints mid-ocean [[0,0],[0.1,0.1]]   -> 422 UNSUPPORTED_COVERAGE  (provider error 2010)
+alternatives: 9                          -> 422 VALIDATION_ERROR  body.alternatives LESS_THAN_EQUAL
+mode: TRAIN                              -> 422 UNSUPPORTED_COVERAGE
+no Authorization header                  -> 401
+unknown body field                       -> 422 VALIDATION_ERROR  EXTRA_FORBIDDEN
+```
+
+Measured quota, from the provider's own headers rather than a pricing page:
+
+```text
+/v2/directions/*   X-Ratelimit-Limit=200  Remaining=192  Reset in 85,785s (~23.8h)
+/pois              X-Ratelimit-Limit=50   Remaining=44   Reset in 85,819s (~23.8h)
 ```
 
 Health moving from assumption to observation:
@@ -233,14 +358,18 @@ plausible-looking forecast with no error raised:
 
 ## 12. Known limitations
 
-1. **Phases 3–7 are not started.** Disaster, routing, transit, flight and the combined `/context/query` do not exist.
+1. **Phases 5–7 are not started.** Transit realtime, flight and the combined `/context/query` do not exist.
 2. **The Phase 2 code has not been reviewed** — PR #6 was merged with zero reviews.
 3. **Circuit breaker, concurrency limiter and quota tracker are in-process.** Each replica has its own view.
-4. **No quota figure is verified** against a live account; all nine carry `verification_required: true`.
+4. **Only the two openrouteservice quotas are verified** (200/day directions, 50/day POIs, measured from the provider's rate-limit headers). The other seven still carry `verification_required: true` and, by the registry test, no number at all.
 5. **A weather request is capped at 10 sample points.** Chunking across requests belongs with the Phase 6 fan-out.
-6. **openrouteservice and Amadeus mappings are documentation-derived**, marked NOT VERIFIED — no credential means they have never been called.
+6. **The Amadeus mapping is still documentation-derived** and marked NOT VERIFIED; it has never been called. openrouteservice is no longer in that state — both its endpoints are exercised by live canaries.
 7. **`Retry-After` HTTP-date form is not parsed**, only delta-seconds.
 8. **`quality.status` is computed at normalization, not on cache read.** Safe only because the 15-minute forecast TTL sits inside the 60-minute freshness window — revisit if either number changes.
+9. **`exposure` and `risk_level` are null/UNKNOWN on every route.** A routing provider has no view on hazards, and the contract marks `exposure` required. See § 9.4 — this needs a decision, not a workaround.
+10. **A disaster record's `quality.status` is `STALE` on effectively every event.** Found while auditing on 2026-09-20 and not yet fixed; see § 9.5. It is a real defect, and it is in already-merged Phase 3 code rather than in this branch.
+11. **`/places/nearby` searches a circle around one point.** A route corridor needs many such calls; batching belongs with the Phase 6 fan-out.
+12. **Emergency POI data is community-maintained OpenStreetMap.** Not an official directory. Records carry the flags and the response carries an explicit caveat string, but a UI that renders only the pins will still mislead.
 
 ## 13. Handoff
 

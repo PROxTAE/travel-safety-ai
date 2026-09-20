@@ -103,6 +103,10 @@ class Quota(BaseModel):
     model_config = ConfigDict(extra="forbid")
     documented: str | None = None
     source: str | None = None
+    # The verified ceiling, once someone has measured it rather than read it off
+    # a pricing page. `verification_required` stays true until then, so an
+    # unverified provider is visibly unverified instead of quietly assumed safe.
+    daily_limit: int | None = None
     verification_required: bool = True
 
 

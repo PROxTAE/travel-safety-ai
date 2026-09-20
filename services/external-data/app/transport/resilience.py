@@ -113,9 +113,10 @@ class ConcurrencyLimiter:
 class QuotaTracker:
     """Records whatever quota a provider chooses to report.
 
-    None of our providers documents a stable quota header, so this reads the
-    common spellings and stays silent otherwise. It never invents a number --
-    an unknown quota is reported as unknown, not as "plenty left".
+    openrouteservice sends `X-Ratelimit-Limit`/`-Remaining`/`-Reset`; the
+    Open-Meteo and disaster feeds send nothing. So this reads the common
+    spellings and stays silent otherwise. It never invents a number -- an
+    unknown quota is reported as unknown, not as "plenty left".
     """
 
     provider_id: str

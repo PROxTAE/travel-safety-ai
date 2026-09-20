@@ -48,12 +48,29 @@ def test_manifest_lists_every_captured_file() -> None:
 @pytest.mark.parametrize("entry", _manifest()["fixtures"], ids=lambda e: e["fixture_id"])
 def test_entry_has_complete_provenance(entry: dict[str, Any]) -> None:
     assert REQUIRED <= set(entry)
-    assert entry["http_status"] == 200
     assert entry["source_url"].startswith("https://")
     assert entry["content_hash"].startswith("sha256:")
     assert entry["captured_at"].endswith("Z")
     assert entry["license"]
     assert entry["redaction"]
+
+
+@pytest.mark.parametrize("entry", _manifest()["fixtures"], ids=lambda e: e["fixture_id"])
+def test_a_captured_error_says_why_it_was_captured(entry: dict[str, Any]) -> None:
+    """Most fixtures are successful responses. A few are deliberately not.
+
+    A provider's refusal is evidence: it is how the openrouteservice limits were
+    established, rather than recalled. But an unexplained non-200 sitting in the
+    fixture set is indistinguishable from a capture that simply went wrong, so
+    one has to say what it is for.
+    """
+    status = entry["http_status"]
+    if status == 200:
+        return
+    assert 400 <= status < 600, f"{entry['fixture_id']} has an implausible status"
+    assert entry.get("note"), (
+        f"{entry['fixture_id']} captured HTTP {status} without explaining why"
+    )
 
 
 @pytest.mark.parametrize("entry", _manifest()["fixtures"], ids=lambda e: e["fixture_id"])

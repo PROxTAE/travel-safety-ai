@@ -80,6 +80,129 @@
       "license": "NASA open data policy (EONET v3)",
       "redaction": "public natural-event catalogue; no credential, no PII",
       "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)"
+    },
+    {
+      "fixture_id": "ors_directions_bangkok_ayutthaya",
+      "path": "openrouteservice/directions_bkk_ayutthaya.json",
+      "source_url": "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+      "request_body": {
+        "coordinates": [
+          [
+            100.5383,
+            13.7649
+          ],
+          [
+            100.5878,
+            14.3532
+          ]
+        ],
+        "alternative_routes": {
+          "target_count": 2,
+          "share_factor": 0.6,
+          "weight_factor": 1.4
+        },
+        "instructions": true,
+        "units": "m"
+      },
+      "http_status": 200,
+      "content_type": "application/geo+json;charset=UTF-8",
+      "note": "Two road routes Bangkok -> Ayutthaya, used for the normalisation tests.",
+      "captured_at": "2026-09-20T07:50:14Z",
+      "raw_bytes": 86428,
+      "content_hash": "sha256:81102410127ff6cce9a9527255264897fcbbd21362abd9d64af4d2b5ccbbd70e",
+      "license": "openrouteservice terms; upstream data © OpenStreetMap contributors (ODbL)",
+      "redaction": "no credential in the body (the key travels in the Authorization header, which is not part of the payload); public infrastructure records only, no PII",
+      "capture_method": "single live POST, stored pretty-printed (UTF-8, 2-space indent)"
+    },
+    {
+      "fixture_id": "ors_directions_no_routable_point",
+      "path": "openrouteservice/directions_no_route.json",
+      "source_url": "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+      "request_body": {
+        "coordinates": [
+          [
+            100.5383,
+            13.7649
+          ],
+          [
+            100.7501,
+            13.69
+          ]
+        ]
+      },
+      "http_status": 404,
+      "content_type": "application/json",
+      "note": "Provider error 2010. Captured on purpose: a 404 here is a coverage fact about the request, not an outage, and the adapter must not treat it as one.",
+      "captured_at": "2026-09-20T07:50:14Z",
+      "raw_bytes": 424,
+      "content_hash": "sha256:b9e301c3ca781cdfdbd2349ac0a61158651936205c5b7a6cbfbdd2ac7cadcb19",
+      "license": "openrouteservice terms; upstream data © OpenStreetMap contributors (ODbL)",
+      "redaction": "no credential in the body (the key travels in the Authorization header, which is not part of the payload); public infrastructure records only, no PII",
+      "capture_method": "single live POST, stored pretty-printed (UTF-8, 2-space indent)"
+    },
+    {
+      "fixture_id": "ors_directions_alternatives_over_limit",
+      "path": "openrouteservice/directions_limit_exceeded.json",
+      "source_url": "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+      "request_body": {
+        "coordinates": [
+          [
+            100.5383,
+            13.7649
+          ],
+          [
+            100.5878,
+            14.3532
+          ]
+        ],
+        "alternative_routes": {
+          "target_count": 4
+        }
+      },
+      "http_status": 400,
+      "content_type": "application/json",
+      "note": "Provider error 2003. This is the evidence for the target_count <= 3 limit the adapter enforces client-side; it is measured, not recalled.",
+      "captured_at": "2026-09-20T07:50:14Z",
+      "raw_bytes": 440,
+      "content_hash": "sha256:581c8271e2edcd15c84dfaf339ba51367df4cb781915bdb59a2e87f807efe6c7",
+      "license": "openrouteservice terms; upstream data © OpenStreetMap contributors (ODbL)",
+      "redaction": "no credential in the body (the key travels in the Authorization header, which is not part of the payload); public infrastructure records only, no PII",
+      "capture_method": "single live POST, stored pretty-printed (UTF-8, 2-space indent)"
+    },
+    {
+      "fixture_id": "ors_pois_emergency_bangkok",
+      "path": "openrouteservice/pois_emergency_bangkok.json",
+      "source_url": "https://api.openrouteservice.org/pois",
+      "request_body": {
+        "request": "pois",
+        "geometry": {
+          "geojson": {
+            "type": "Point",
+            "coordinates": [
+              100.5383,
+              13.7649
+            ]
+          },
+          "buffer": 2000
+        },
+        "filters": {
+          "category_ids": [
+            206,
+            369,
+            361
+          ]
+        },
+        "limit": 20
+      },
+      "http_status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "note": "Hospitals and police within 2 km of Victory Monument, Bangkok. Category ids were read from the provider's own list endpoint, not guessed.",
+      "captured_at": "2026-09-20T07:50:14Z",
+      "raw_bytes": 11175,
+      "content_hash": "sha256:e5aa9cf856634d2924c654103a9ccd29e4d75f1bbf5a9aad51c1b90d7361b976",
+      "license": "openrouteservice terms; upstream data © OpenStreetMap contributors (ODbL)",
+      "redaction": "no credential in the body (the key travels in the Authorization header, which is not part of the payload); public infrastructure records only, no PII",
+      "capture_method": "single live POST, stored pretty-printed (UTF-8, 2-space indent)"
     }
   ]
 }

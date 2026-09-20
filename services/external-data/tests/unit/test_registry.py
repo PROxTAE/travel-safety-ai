@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 
 from app.domain.enums import ProviderKind, ProviderStatus
-from app.providers.registry import ResolvedRegistry, load_registry
+from app.providers.registry import ResolvedRegistry, _resolve, load_registry
 from app.settings import Settings, get_settings
 from tests.conftest import REGISTRY_PATH
 
@@ -52,15 +52,27 @@ def test_missing_credential_downgrades_an_active_provider(settings: Settings) ->
 def test_present_credential_does_not_self_approve(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Supplying a key must not promote a provider the Lead has not approved -
-    the status field records an approval decision, not just reachability."""
+    """Supplying a key must not promote a provider nobody has approved - the
+    status field records an approval decision, not just reachability.
+
+    Written against a synthetic entry rather than whichever provider happens to
+    be pending today. The first version of this test used openrouteservice; the
+    moment that provider was approved the test went green for the wrong reason
+    and stopped guarding anything.
+    """
     monkeypatch.setenv("ORS_API_KEY", "not-a-real-key")
     get_settings.cache_clear()
 
-    resolved = ResolvedRegistry(load_registry(REGISTRY_PATH), get_settings()).get(
-        "openrouteservice"
+    approved = next(
+        entry
+        for entry in load_registry(REGISTRY_PATH).providers
+        if entry.id == "openrouteservice"
     )
-    assert resolved is not None
+    pending = approved.model_copy(
+        update={"status": ProviderStatus.PENDING_CREDENTIAL}
+    )
+
+    resolved = _resolve(pending, get_settings())
     assert resolved.effective_status is ProviderStatus.PENDING_CREDENTIAL
     assert resolved.missing_credentials == []
     assert resolved.reason is not None and "not yet approved" in resolved.reason
@@ -113,10 +125,40 @@ def test_every_provider_has_a_positive_cache_ttl(registry: ResolvedRegistry) -> 
         assert provider.entry.cache.effective_ttl > 0
 
 
-def test_quota_is_marked_unverified(registry: ResolvedRegistry) -> None:
-    """No quota has been confirmed against a live account yet; the registry must
-    keep saying so rather than implying the numbers are authoritative."""
-    assert all(p.entry.quota.verification_required for p in registry.all())
+def test_an_unverified_quota_carries_no_number(registry: ResolvedRegistry) -> None:
+    """The registry must never imply a ceiling nobody measured.
+
+    A provider may say "verified" only once someone has read the real limit off
+    the provider - for openrouteservice that was its own X-Ratelimit-* headers
+    on 2026-09-20. Everything still unverified must leave `daily_limit` empty
+    rather than carrying a plausible guess.
+    """
+    for provider in registry.all():
+        quota = provider.entry.quota
+        if quota.verification_required:
+            assert quota.daily_limit is None, (
+                f"{provider.id} claims a quota of {quota.daily_limit} "
+                "while still marked unverified"
+            )
+        else:
+            assert quota.daily_limit is not None, (
+                f"{provider.id} is marked verified but records no number"
+            )
+
+
+def test_the_two_openrouteservice_endpoints_have_separate_budgets(
+    registry: ResolvedRegistry,
+) -> None:
+    """Measured, not assumed: directions allows 200 calls a day and POIs 50.
+
+    Sharing one account does not mean sharing one pool. Treating them as one
+    would let route lookups quietly exhaust the emergency directory.
+    """
+    routing = registry.get("openrouteservice")
+    pois = registry.get("ors_pois")
+    assert routing is not None and pois is not None
+    assert routing.entry.quota.daily_limit == 200
+    assert pois.entry.quota.daily_limit == 50
 
 
 def test_registry_has_no_inline_secret() -> None:
