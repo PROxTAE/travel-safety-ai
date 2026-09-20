@@ -1531,13 +1531,18 @@ components:
         preferences:
           $ref: "#/components/schemas/TravelPreference"
         selected_route_id:
-          description: Route the traveller applied. Set only by apply-route, never by the client directly.
+          description: Route the traveller applied. Set only by apply-route, never by the client directly. A
+            RecordId rather than a Uuid because it holds a RouteCandidate.route_id, and those are
+            producer-minted and reproducible (`openrouteservice:3ca4459b8d41b503`) so that the same
+            route asked for twice is recognisably the same route.
           oneOf:
-            - $ref: "#/components/schemas/Uuid"
+            - $ref: "#/components/schemas/RecordId"
             - type: "null"
         previous_selected_route_id:
+          description: The route this trip had applied before the current one, kept so a reassessment can say
+            what changed. Same type as selected_route_id for the same reason.
           oneOf:
-            - $ref: "#/components/schemas/Uuid"
+            - $ref: "#/components/schemas/RecordId"
             - type: "null"
         latest_request_id:
           description: Most recent assessment started for this trip revision.
@@ -2003,18 +2008,33 @@ components:
         poi_id:
           $ref: "#/components/schemas/RecordId"
         poi_type:
+          description: "OTHER is the required escape hatch: a provider category this contract does not model
+            is mapped to OTHER and kept, never discarded and never guessed into a neighbouring type.
+            provider_category, where a producer supplies it, records what the provider actually
+            said."
           type: string
           enum:
             - HOSPITAL
             - CLINIC
+            - DOCTOR
             - PHARMACY
             - POLICE
             - FIRE_STATION
             - EMBASSY
             - CONSULATE
+            - TOWNHALL
             - SHELTER
+            - OTHER
         name:
-          type: string
+          description: "Null when the provider has no name for the place. OpenStreetMap leaves roughly one
+            emergency POI in ten untagged, including real hospitals; the shared context calls this
+            data 'frequently stale or missing'. The two alternatives were both worse: dropping the
+            record hides the nearest hospital from somebody who needs it, and synthesising 'Unnamed
+            hospital' puts words in the provider's mouth inside a data field. A consumer renders the
+            type and the distance, and says the name is unknown."
+          type:
+            - string
+            - "null"
           maxLength: 512
         location:
           $ref: "#/components/schemas/Point"
@@ -2030,7 +2050,12 @@ components:
             - "null"
           maxLength: 32
         distance_m:
-          type: number
+          description: Straight-line metres from the query point, not travel distance — there may be no road.
+            Null when the provider did not give one, rather than zero, which would read as 'you are
+            here'.
+          type:
+            - number
+            - "null"
           minimum: 0
         open_now:
           description: Null unless the provider supplies opening hours; unknown is not open.
@@ -2187,9 +2212,11 @@ components:
           $ref: "#/components/schemas/SemVer"
     RouteCandidate:
       title: RouteCandidate
-      description: One way of making the journey, with the hazard exposure measured along its corridor
+      description: "One way of making the journey, with the hazard exposure measured along its corridor
         rather than at the endpoints. A route whose corridor carries an official closure must have
-        exposure.closed = true and can never be labelled RECOMMENDED.
+        exposure.closed = true and can never be labelled RECOMMENDED. A raw route straight from a
+        routing provider carries exposure: null and risk_level: UNKNOWN until modules 05/06 evaluate
+        it; the two are bound together so an unevaluated route cannot be mistaken for a safe one."
       type: object
       required:
         - route_id
@@ -2204,7 +2231,11 @@ components:
         - sources
       properties:
         route_id:
-          $ref: "#/components/schemas/Uuid"
+          description: "Reproducible on purpose: asking for the same route twice must yield the same value, so
+            a route served from cache and one fetched fresh are recognisably the same route rather
+            than two. A provider adapter derives it from the provider key and a fingerprint of the
+            question (waypoints, mode, preference). Same reasoning as source_id and event_id."
+          $ref: "#/components/schemas/RecordId"
         provider_route_id:
           description: Opaque provider handle, kept so the same route can be re-fetched or audited.
           type:
@@ -2234,15 +2265,43 @@ components:
             - "null"
           minimum: 0
         exposure:
-          $ref: "#/components/schemas/RouteExposure"
+          description: "Null until a route has been evaluated against hazards and weather. A routing provider
+            knows road geometry and travel time and has no view on danger, so module 04 emits null
+            here and modules 05/06 fill it in. Null does NOT mean 'no exposure': an unevaluated
+            route must never be rendered as safe, which is why the schema requires risk_level to be
+            UNKNOWN whenever this is null."
+          oneOf:
+            - $ref: "#/components/schemas/RouteExposure"
+            - type: "null"
         risk_level:
           $ref: "#/components/schemas/RiskLevel"
         quality:
           $ref: "#/components/schemas/DataQuality"
         sources:
+          description: "Plural, unlike the singular `source` on records that come from exactly one provider. A
+            route survives stitching: module 05 joins legs from different providers into one
+            itinerary, and each leg's provenance has to survive that join. A single-provider route
+            sends a one-element array."
           type: array
           items:
             $ref: "#/components/schemas/SourceProvenance"
+          minItems: 1
+      allOf:
+        - title: UnevaluatedRoutesAreUnknownRisk
+          description: "A route whose exposure has not been measured cannot carry a risk level that implies it
+            has been. Without this, a producer could emit exposure: null beside risk_level: LOW and
+            a consumer would read the pair as 'checked, and fine'."
+          if:
+            type: object
+            properties:
+              exposure:
+                type: "null"
+            required:
+              - exposure
+          then:
+            properties:
+              risk_level:
+                const: UNKNOWN
     DisasterEvent:
       title: DisasterEvent
       description: A hazard published by a real feed. An OfficialAlert is the same shape with official =
@@ -3112,6 +3171,19 @@ components:
         - WALK
         - BICYCLE
         - MULTIMODAL
+    RecordId:
+      title: RecordId
+      description: "Identifier of a record as the producer mints it. Stable and reproducible: fetching the
+        same fact twice must yield the same RecordId, because that is what lets module 05
+        deduplicate across sources and what lets an operator trace one fact back through a log. A
+        provider adapter therefore derives it from the provider key and the provider's own record id
+        (for example `usgs:us7000abcd`), never from a random UUID, which would differ on every fetch
+        and defeat both. A service that mints a record with no upstream identity may use a UUID
+        here; the format is deliberately wide enough for both."
+      type: string
+      minLength: 1
+      maxLength: 256
+      pattern: ^[A-Za-z0-9][A-Za-z0-9._:,+@/=-]*$
     DeletionStatus:
       title: DeletionStatus
       description: Reported by soft-delete endpoints; purge happens asynchronously across owned schemas.
@@ -3184,19 +3256,6 @@ components:
         - HEALTH
         - TRANSPORT_CLOSURE
         - OTHER
-    RecordId:
-      title: RecordId
-      description: "Identifier of a record as the producer mints it. Stable and reproducible: fetching the
-        same fact twice must yield the same RecordId, because that is what lets module 05
-        deduplicate across sources and what lets an operator trace one fact back through a log. A
-        provider adapter therefore derives it from the provider key and the provider's own record id
-        (for example `usgs:us7000abcd`), never from a random UUID, which would differ on every fetch
-        and defeat both. A service that mints a record with no upstream identity may use a UUID
-        here; the format is deliberately wide enough for both."
-      type: string
-      minLength: 1
-      maxLength: 256
-      pattern: ^[A-Za-z0-9][A-Za-z0-9._:,+@/=-]*$
     HttpsUrl:
       title: HttpsUrl
       type: string
@@ -3364,7 +3423,8 @@ components:
         - duration_seconds
       properties:
         segment_id:
-          $ref: "#/components/schemas/Uuid"
+          description: Reproducible within its route, for the same reason as route_id.
+          $ref: "#/components/schemas/RecordId"
         mode:
           $ref: "#/components/schemas/TravelMode"
         from_name:
