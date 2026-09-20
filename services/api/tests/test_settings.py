@@ -125,3 +125,44 @@ def test_trusted_proxy_hops_defaults_to_zero() -> None:
 def test_out_of_range_values_are_rejected(field: str, value: str) -> None:
     with pytest.raises(ValidationError):
         build(**{field: value})
+
+
+def test_a_blank_internal_service_token_reads_as_unset() -> None:
+    """`.env.example` ships the name with no value; copied verbatim that must not look configured.
+
+    An empty bearer token would be rejected by the internal service and reported here as that
+    service being unavailable, which is the wrong thing to put in front of whoever is on call.
+    """
+    from tests.conftest import build_settings
+
+    assert build_settings(INTERNAL_SERVICE_TOKEN="").internal_service_token is None
+    assert build_settings(INTERNAL_SERVICE_TOKEN="   ").internal_service_token is None
+
+
+def test_a_real_internal_service_token_is_kept() -> None:
+    from tests.conftest import build_settings
+
+    settings = build_settings(INTERNAL_SERVICE_TOKEN="a-token")
+
+    assert settings.internal_service_token is not None
+    assert settings.internal_service_token.get_secret_value() == "a-token"
+
+
+def test_an_unknown_travel_mode_in_configuration_is_refused() -> None:
+    """A typo would otherwise be indistinguishable from a deliberate restriction."""
+    import pytest
+
+    from tests.conftest import build_settings
+
+    with pytest.raises(ValueError, match="unknown travel modes"):
+        build_settings(API_TRIP_SUPPORTED_TRAVEL_MODES="CAR,TRAINN")
+
+
+def test_flight_is_not_claimed_by_default() -> None:
+    """The contract's flight provider needs production Amadeus credentials this project lacks.
+
+    Claiming coverage we cannot back is the failure this whole system exists to avoid.
+    """
+    from tests.conftest import build_settings
+
+    assert "FLIGHT" not in build_settings().trip_supported_travel_modes

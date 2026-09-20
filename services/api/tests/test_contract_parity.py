@@ -116,3 +116,102 @@ def test_public_api_declares_the_health_endpoints_this_service_serves() -> None:
 
     assert "/health/live" in spec["paths"]
     assert "/health/ready" in spec["paths"]
+
+
+# --- phase 4: the trip domain ---------------------------------------------------------------------
+
+
+def test_trip_fields_match_the_contract() -> None:
+    """A field this service omits is one the web client will find missing at integration time."""
+    from app.schemas.trip import TripModel
+
+    contract = set(_schema("trip.schema.json")["properties"])
+
+    assert set(TripModel.model_fields) == contract
+
+
+def test_trip_requires_what_the_contract_requires() -> None:
+    from app.schemas.trip import TripModel
+
+    required = set(_schema("trip.schema.json")["required"])
+    non_optional = {
+        name for name, field in TripModel.model_fields.items() if field.is_required()
+    }
+
+    missing = required - non_optional
+    assert not missing, f"optional here but required by the contract: {sorted(missing)}"
+
+
+def test_location_ref_fields_match_the_contract() -> None:
+    from app.schemas.location import LocationRef
+
+    contract = set(_schema("location-ref.schema.json")["properties"])
+
+    assert set(LocationRef.model_fields) == contract
+
+
+def test_location_ref_requires_what_the_contract_requires() -> None:
+    """`confirmed_by_user` especially: it is what stops an unreviewed pin becoming a trip."""
+    from app.schemas.location import LocationRef
+
+    required = set(_schema("location-ref.schema.json")["required"])
+
+    assert required <= set(LocationRef.model_fields)
+
+
+def test_travel_preference_fields_match_the_contract() -> None:
+    from app.schemas.trip import TravelPreference
+
+    contract = set(_schema("travel-preference.schema.json")["properties"])
+
+    assert set(TravelPreference.model_fields) == contract
+
+
+def test_travel_modes_match_the_contract() -> None:
+    """A mode the service accepts but the contract does not name cannot be assessed downstream."""
+    from app.domain.trip import TRAVEL_MODES
+
+    contract = set(_schema("enums.schema.json")["$defs"]["TravelMode"]["enum"])
+
+    assert contract == TRAVEL_MODES
+
+
+def test_trip_statuses_match_the_contract() -> None:
+    from app.domain.trip import TRIP_STATUSES
+
+    contract = set(_schema("enums.schema.json")["$defs"]["TripStatus"]["enum"])
+
+    assert contract == TRIP_STATUSES
+
+
+def test_deletion_statuses_match_the_contract() -> None:
+    from typing import get_args
+
+    from app.schemas.trip import DeletionStatus
+
+    contract = set(_schema("enums.schema.json")["$defs"]["DeletionStatus"]["enum"])
+
+    assert set(get_args(DeletionStatus)) == contract
+
+
+def test_accessibility_needs_match_the_contract() -> None:
+    from typing import get_args
+
+    from app.schemas.trip import AccessibilityNeed
+
+    contract = set(
+        _schema("travel-preference.schema.json")["properties"]["accessibility"]["items"]["enum"]
+    )
+
+    assert set(get_args(AccessibilityNeed)) == contract
+
+
+def test_the_public_contract_declares_every_trip_route_this_service_serves() -> None:
+    """The endpoints phase 4 implements must be the ones the frozen contract promised."""
+    import yaml
+
+    spec = yaml.safe_load((CONTRACTS / "openapi" / "public-api.yaml").read_text(encoding="utf-8"))
+
+    assert set(spec["paths"]["/api/v1/trips"]) >= {"get", "post"}
+    assert set(spec["paths"]["/api/v1/trips/{trip_id}"]) >= {"get", "patch", "delete"}
+    assert "get" in spec["paths"]["/api/v1/locations/search"]

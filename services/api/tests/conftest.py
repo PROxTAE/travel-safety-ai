@@ -59,6 +59,9 @@ TEST_ENV: dict[str, str] = {
     "OIDC_AUDIENCE": "smart-travel-api",
     "API_CORS_ALLOWED_ORIGINS": "http://localhost:3000",
     "API_READINESS_TIMEOUT_SECONDS": "1",
+    # Not a credential: the tests that use it intercept the outbound call before it leaves the
+    # process. Present so the client sends a header at all, which is what those tests assert on.
+    "INTERNAL_SERVICE_TOKEN": "test-internal-token-not-a-secret",
     # Generated per run, never committed. A fixture key in the repository would be a key someone
     # eventually copies into a deployment.
     "API_EMERGENCY_ENCRYPTION_KEYS": f"v1:{EnvelopeCipher.generate_key()}",
