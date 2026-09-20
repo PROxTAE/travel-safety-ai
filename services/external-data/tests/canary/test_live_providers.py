@@ -22,6 +22,7 @@ import pytest
 
 from app.adapters.eonet import EonetAdapter
 from app.adapters.gdacs import GdacsAdapter
+from app.adapters.gtfs import GtfsAdapter
 from app.adapters.open_meteo_geocoding import GeocodeQuery, OpenMeteoGeocodingAdapter
 from app.adapters.open_meteo_weather import (
     CoordinateSample,
@@ -38,9 +39,16 @@ from app.domain.enums import (
     ProviderStatus,
     RiskLevel,
     Severity,
+    TransportStatusCode,
     TravelMode,
 )
-from app.domain.queries import DisasterQuery, NearbyPlacesQuery, RouteQuery
+from app.domain.errors import ProviderError, ProviderErrorCode
+from app.domain.queries import (
+    DisasterQuery,
+    NearbyPlacesQuery,
+    RouteQuery,
+    TransitQuery,
+)
 from app.providers.registry import Defaults, ResolvedProvider, load_registry
 from app.settings import get_settings
 from app.transport.http import ProviderTransport
@@ -471,3 +479,97 @@ async def test_live_ors_places_stay_inside_the_radius(
             # A little slack: the provider measures from the buffered geometry.
             assert place.distance_m <= 2_500
         assert place.source.source_url is not None
+
+
+# --------------------------------------------------------------------- GTFS
+
+
+@pytest.fixture
+def gtfs() -> GtfsAdapter:
+    return _adapter("gtfs_registry", GtfsAdapter)
+
+
+NEW_YORK_BBOX = (-74.1, 40.6, -73.8, 40.9)
+
+
+def _nyc_transit(gtfs: GtfsAdapter) -> Callable[[], Awaitable[list[Any]]]:
+    return lambda: gtfs.query(TransitQuery(bbox=NEW_YORK_BBOX, limit=80))
+
+
+async def test_live_gtfs_returns_running_trips(gtfs: GtfsAdapter) -> None:
+    """Phase 5 exit: at least one real GTFS-Realtime region must work."""
+    statuses = await _once("gtfs_nyc", _nyc_transit(gtfs))
+
+    assert statuses, "the agency feed reported no trips at all"
+    for status in statuses:
+        assert status.origin_stop.name
+        assert status.destination_stop.name
+
+
+async def test_live_gtfs_joins_some_trips_to_the_timetable(
+    gtfs: GtfsAdapter,
+) -> None:
+    """The check a frozen fixture cannot make.
+
+    The realtime and schedule feeds use different trip-id forms, and joining
+    them wrongly matches nothing while looking perfectly healthy - every record
+    is still valid, just UNKNOWN. If the agency changes either format, this is
+    what notices.
+    """
+    statuses = await _once("gtfs_nyc", _nyc_transit(gtfs))
+    matched = [s for s in statuses if s.scheduled_arrival is not None]
+
+    assert matched, (
+        "no live trip matched the published timetable - the trip-id join has "
+        "most likely drifted"
+    )
+
+
+async def test_live_gtfs_delays_are_minutes_not_timezone_offsets(
+    gtfs: GtfsAdapter,
+) -> None:
+    """GTFS clock times are local to the agency. Reading them as UTC makes every
+    New York train exactly four hours late."""
+    statuses = await _once("gtfs_nyc", _nyc_transit(gtfs))
+
+    for status in statuses:
+        if status.delay_minutes is not None:
+            assert abs(status.delay_minutes) < 180, (
+                f"{status.id} is {status.delay_minutes} minutes off, which looks "
+                "like a timezone error rather than a delay"
+            )
+
+
+async def test_live_gtfs_never_claims_on_time_without_a_schedule(
+    gtfs: GtfsAdapter,
+) -> None:
+    """Contract § 3.6, checked against the live feed so that a future provider
+    field cannot start populating it by accident."""
+    statuses = await _once("gtfs_nyc", _nyc_transit(gtfs))
+
+    for status in statuses:
+        if status.status is TransportStatusCode.ON_TIME:
+            assert status.delay_minutes is not None
+        if status.scheduled_arrival is None:
+            assert status.status is not TransportStatusCode.ON_TIME
+
+
+async def test_live_gtfs_snapshot_is_recent(gtfs: GtfsAdapter) -> None:
+    """The agency rebuilds trip updates about every 30 seconds; § 10 allows 90.
+    A snapshot much older than that means the feed has stalled."""
+    statuses = await _once("gtfs_nyc", _nyc_transit(gtfs))
+    observed = [s.source.observed_at for s in statuses if s.source.observed_at]
+
+    assert observed
+    age = (datetime.now(UTC) - max(observed)).total_seconds()
+    assert age < 900, f"the newest realtime snapshot is {age:.0f}s old"
+
+
+async def test_live_gtfs_refuses_a_region_it_does_not_cover(
+    gtfs: GtfsAdapter,
+) -> None:
+    """Coverage is per agency. Bangkok publishes no GTFS-Realtime at all, which
+    is why the demo region is New York - and that limit has to be visible."""
+    with pytest.raises(ProviderError) as excinfo:
+        await gtfs.query(TransitQuery(bbox=(100.0, 13.0, 101.0, 14.0)))
+    assert excinfo.value.code is ProviderErrorCode.OUTSIDE_COVERAGE

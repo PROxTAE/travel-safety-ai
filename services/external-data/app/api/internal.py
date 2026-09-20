@@ -2,8 +2,9 @@
 
 Health and metrics probes, provider health, plus the geocoding and weather
 capabilities, plus disasters, routes, the emergency directory and the combined
-context fan-out. Transport is the one capability still missing: module 04 has
-no GTFS adapter, so the registry reports it unavailable rather than pretending.
+context fan-out, and live transit for the registered agency feeds. Flight is
+the one capability module 04 does not answer: serving Amadeus test data as a
+real result is forbidden by the shared context, so it stays UNAVAILABLE.
 """
 
 from __future__ import annotations
@@ -27,11 +28,17 @@ from app.api.schemas import (
     GeocodeSearchRequest,
     NearbyPlacesRequest,
     RouteQueryRequest,
+    TransitQueryRequest,
     WeatherQueryRequest,
 )
 from app.domain.enums import HealthState, ProviderKind, ProviderStatus
 from app.domain.errors import ProviderError, ProviderErrorCode
-from app.domain.queries import DisasterQuery, NearbyPlacesQuery, RouteQuery
+from app.domain.queries import (
+    DisasterQuery,
+    NearbyPlacesQuery,
+    RouteQuery,
+    TransitQuery,
+)
 from app.observability.logging import get_logger
 from app.observability.metrics import (
     REGISTRY,
@@ -526,6 +533,10 @@ async def context_query(
                 record.model_dump(mode="json")
                 for record in result.records(ProviderKind.ROUTE)
             ],
+            "transport": [
+                record.model_dump(mode="json")
+                for record in result.records(ProviderKind.TRANSIT)
+            ],
             "places": [
                 record.model_dump(mode="json")
                 for record in result.records(ProviderKind.EMERGENCY_DIRECTORY)
@@ -563,6 +574,11 @@ def _requested_capabilities(body: ContextQueryRequest) -> list[ProviderKind]:
     wanted.append(ProviderKind.DISASTER)
     if body.waypoints:
         wanted.append(ProviderKind.ROUTE)
+    # Transit coverage is per agency, so it is only worth asking when the query
+    # says where it is about. Without a box the adapter would answer
+    # OUTSIDE_COVERAGE for every request.
+    if body.bbox:
+        wanted.append(ProviderKind.TRANSIT)
     if body.place_types or body.places_near:
         wanted.append(ProviderKind.EMERGENCY_DIRECTORY)
     return wanted
@@ -665,6 +681,15 @@ def _capability_call(
 
         return weather
 
+    if kind is ProviderKind.TRANSIT:
+        transit_query = TransitQuery(bbox=body.bbox, limit=50)
+
+        async def transit(budget: float) -> tuple[list[Any], list[str]]:
+            records = await adapter.query(transit_query, deadline_seconds=budget)
+            return list(records), [adapter.provider_id]
+
+        return transit
+
     if kind is ProviderKind.ROUTE:
         if not body.waypoints:
             return "routes were requested but no waypoints were sent"
@@ -729,3 +754,45 @@ def _health_snapshot(
                 }
             )
     return snapshot
+
+
+@router.post("/internal/v1/transport/query")
+async def transport_query(
+    request: Request, body: TransitQueryRequest, _: InternalAuth
+) -> dict[str, Any]:
+    """Live status for registered transit feeds (contract § 5.2).
+
+    Coverage is per agency and never global. A query outside every registered
+    feed comes back as UNSUPPORTED_COVERAGE naming the feeds that do exist -
+    not as an empty list, which would read as "no trains are running here".
+
+    Read `status` carefully: § 3.6 requires real-time evidence for ON_TIME and
+    forbids inferring it from the absence of an alert. A running trip whose
+    scheduled counterpart cannot be found is UNKNOWN with a null delay, because
+    without the timetable there is nothing to be on time against. About two
+    thirds of live trips are in that state at any moment, which is normal.
+    """
+    adapters: AdapterRegistry = request.app.state.adapters
+    registry: ResolvedRegistry = request.app.state.registry
+
+    adapter = adapters.for_kind(ProviderKind.TRANSIT)
+    query = TransitQuery(
+        bbox=body.bbox,
+        route_ids=list(body.route_ids),
+        stop_ids=list(body.stop_ids),
+        feed_ids=list(body.feed_ids),
+        limit=body.limit,
+    )
+    statuses = await adapter.query(query)
+
+    matched = sum(1 for s in statuses if s.scheduled_arrival is not None)
+    return success(
+        {
+            "statuses": [status.model_dump(mode="json") for status in statuses],
+            # Said out loud: a consumer that sees mostly UNKNOWN should know it
+            # is the schedule join, not a broken feed.
+            "trips_matched_to_schedule": matched,
+            "trips_without_schedule": len(statuses) - matched,
+            "attribution": registry.attributions([adapter.provider_id]),
+        }
+    )

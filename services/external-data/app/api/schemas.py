@@ -20,14 +20,15 @@ MAX_SAMPLES = 200
 # than travelling all the way to a provider 400.
 MAX_ALTERNATIVES = 3
 MAX_PLACE_RADIUS_M = 10_000
-# Every capability a combined context request may ask for. Flight and transit
-# are absent on purpose: module 04 has no adapter for either, and offering them
-# here would invite a caller to build a screen around an answer that will never
-# arrive.
+# Every capability a combined context request may ask for. FLIGHT is absent on
+# purpose: the shared context forbids serving Amadeus test data as a real
+# result, so module 04 will never answer it, and offering it here would invite a
+# caller to build a screen around an answer that never arrives.
 CONTEXT_CAPABILITIES = (
     ProviderKind.WEATHER,
     ProviderKind.DISASTER,
     ProviderKind.ROUTE,
+    ProviderKind.TRANSIT,
     ProviderKind.EMERGENCY_DIRECTORY,
 )
 
@@ -241,4 +242,29 @@ class ContextQueryRequest(BaseModel):
                 raise ValueError(
                     "avoid_polygons must be a GeoJSON Polygon or MultiPolygon"
                 )
+        return self
+
+
+class TransitQueryRequest(BaseModel):
+    """Live transit status. Coverage is per agency and never global."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # GeoJSON order: min_lon, min_lat, max_lon, max_lat. Picks which registered
+    # feeds can answer; a box outside all of them is UNSUPPORTED_COVERAGE, not
+    # an empty list.
+    bbox: tuple[float, float, float, float] | None = None
+    route_ids: list[str] = Field(default_factory=list, max_length=50)
+    stop_ids: list[str] = Field(default_factory=list, max_length=50)
+    feed_ids: list[str] = Field(default_factory=list, max_length=10)
+    limit: int = Field(default=50, ge=1, le=200)
+
+    @model_validator(mode="after")
+    def _bbox_is_sane(self) -> Self:
+        if self.bbox is not None:
+            min_lon, min_lat, max_lon, max_lat = self.bbox
+            if not (-180.0 <= min_lon <= 180.0 and -180.0 <= max_lon <= 180.0):
+                raise ValueError("bbox longitude out of range")
+            if not (-90.0 <= min_lat <= 90.0 and -90.0 <= max_lat <= 90.0):
+                raise ValueError("bbox latitude out of range")
         return self

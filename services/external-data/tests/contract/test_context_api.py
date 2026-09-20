@@ -127,9 +127,15 @@ def test_every_capability_is_named_with_what_happened(
         "WEATHER",
         "DISASTER",
         "ROUTE",
+        "TRANSIT",
         "EMERGENCY_DIRECTORY",
     }
-    assert all(entry["outcome"] == "ANSWERED" for entry in capabilities.values())
+    # TRANSIT is not requested here: this query sends no bbox, and transit
+    # coverage is per agency, so asking without one would only ever produce
+    # OUTSIDE_COVERAGE.
+    answered = {k: v["outcome"] for k, v in capabilities.items() if k != "TRANSIT"}
+    assert set(answered.values()) == {"ANSWERED"}
+    assert capabilities["TRANSIT"]["outcome"] == "NOT_REQUESTED"
 
 
 @respx.mock
@@ -287,15 +293,33 @@ def test_an_empty_query_is_refused(keyed_client: TestClient) -> None:
 def test_a_capability_module_04_cannot_answer_is_refused(
     keyed_client: TestClient,
 ) -> None:
-    """Offering TRANSIT here would invite a caller to build a screen around an
-    answer that never arrives."""
+    """Accepting FLIGHT would invite a caller to build a screen around an
+    answer that never arrives: the shared context forbids serving Amadeus test
+    data as a real result, and no production credential exists."""
     response = keyed_client.post(
         PATH,
         headers=AUTH,
-        json={"bbox": [99.0, 12.5, 101.5, 15.5], "include": ["TRANSIT"]},
+        json={"bbox": [99.0, 12.5, 101.5, 15.5], "include": ["FLIGHT"]},
     )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+@respx.mock
+def test_transit_outside_every_registered_feed_is_not_a_failure(
+    keyed_client: TestClient,
+) -> None:
+    """A Thai bbox is outside the registered New York feed. That is a coverage
+    answer, not a degradation - nothing broke."""
+    _mock_everything()
+    response = keyed_client.post(
+        PATH, headers=AUTH, json={"bbox": [99.0, 12.5, 101.5, 15.5]}
+    )
+
+    assert response.status_code == 200
+    transit = _by_capability(response.json())["TRANSIT"]
+    assert transit["outcome"] in ("NOT_COVERED", "UNAVAILABLE")
+    assert "TRANSIT" not in response.json()["meta"]["degraded_services"]
 
 
 def test_a_swapped_waypoint_is_rejected(keyed_client: TestClient) -> None:
