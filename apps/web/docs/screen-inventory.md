@@ -1,6 +1,6 @@
 # Web screen and contract inventory
 
-Phase 0 inventory for `feat/01-web-shell`, reviewed 2026-09-20. The supplied
+Phase 0 inventory for `feat/01-web-shell`, reviewed 2026-09-21. The supplied
 screens are visual masters only: all cities, weather, risk, timing, contacts,
 and availability labels shown in them are examples and must never be runtime
 defaults.
@@ -63,9 +63,9 @@ permitted.
 
 ## Phase 1 acceptance checklist
 
-- [ ] All empty application routes render inside the responsive shell.
-- [ ] Login and Emergency can render outside the protected app shell.
-- [ ] Keyboard users can navigate the visible route links and focus remains clear.
-- [ ] Environment parsing rejects absent/invalid public API and map configuration.
-- [ ] `/api/health` returns liveness without contacting the API.
-- [ ] Production image uses Next standalone output, runs as a non-root user, and has a healthcheck.
+- [x] All empty application routes render inside the responsive shell — production build generated every route and Dockerized Playwright covered mobile/desktop navigation.
+- [x] Login and Emergency render without authentication — verified in the production image; authentication remains Phase 2.
+- [x] Keyboard users can navigate the visible route links and focus remains clear — Playwright keyboard activation passed at the 390 px breakpoint.
+- [x] Environment parsing rejects absent/invalid public API and map configuration — three Vitest cases passed.
+- [x] `/api/health` returns liveness without contacting the API — returned `{"status":"ok","service":"web"}` from the production container.
+- [x] Production image uses Next standalone output, runs as uid 100 `app`, and reached Docker `healthy` status.
