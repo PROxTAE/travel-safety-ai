@@ -91,6 +91,9 @@ docker run --rm sta-risk-knowledge:test mypy app
 docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term
   39 passed, 0 failed, 0 skipped; total coverage 90.77% (gate 80%).
 
+npm run check --prefix packages/contracts
+  public OpenAPI lint passed; 31 JSON Schemas compiled; 6 examples validated; TypeScript typecheck passed.
+
 $files = @(git ls-files '*.py')
 docker run --rm -e PYTHONPYCACHEPREFIX=/tmp/pycache -v "H:/travel-safety-ai:/repo:ro" -w /repo python:3.11-slim python -m py_compile $files
   exit 0 for 118 tracked files; validates compatibility with the temporary repository CI interpreter.

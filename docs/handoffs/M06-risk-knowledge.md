@@ -7,8 +7,8 @@
 | Module/owner | Module 06 — Risk and Knowledge Services |
 | Issue/PR | Draft PR #12; body mirrored in `docs/handoffs/M06-risk-knowledge-pr-body.md` |
 | Branch | `contract/06-risk-evidence-route-schema` |
-| Base/final commit SHA | `b63348058cfd9506ec9306923845aec53fe69b36` / route-validation head `9c77f14` (report refresh commit follows) |
-| Date/time/timezone | 2026-09-20 12:49 +07:00 (Asia/Bangkok) |
+| Base/final commit SHA | `d17aae1152dff29d60f7dc7fbd8514c7b255bade` / post-conflict head `5165fd1` (report refresh commit follows) |
+| Date/time/timezone | 2026-09-20 22:18 +07:00 (Asia/Bangkok) |
 | Reviewers | Required: Team Lead plus contracts/security reviewer; contract consumers: modules 03, 05, and 07 |
 | Contract version | `1.0.0` |
 | Docker image digest/tag | `sta-risk-knowledge:phase1`, `sha256:b31842b776f68a1011cffc24790ebb99ea3896746904523d1a59d61916362ca4` |
@@ -224,6 +224,7 @@ docker compose -f compose.yaml -f compose.dev.yaml --profile app up -d risk-know
 | Format/lint | `docker run --rm sta-risk-knowledge:test ruff check ...` and `ruff format --check ...` | 43 files formatted; lint pass | 0 | 0 | post-rebase run |
 | Type | `docker run --rm sta-risk-knowledge:test mypy app` | 30 source files | 0 | 0 | strict mode |
 | Unit + contract | `docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term` | 39 | 0 | 0 | 90.77% branch-aware coverage; threshold 80% |
+| Shared contracts | `npm run check --prefix packages/contracts` | 31 schemas and 6 examples; OpenAPI lint and TypeScript typecheck pass | 0 | 0 | run after rebasing onto M02/M04 main |
 | Repository CI compatibility | Python 3.11 `py_compile` over `git ls-files '*.py'` | 118 tracked files | 0 | 0 | matches temporary shared workflow interpreter |
 | OpenAPI | `npx --yes @redocly/cli@1.34.5 lint ...` | valid | 0 | 0 | four advisory warnings documented above |
 | Integration | real PostgreSQL/Qdrant containers; migration up/down/up; HTTP/DB smoke | pass | 0 | 0 | revision/ownership/persistence verified |
@@ -321,20 +322,21 @@ Findings:
 ## 17. Commit and PR inventory
 
 ```text
-63adf66 feat(contracts): define risk evidence route contract
-78889c4 feat(risk): add service registry foundation
-733d719 build(risk): add self-contained test image
-2a2b556 docs(risk): add phase one handoff evidence
-3e4735e fix(risk): support repository CI Python version
-6faf99f docs(risk): refresh post-rebase verification
-44b99ed fix(risk): address phase one review findings
-2da61ab docs(risk): record review fix evidence
-9c77f14 fix(risk): validate selected snapshot routes
+c0218be feat(contracts): define risk evidence route contract
+1f8cdfb feat(risk): add service registry foundation
+9a5d60e build(risk): add self-contained test image
+39715ad docs(risk): add phase one handoff evidence
+8079541 fix(risk): support repository CI Python version
+e28bcf9 docs(risk): refresh post-rebase verification
+3cb5edb fix(risk): address phase one review findings
+f4b2074 docs(risk): record review fix evidence
+da10df1 fix(risk): validate selected snapshot routes
+5165fd1 docs(risk): record route validation evidence
 ```
 
 - PR review findings addressed locally: commit authors rewritten to `Nonyeol`; shared Compose secret coupling removed; shared internal token adopted; HTTP 404 envelope covered; selected route IDs now fail closed. Canonical provenance/quality alignment and CVE disposition remain pending external decisions.
 - Required checks: all Phase 0/1 functional checks pass; full image scan has one upstream-unfixed high finding requiring disposition.
-- Rebased on main SHA: `b63348058cfd9506ec9306923845aec53fe69b36`; Compose retains both merged M04 external-data and M06 risk-knowledge/MLflow services.
+- Rebased on main SHA: `d17aae1152dff29d60f7dc7fbd8514c7b255bade`; Compose retains merged M02 API, M04 external-data, and M06 risk-knowledge/MLflow services. Shared contract checks pass against the rebased tree.
 - Proposed squash title: `feat(risk): establish risk evidence contracts and service foundation`.
 
 ## 18. Rollback and recovery
