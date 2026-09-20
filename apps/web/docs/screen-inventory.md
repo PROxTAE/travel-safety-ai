@@ -22,13 +22,13 @@ this phase.
 
 ## Shared visual system
 
-| Area | Required behavior | Phase |
-| --- | --- | --- |
-| App shell | Fixed sidebar at desktop, header, clear active item, keyboard navigation, responsive mobile navigation | 1 |
-| Status | A persistent offline/degraded area that does not obscure Emergency | 2 |
-| Data freshness | Every data card exposes its `updated_at` or freshness detail | 2+ |
-| Maps | Interactive MapLibre source/layers; decorative maps never represent live data | 3+ |
-| Accessibility | Text and icon convey risk; visible focus, semantic landmarks, WCAG 2.1 AA contrast | 1+ |
+| Area           | Required behavior                                                                                      | Phase |
+| -------------- | ------------------------------------------------------------------------------------------------------ | ----- |
+| App shell      | Fixed sidebar at desktop, header, clear active item, keyboard navigation, responsive mobile navigation | 1     |
+| Status         | A persistent offline/degraded area that does not obscure Emergency                                     | 2     |
+| Data freshness | Every data card exposes its `updated_at` or freshness detail                                           | 2+    |
+| Maps           | Interactive MapLibre source/layers; decorative maps never represent live data                          | 3+    |
+| Accessibility  | Text and icon convey risk; visible focus, semantic landmarks, WCAG 2.1 AA contrast                     | 1+    |
 
 The required tokens are `#08B88A`, `#087B73`, `#DDF9EE`, `#F5FFFC`, `#101A4B`,
 `#2F86F6`, `#FF9D1F`, and `#F24E54`. Screens consistently use rounded white
@@ -36,15 +36,15 @@ cards, mint page surfaces, navy headings, and coral only for emergency actions.
 
 ## Route inventory
 
-| Route | Visible layout and interactions | Runtime data/status requirement | Delivery phase |
-| --- | --- | --- | --- |
-| `/login` | Split illustration and sign-in panel; SSO, guest and emergency entry | Auth state and provider errors are real; emergency stays public | 2 |
-| `/dashboard` | Summary cards, trip card, route map, recommendation, emergency and assistant cards | `/me`, active trip, recommendation, events; card detail sheets and unavailable states | 4 |
-| `/trips/new`, `/trips/[tripId]` | Trip form, confirmation map, mode/preferences, route cards | Autocomplete, confirmed locations, create/update, assessment SSE, unavailable coverage | 3 |
-| `/safety-map` | Layer controls, map markers/detail, time selector, avoid-area action | Viewport/time/layer API queries, attribution, clustering, source/freshness | 5 |
-| `/assistant/[conversationId]` | Recent chats, conversation, quick prompts, trip context, live-location control | Conversation REST/SSE, sanitized markdown, consented location, citations | 6 |
-| `/emergency` | Three-second SOS hold, confirmation progression, location, local service cards | Consent before share; verified contacts and nearby results; explicit unavailable fallback | 7 |
-| `/trips/[tripId]/compare` | Original/safer map overlay, comparison cards, risk acknowledgement, notifications | Server routes and metrics, confirmed route application, subscription state | 4 |
+| Route                           | Visible layout and interactions                                                    | Runtime data/status requirement                                                           | Delivery phase |
+| ------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------- |
+| `/login`                        | Split illustration and sign-in panel; SSO, guest and emergency entry               | Auth state and provider errors are real; emergency stays public                           | 2              |
+| `/dashboard`                    | Summary cards, trip card, route map, recommendation, emergency and assistant cards | `/me`, active trip, recommendation, events; card detail sheets and unavailable states     | 4              |
+| `/trips/new`, `/trips/[tripId]` | Trip form, confirmation map, mode/preferences, route cards                         | Autocomplete, confirmed locations, create/update, assessment SSE, unavailable coverage    | 3              |
+| `/safety-map`                   | Layer controls, map markers/detail, time selector, avoid-area action               | Viewport/time/layer API queries, attribution, clustering, source/freshness                | 5              |
+| `/assistant/[conversationId]`   | Recent chats, conversation, quick prompts, trip context, live-location control     | Conversation REST/SSE, sanitized markdown, consented location, citations                  | 6              |
+| `/emergency`                    | Three-second SOS hold, confirmation progression, location, local service cards     | Consent before share; verified contacts and nearby results; explicit unavailable fallback | 7              |
+| `/trips/[tripId]/compare`       | Original/safer map overlay, comparison cards, risk acknowledgement, notifications  | Server routes and metrics, confirmed route application, subscription state                | 4              |
 
 ## Contract readiness
 
