@@ -13,6 +13,10 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build
 
+FROM dependencies AS development
+COPY --chown=node:node . .
+USER node
+
 FROM node:22.22.0-alpine AS runtime
 ENV NODE_ENV=production
 ENV PORT=3000
