@@ -125,9 +125,7 @@ class GdacsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
     def coverage(self, query: DisasterQuery) -> CoverageDecision:
         if query.event_types and not _requested_codes(query.event_types):
             names = ", ".join(str(t) for t in query.event_types)
-            return CoverageDecision(
-                False, f"GDACS publishes no equivalent of: {names}"
-            )
+            return CoverageDecision(False, f"GDACS publishes no equivalent of: {names}")
         if query.bbox is not None:
             min_lon, min_lat, max_lon, max_lat = query.bbox
             if not (-180.0 <= min_lon <= 180.0 and -180.0 <= max_lon <= 180.0):
@@ -163,8 +161,7 @@ class GdacsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                 ProviderErrorCode.PROVIDER_SCHEMA_CHANGED,
                 self.provider_id,
                 message=(
-                    "GDACS feed did not match the expected shape: "
-                    f"{exc.error_count()} errors"
+                    "GDACS feed did not match the expected shape: " f"{exc.error_count()} errors"
                 ),
             ) from exc
 
@@ -204,9 +201,7 @@ class GdacsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                 DisasterEvent(
                     event_id=f"{self.provider_id}:{properties.eventid}"
                     f":{properties.episodeid or 0}",
-                    event_type=EVENT_TYPES.get(
-                        properties.eventtype.upper(), EventType.OTHER
-                    ),
+                    event_type=EVENT_TYPES.get(properties.eventtype.upper(), EventType.OTHER),
                     title=_title(properties),
                     # Plain text only. `htmldescription` is markup and must not
                     # be handed to a consumer that may render it.
@@ -225,9 +220,7 @@ class GdacsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                     tsunami=None,
                     cross_reference_ids=_cross_ids(properties),
                     reporting_networks=_reporting_networks(properties),
-                    episode_id=(
-                        str(properties.episodeid) if properties.episodeid else None
-                    ),
+                    episode_id=(str(properties.episodeid) if properties.episodeid else None),
                     quality=_quality(
                         properties=properties,
                         effective_at=effective_at,
@@ -308,9 +301,7 @@ def _requested_codes(event_types: list[EventType]) -> list[str]:
 
 
 def _window_bucket(query: DisasterQuery) -> str:
-    start = (
-        query.start.replace(minute=0, second=0, microsecond=0) if query.start else None
-    )
+    start = query.start.replace(minute=0, second=0, microsecond=0) if query.start else None
     end = query.end.replace(minute=0, second=0, microsecond=0) if query.end else None
     return f"{start.isoformat() if start else '*'}/{end.isoformat() if end else '*'}"
 
@@ -384,9 +375,7 @@ def _quality(
     revised_at = _parse_naive_utc(properties.datemodified)
     if revised_at is not None:
         stale_for = max(0, int((fetched_at - revised_at).total_seconds()))
-        notes.append(
-            f"provider last revised this record {revised_at:%Y-%m-%dT%H:%M:%SZ}"
-        )
+        notes.append(f"provider last revised this record {revised_at:%Y-%m-%dT%H:%M:%SZ}")
         # A record the provider has not touched in a day while still calling the
         # event current is worth flagging on its own - but as a flag, not as the
         # freshness of the read, which is a different question.

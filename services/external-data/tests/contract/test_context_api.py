@@ -72,9 +72,7 @@ def _mock_everything() -> None:
         )
     )
     respx.get(USGS_URL).mock(
-        return_value=httpx.Response(
-            200, json=load_fixture("usgs/significant_month.json")
-        )
+        return_value=httpx.Response(200, json=load_fixture("usgs/significant_month.json"))
     )
     respx.get(GDACS_URL).mock(
         return_value=httpx.Response(200, json=load_fixture("gdacs/eventlist_eq.json"))
@@ -179,9 +177,7 @@ def test_duplicate_hazards_are_grouped_and_still_all_returned(
 
     data = response.json()["data"]
     grouped_ids = {
-        event_id
-        for group in data["duplicate_groups"]
-        for event_id in group.get("event_ids", [])
+        event_id for group in data["duplicate_groups"] for event_id in group.get("event_ids", [])
     }
     returned_ids = {event["event_id"] for event in data["disaster_events"]}
     assert grouped_ids <= returned_ids
@@ -312,9 +308,7 @@ def test_transit_outside_every_registered_feed_is_not_a_failure(
     """A Thai bbox is outside the registered New York feed. That is a coverage
     answer, not a degradation - nothing broke."""
     _mock_everything()
-    response = keyed_client.post(
-        PATH, headers=AUTH, json={"bbox": [99.0, 12.5, 101.5, 15.5]}
-    )
+    response = keyed_client.post(PATH, headers=AUTH, json={"bbox": [99.0, 12.5, 101.5, 15.5]})
 
     assert response.status_code == 200
     transit = _by_capability(response.json())["TRANSIT"]

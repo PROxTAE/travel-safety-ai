@@ -204,9 +204,7 @@ class ContextGatherer:
                         reason="the request deadline passed while waiting to start",
                         elapsed_seconds=loop.time() - started,
                     )
-                records, providers = await asyncio.wait_for(
-                    call(remaining), timeout=remaining
-                )
+                records, providers = await asyncio.wait_for(call(remaining), timeout=remaining)
         except TimeoutError:
             log.warning("context_capability_timeout", capability=str(kind))
             return CapabilityResult(
@@ -244,9 +242,7 @@ class ContextGatherer:
             elapsed_seconds=loop.time() - started,
         )
 
-    def _group_duplicates(
-        self, capabilities: dict[ProviderKind, CapabilityResult]
-    ) -> list[Any]:
+    def _group_duplicates(self, capabilities: dict[ProviderKind, CapabilityResult]) -> list[Any]:
         """Annotate hazards that look like the same event in two sources.
 
         Grouped, never merged. Every record is still returned; module 05 decides
@@ -259,7 +255,5 @@ class ContextGatherer:
 
         groups = find_duplicate_groups(disasters.records)
         if groups:
-            source_disagreements.labels(capability=str(ProviderKind.DISASTER)).inc(
-                len(groups)
-            )
+            source_disagreements.labels(capability=str(ProviderKind.DISASTER)).inc(len(groups))
         return groups

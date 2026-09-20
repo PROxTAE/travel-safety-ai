@@ -73,9 +73,7 @@ def test_internal_route_rejects_a_wrong_credential(client: TestClient) -> None:
 
 def test_internal_route_rejects_browser_cookies(client: TestClient) -> None:
     """Contract § 5: internal endpoints must not accept a browser token."""
-    response = client.get(
-        HEALTH_PATH, headers={**AUTH, "Cookie": "session=abc"}
-    )
+    response = client.get(HEALTH_PATH, headers={**AUTH, "Cookie": "session=abc"})
     assert response.status_code == 401
 
 

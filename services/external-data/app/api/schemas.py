@@ -136,9 +136,7 @@ class RouteQueryRequest(BaseModel):
         if self.avoid_polygons is not None:
             geometry_type = self.avoid_polygons.get("type")
             if geometry_type not in ("Polygon", "MultiPolygon"):
-                raise ValueError(
-                    "avoid_polygons must be a GeoJSON Polygon or MultiPolygon"
-                )
+                raise ValueError("avoid_polygons must be a GeoJSON Polygon or MultiPolygon")
         return self
 
 
@@ -227,9 +225,7 @@ class ContextQueryRequest(BaseModel):
             if not (-90.0 <= min_lat <= 90.0 and -90.0 <= max_lat <= 90.0):
                 raise ValueError("bbox latitude out of range")
 
-        unsupported = [
-            kind for kind in self.include if kind not in CONTEXT_CAPABILITIES
-        ]
+        unsupported = [kind for kind in self.include if kind not in CONTEXT_CAPABILITIES]
         if unsupported:
             names = ", ".join(str(kind) for kind in unsupported)
             raise ValueError(
@@ -239,9 +235,7 @@ class ContextQueryRequest(BaseModel):
 
         if self.avoid_polygons is not None:
             if self.avoid_polygons.get("type") not in ("Polygon", "MultiPolygon"):
-                raise ValueError(
-                    "avoid_polygons must be a GeoJSON Polygon or MultiPolygon"
-                )
+                raise ValueError("avoid_polygons must be a GeoJSON Polygon or MultiPolygon")
         return self
 
 

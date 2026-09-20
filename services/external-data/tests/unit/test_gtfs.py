@@ -49,12 +49,8 @@ BANGKOK = (100.0, 13.0, 101.0, 14.0)
 
 
 def _adapter(with_schedule: bool = True) -> GtfsAdapter:
-    entry = next(
-        p for p in load_registry(REGISTRY_PATH).providers if p.id == "gtfs_registry"
-    )
-    provider = ResolvedProvider(
-        entry=entry, effective_status=ProviderStatus.ACTIVE, base_url=None
-    )
+    entry = next(p for p in load_registry(REGISTRY_PATH).providers if p.id == "gtfs_registry")
+    provider = ResolvedProvider(entry=entry, effective_status=ProviderStatus.ACTIVE, base_url=None)
     adapter = GtfsAdapter(provider, ProviderTransport(Defaults()), env="test")
     if with_schedule:
         adapter.use_schedule(_schedule())
@@ -144,8 +140,7 @@ def test_schedule_times_are_read_in_the_agency_timezone() -> None:
     assert records
     for record in records:
         assert abs(record.delay_minutes) < 120, (
-            f"delay of {record.delay_minutes} min looks like a timezone offset, "
-            "not a delay"
+            f"delay of {record.delay_minutes} min looks like a timezone offset, " "not a delay"
         )
 
 
@@ -261,9 +256,7 @@ def test_a_schedule_missing_a_required_table_is_a_schema_change() -> None:
 
 def test_something_that_is_not_a_zip_is_a_schema_change() -> None:
     with pytest.raises(ProviderError) as excinfo:
-        parse_schedule(
-            b"not a zip", feed_id="f", fetched_at=datetime.now(UTC), content_hash="x"
-        )
+        parse_schedule(b"not a zip", feed_id="f", fetched_at=datetime.now(UTC), content_hash="x")
     assert excinfo.value.code is ProviderErrorCode.PROVIDER_SCHEMA_CHANGED
 
 

@@ -101,9 +101,7 @@ class ProviderTransport:
 
     def guards_for(self, provider: ResolvedProvider) -> ProviderGuards:
         if provider.id not in self._guards:
-            self._guards[provider.id] = build_guards(
-                provider.id, self._defaults.circuit_breaker
-            )
+            self._guards[provider.id] = build_guards(provider.id, self._defaults.circuit_breaker)
         return self._guards[provider.id]
 
     async def aclose(self) -> None:
@@ -209,14 +207,10 @@ class ProviderTransport:
                         json=json_body,
                         headers=headers,
                         timeout=httpx.Timeout(
-                            connect=min(
-                                self._defaults.timeout.connect_seconds, remaining
-                            ),
+                            connect=min(self._defaults.timeout.connect_seconds, remaining),
                             read=min(self._defaults.timeout.read_seconds, remaining),
                             write=min(self._defaults.timeout.read_seconds, remaining),
-                            pool=min(
-                                self._defaults.timeout.connect_seconds, remaining
-                            ),
+                            pool=min(self._defaults.timeout.connect_seconds, remaining),
                         ),
                     )
             except asyncio.CancelledError:

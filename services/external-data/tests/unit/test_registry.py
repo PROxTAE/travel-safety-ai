@@ -71,13 +71,9 @@ def test_present_credential_does_not_self_approve(
     get_settings.cache_clear()
 
     approved = next(
-        entry
-        for entry in load_registry(REGISTRY_PATH).providers
-        if entry.id == "openrouteservice"
+        entry for entry in load_registry(REGISTRY_PATH).providers if entry.id == "openrouteservice"
     )
-    pending = approved.model_copy(
-        update={"status": ProviderStatus.PENDING_CREDENTIAL}
-    )
+    pending = approved.model_copy(update={"status": ProviderStatus.PENDING_CREDENTIAL})
 
     resolved = _resolve(pending, get_settings())
     assert resolved.effective_status is ProviderStatus.PENDING_CREDENTIAL
@@ -161,9 +157,9 @@ def test_an_unverified_quota_carries_no_number(registry: ResolvedRegistry) -> No
                 "while still marked unverified"
             )
         else:
-            assert quota.daily_limit is not None, (
-                f"{provider.id} is marked verified but records no number"
-            )
+            assert (
+                quota.daily_limit is not None
+            ), f"{provider.id} is marked verified but records no number"
 
 
 def test_the_two_openrouteservice_endpoints_have_separate_budgets(

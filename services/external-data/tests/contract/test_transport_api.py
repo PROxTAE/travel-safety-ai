@@ -95,9 +95,8 @@ def test_the_answer_says_how_many_trips_matched_a_timetable(
 
     assert data["trips_matched_to_schedule"] > 0
     assert data["trips_without_schedule"] > 0
-    assert (
-        data["trips_matched_to_schedule"] + data["trips_without_schedule"]
-        == len(data["statuses"])
+    assert data["trips_matched_to_schedule"] + data["trips_without_schedule"] == len(
+        data["statuses"]
     )
 
 

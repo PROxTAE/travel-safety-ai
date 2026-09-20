@@ -32,9 +32,7 @@ class RetryPolicy(BaseModel):
     max_attempts: int = 3
     backoff: str = "exponential_jitter"
     initial_backoff_seconds: float = 0.5
-    retry_on_status: list[int] = Field(
-        default_factory=lambda: [408, 429, 500, 502, 503, 504]
-    )
+    retry_on_status: list[int] = Field(default_factory=lambda: [408, 429, 500, 502, 503, 504])
 
 
 class CircuitPolicy(BaseModel):
@@ -201,11 +199,7 @@ def _resolve(entry: ProviderEntry, settings: Settings) -> ResolvedProvider:
         # Declared active but the environment cannot satisfy it.
         status = ProviderStatus.PENDING_CREDENTIAL
         reason = "missing credential: " + ", ".join(missing)
-    elif (
-        status is ProviderStatus.PENDING_CREDENTIAL
-        and not missing
-        and entry.credential.env_names
-    ):
+    elif status is ProviderStatus.PENDING_CREDENTIAL and not missing and entry.credential.env_names:
         # The credential has since been supplied, so the registry file is stale
         # but the deployment is fine. Promoting silently would bypass the Lead
         # approval this status records, so stay blocked and say why.

@@ -39,9 +39,7 @@ EONET = "eonet/events.json"
 
 
 def _adapter(provider_id: str, adapter_class: type) -> Any:
-    entry = next(
-        p for p in load_registry(REGISTRY_PATH).providers if p.id == provider_id
-    )
+    entry = next(p for p in load_registry(REGISTRY_PATH).providers if p.id == provider_id)
     provider = ResolvedProvider(
         entry=entry,
         effective_status=ProviderStatus.ACTIVE,
@@ -83,9 +81,7 @@ def test_a_feed_just_built_is_fresh_however_old_its_earthquakes_are() -> None:
     events = _events("usgs_earthquake", UsgsAdapter, _fresh_usgs_payload())
 
     assert events
-    ages = [
-        (datetime.now(UTC) - event.effective_at).total_seconds() for event in events
-    ]
+    ages = [(datetime.now(UTC) - event.effective_at).total_seconds() for event in events]
     assert max(ages) > 3600, "fixture should contain events older than an hour"
     assert all(event.quality.status is DataStatus.FRESH for event in events)
 
@@ -113,8 +109,7 @@ def test_an_old_feed_really_is_stale() -> None:
     assert events
     assert all(event.quality.status is DataStatus.STALE for event in events)
     assert all(
-        event.quality.freshness_seconds is not None
-        and event.quality.freshness_seconds > 80_000
+        event.quality.freshness_seconds is not None and event.quality.freshness_seconds > 80_000
         for event in events
     )
 
@@ -128,9 +123,9 @@ def test_a_feed_with_no_generation_time_says_so() -> None:
     events = _events("usgs_earthquake", UsgsAdapter, payload)
 
     assert events
-    assert any(
-        "could not be measured" in note for note in events[0].quality.notes
-    ), events[0].quality.notes
+    assert any("could not be measured" in note for note in events[0].quality.notes), events[
+        0
+    ].quality.notes
 
 
 def test_the_freshness_note_points_at_effective_at_for_event_age() -> None:

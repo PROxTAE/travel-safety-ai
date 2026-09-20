@@ -172,8 +172,7 @@ class EonetAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                 ProviderErrorCode.PROVIDER_SCHEMA_CHANGED,
                 self.provider_id,
                 message=(
-                    "EONET feed did not match the expected shape: "
-                    f"{exc.error_count()} errors"
+                    "EONET feed did not match the expected shape: " f"{exc.error_count()} errors"
                 ),
             ) from exc
 
@@ -237,9 +236,7 @@ class EonetAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                     # in their own field: JTWC reports every typhoon, so
                     # matching on it groups every typhoon.
                     cross_reference_ids=[],
-                    reporting_networks=[
-                        source.id for source in raw.sources if source.id
-                    ],
+                    reporting_networks=[source.id for source in raw.sources if source.id],
                     quality=_quality(
                         track_length=len(track),
                         started_at=started_at,
@@ -361,9 +358,7 @@ def _pushable_bbox(
 
 
 def _window_bucket(query: DisasterQuery) -> str:
-    start = (
-        query.start.replace(minute=0, second=0, microsecond=0) if query.start else None
-    )
+    start = query.start.replace(minute=0, second=0, microsecond=0) if query.start else None
     end = query.end.replace(minute=0, second=0, microsecond=0) if query.end else None
     return f"{start.isoformat() if start else '*'}/{end.isoformat() if end else '*'}"
 
@@ -434,8 +429,7 @@ def _quality(
         # acres for a fire, knots for a storm. Saying so stops anyone ranking
         # one against the other.
         notes.append(
-            f"magnitude is in {magnitude_unit} and is only comparable within "
-            "this event type"
+            f"magnitude is in {magnitude_unit} and is only comparable within " "this event type"
         )
 
     return DataQuality.from_age(

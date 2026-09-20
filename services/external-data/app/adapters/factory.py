@@ -74,9 +74,7 @@ class AdapterRegistry:
 
     def blocked_reason(self, kind: ProviderKind) -> str:
         return (
-            "; ".join(
-                f"{p.id}: {p.reason}" for p in self._registry.for_kind(kind) if p.reason
-            )
+            "; ".join(f"{p.id}: {p.reason}" for p in self._registry.for_kind(kind) if p.reason)
             or f"no provider configured for {kind}"
         )
 

@@ -160,9 +160,9 @@ def create_app() -> FastAPI:
             # Resolved only after the router has run. Reading it earlier always
             # fell back to the raw URL, so every scanned path minted a new
             # metric series.
-            http_latency.labels(
-                method=request.method, route=_route_label(request)
-            ).observe(time.perf_counter() - started)
+            http_latency.labels(method=request.method, route=_route_label(request)).observe(
+                time.perf_counter() - started
+            )
 
         http_requests.labels(
             method=request.method,
@@ -193,9 +193,7 @@ def create_app() -> FastAPI:
         )
 
     @app.exception_handler(RequestValidationError)
-    async def _validation_error(
-        _: Request, exc: RequestValidationError
-    ) -> JSONResponse:
+    async def _validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
         return error_response(
             ApiErrorCode.VALIDATION_ERROR,
             "Request validation failed",
@@ -213,9 +211,7 @@ def create_app() -> FastAPI:
     # registering only the FastAPI one would let a 404 escape the envelope.
     @app.exception_handler(HTTPException)
     @app.exception_handler(StarletteHTTPException)
-    async def _http_error(
-        _: Request, exc: HTTPException | StarletteHTTPException
-    ) -> JSONResponse:
+    async def _http_error(_: Request, exc: HTTPException | StarletteHTTPException) -> JSONResponse:
         code = {
             401: ApiErrorCode.AUTHENTICATION_REQUIRED,
             403: ApiErrorCode.FORBIDDEN,

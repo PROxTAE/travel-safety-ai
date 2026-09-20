@@ -29,9 +29,7 @@ FIXTURE = "usgs/significant_month.json"
 
 @pytest.fixture
 def adapter() -> UsgsAdapter:
-    entry = next(
-        p for p in load_registry(REGISTRY_PATH).providers if p.id == "usgs_earthquake"
-    )
+    entry = next(p for p in load_registry(REGISTRY_PATH).providers if p.id == "usgs_earthquake")
     provider = ResolvedProvider(
         entry=entry,
         effective_status=ProviderStatus.ACTIVE,
@@ -51,13 +49,9 @@ def _response(payload: Any) -> ProviderResponse:
     )
 
 
-def _run(
-    adapter: UsgsAdapter, payload: Any, query: DisasterQuery | None = None
-) -> list[Any]:
+def _run(adapter: UsgsAdapter, payload: Any, query: DisasterQuery | None = None) -> list[Any]:
     response = _response(payload)
-    return adapter.normalize(
-        adapter.validate(response), response, query or DisasterQuery()
-    )
+    return adapter.normalize(adapter.validate(response), response, query or DisasterQuery())
 
 
 # ------------------------------------------------------------- trap 1: epoch ms
@@ -70,9 +64,7 @@ def test_epoch_milliseconds_become_the_right_year(adapter: UsgsAdapter) -> None:
     raw = load_fixture(FIXTURE)
     event = _run(adapter, raw)[0]
 
-    expected = datetime.fromtimestamp(
-        raw["features"][0]["properties"]["time"] / 1000.0, tz=UTC
-    )
+    expected = datetime.fromtimestamp(raw["features"][0]["properties"]["time"] / 1000.0, tz=UTC)
     assert event.effective_at == expected
     assert event.effective_at.year >= 2020
     assert event.effective_at.tzinfo is not None
@@ -81,9 +73,7 @@ def test_epoch_milliseconds_become_the_right_year(adapter: UsgsAdapter) -> None:
 def test_published_at_uses_the_updated_timestamp(adapter: UsgsAdapter) -> None:
     raw = load_fixture(FIXTURE)
     event = _run(adapter, raw)[0]
-    expected = datetime.fromtimestamp(
-        raw["features"][0]["properties"]["updated"] / 1000.0, tz=UTC
-    )
+    expected = datetime.fromtimestamp(raw["features"][0]["properties"]["updated"] / 1000.0, tz=UTC)
     assert event.source.published_at == expected
 
 
@@ -158,10 +148,7 @@ def test_bbox_across_the_antimeridian_is_not_empty(adapter: UsgsAdapter) -> None
         f
         for f in raw["features"]
         if f["geometry"]
-        and (
-            f["geometry"]["coordinates"][0] >= 170.0
-            or f["geometry"]["coordinates"][0] <= -170.0
-        )
+        and (f["geometry"]["coordinates"][0] >= 170.0 or f["geometry"]["coordinates"][0] <= -170.0)
     ]
     assert len(events) == len(pacific)
     assert events, "the fixture should contain at least one event near the dateline"
@@ -320,7 +307,5 @@ def test_feed_url_uses_only_the_origin_from_the_configured_url(
 
     resolved = transport.build_url(adapter.provider, request.path_or_url)
 
-    assert resolved == (
-        "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
-    )
+    assert resolved == ("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson")
     assert resolved.count("/earthquakes/feed/") == 1

@@ -50,9 +50,7 @@ class CircuitBreaker:
             if self.state is CircuitState.OPEN:
                 elapsed = time.monotonic() - self.opened_at
                 if elapsed < self.policy.open_seconds:
-                    raise CircuitOpenError(
-                        self.provider_id, self.policy.open_seconds - elapsed
-                    )
+                    raise CircuitOpenError(self.provider_id, self.policy.open_seconds - elapsed)
                 # Cooldown elapsed: admit a limited number of probes.
                 self.state = CircuitState.HALF_OPEN
                 self.half_open_inflight = 0
@@ -144,9 +142,9 @@ class QuotaTracker:
                         self.limit = int(lowered[limit_key])
                     except ValueError:
                         self.limit = None
-                quota_remaining.labels(
-                    provider=self.provider_id, window=self.window
-                ).set(self.remaining)
+                quota_remaining.labels(provider=self.provider_id, window=self.window).set(
+                    self.remaining
+                )
                 return
 
     @property

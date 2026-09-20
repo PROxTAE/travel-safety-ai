@@ -134,9 +134,7 @@ class UsgsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
         template = self.provider.entry.endpoints.get(
             "summary_feed", "/earthquakes/feed/v1.0/summary/{window}.geojson"
         )
-        return urlunsplit(
-            (parts.scheme, parts.netloc, template.replace("{window}", feed), "", "")
-        )
+        return urlunsplit((parts.scheme, parts.netloc, template.replace("{window}", feed), "", ""))
 
     def build_request(self, query: DisasterQuery) -> ProviderRequest:
         window = _feed_window(query.start)
@@ -163,8 +161,7 @@ class UsgsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                 ProviderErrorCode.PROVIDER_SCHEMA_CHANGED,
                 self.provider_id,
                 message=(
-                    "USGS feed did not match the expected shape: "
-                    f"{exc.error_count()} errors"
+                    "USGS feed did not match the expected shape: " f"{exc.error_count()} errors"
                 ),
             ) from exc
 
@@ -190,9 +187,7 @@ class UsgsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
 
             longitude, latitude = feature.geometry.coordinates[:2]
             depth_km = (
-                feature.geometry.coordinates[2]
-                if len(feature.geometry.coordinates) > 2
-                else None
+                feature.geometry.coordinates[2] if len(feature.geometry.coordinates) > 2 else None
             )
             occurred_at = _from_epoch_ms(feature.properties.time)
 
@@ -205,9 +200,7 @@ class UsgsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                 DisasterEvent(
                     event_id=f"{self.provider_id}:{feature.id}",
                     event_type=EventType.EARTHQUAKE,
-                    title=feature.properties.title
-                    or feature.properties.place
-                    or feature.id,
+                    title=feature.properties.title or feature.properties.place or feature.id,
                     description=_describe(feature),
                     # Q2/Q3 unanswered: magnitude and PAGER alert disagree and
                     # neither is cast here.
@@ -296,9 +289,7 @@ def _magnitude_tier(min_magnitude: float | None) -> str:
 
 
 def _window_bucket(query: DisasterQuery) -> str:
-    start = (
-        query.start.replace(minute=0, second=0, microsecond=0) if query.start else None
-    )
+    start = query.start.replace(minute=0, second=0, microsecond=0) if query.start else None
     end = query.end.replace(minute=0, second=0, microsecond=0) if query.end else None
     return f"{start.isoformat() if start else '*'}/{end.isoformat() if end else '*'}"
 
@@ -380,9 +371,7 @@ def _quality(
 
     if feature.properties.status and feature.properties.status != "reviewed":
         flags.append(QualityFlag.INFERRED)
-        notes.append(
-            f"provider status is '{feature.properties.status}', not human-reviewed"
-        )
+        notes.append(f"provider status is '{feature.properties.status}', not human-reviewed")
 
     if feature.properties.mag is None:
         flags.append(QualityFlag.INCOMPLETE)
@@ -398,8 +387,7 @@ def _quality(
         # Nothing to measure against, so say so rather than reporting the age of
         # a fetch that may have been served from cache.
         quality.notes.append(
-            "the feed carried no generation time, so the age of this data could "
-            "not be measured"
+            "the feed carried no generation time, so the age of this data could " "not be measured"
         )
     else:
         quality.notes.append(
