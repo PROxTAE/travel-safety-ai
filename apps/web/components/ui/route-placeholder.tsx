@@ -1,8 +1,5 @@
-"use client";
-
-import { Button } from "@heroui/react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export function RoutePlaceholder({
   title,
@@ -15,8 +12,6 @@ export function RoutePlaceholder({
   iconSrc?: string;
   mascotSrc?: string;
 }>) {
-  const router = useRouter();
-
   return (
     <section className="route-screen" aria-labelledby="page-title">
       <header className="route-heading">
@@ -39,13 +34,9 @@ export function RoutePlaceholder({
             When live sources are available, this page will show current information with its source
             and freshness.
           </p>
-          <Button
-            className="emergency-action"
-            variant="secondary"
-            onPress={() => router.push("/emergency")}
-          >
+          <Link className="emergency-action" href="/emergency">
             Open Emergency Center
-          </Button>
+          </Link>
         </div>
         <div className="empty-workspace-art" aria-hidden="true">
           <Image src={mascotSrc} width={300} height={320} alt="" priority />

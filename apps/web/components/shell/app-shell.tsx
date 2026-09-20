@@ -64,7 +64,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
               <br />
               Explore the world safely
             </span>
-            <span className="profile-avatar">
+            <span className="profile-avatar desktop-profile-avatar">
               <Image
                 src="/assets/branding/app-logo-mark.png"
                 width={42}
@@ -72,23 +72,36 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
                 alt="Guest profile"
               />
             </span>
+            <details className="mobile-navigation" open>
+              <summary
+                className="profile-avatar mobile-nav-toggle"
+                aria-controls="mobile-primary-navigation"
+                aria-label="Toggle primary navigation"
+              >
+                <Image src="/assets/branding/app-logo-mark.png" width={42} height={42} alt="" />
+              </summary>
+              <nav
+                id="mobile-primary-navigation"
+                className="mobile-nav"
+                aria-label="Primary navigation"
+              >
+                {navigationItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    data-active={isActive(pathname, item.href)}
+                    aria-label={item.label}
+                  >
+                    <Image src={item.icon} width={30} height={30} alt="" aria-hidden="true" />
+                    <span className="mobile-nav-label">{item.label}</span>
+                  </Link>
+                ))}
+              </nav>
+            </details>
           </div>
         </header>
         <div className="content-frame">{children}</div>
       </main>
-      <nav className="mobile-nav" aria-label="Primary navigation">
-        {navigationItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            data-active={isActive(pathname, item.href)}
-            aria-label={item.label}
-          >
-            <Image src={item.icon} width={30} height={30} alt="" aria-hidden="true" />
-            <span className="mobile-nav-label">{item.label}</span>
-          </Link>
-        ))}
-      </nav>
     </div>
   );
 }

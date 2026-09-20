@@ -8,6 +8,8 @@ const withBundleAnalyzer = createBundleAnalyzer({
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  // The fixed development badge overlaps one of the shell's responsive controls.
+  devIndicators: false,
   images: {
     formats: ["image/avif", "image/webp"],
   },

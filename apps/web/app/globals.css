@@ -267,6 +267,25 @@ a {
   object-fit: contain;
 }
 
+.mobile-navigation {
+  display: none;
+}
+
+.mobile-nav-toggle {
+  padding: 0;
+  list-style: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.mobile-nav-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.mobile-navigation:not([open]) .mobile-nav {
+  display: none;
+}
+
 .content-frame {
   width: 100%;
   padding: 0 20px 28px;
@@ -387,7 +406,10 @@ a {
 }
 
 .emergency-action {
+  display: inline-flex;
   min-height: 48px;
+  align-items: center;
+  justify-content: center;
   padding-inline: 22px !important;
   border: 1px solid #f9babd !important;
   border-radius: 14px !important;
@@ -712,6 +734,14 @@ a {
   .profile-avatar img {
     width: 37px;
     height: 37px;
+  }
+
+  .desktop-profile-avatar {
+    display: none;
+  }
+
+  .mobile-navigation {
+    display: block;
   }
 
   .content-frame {
