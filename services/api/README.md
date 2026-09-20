@@ -11,7 +11,7 @@ Contract: [`packages/contracts/openapi/public-api.yaml`](../../packages/contract
 
 ## What exists today
 
-Phases 1, 2, 3 and 4 of the plan.
+Phases 1 to 5 of the plan.
 
 | Area | State |
 | --- | --- |
@@ -34,8 +34,13 @@ Phases 1, 2, 3 and 4 of the plan.
 | Keyset pagination over the trip list | Done |
 | Idempotent trip creation (`Idempotency-Key`) | Done |
 | `GET /api/v1/locations/search` — proxied to module 04 | Done |
-| Assessments, runs, SSE, recommendations, the rest of `/api/v1/**` | Phases 5–6 — **not implemented** |
-| Rate limiting | Phase 7 — **not implemented** |
+| `POST /api/v1/trips/{id}/assessments` — start a run, idempotent | Done |
+| `GET`/`DELETE /api/v1/runs/{id}` — poll and cancel | Done |
+| `GET /api/v1/runs/{id}/events` — SSE with `Last-Event-ID` resume | Done |
+| Run state machine, refusing backwards and post-terminal moves | Done |
+| Recommendation revalidated against the contract before exposure | Done |
+| Conversations, recommendations GET, safety map, emergency, feedback | Phase 6 — **not implemented** |
+| Rate limiting, circuit breaking | Phase 7 — **not implemented** |
 
 ## Run it
 
@@ -263,6 +268,84 @@ very different from one told "search is unavailable". Results are returned with
 `confirmed_by_user: false` whatever module 04 said — confirmation is a person looking at a map, and
 no upstream service may assert it on their behalf.
 
+## Assessments and runs
+
+`POST /api/v1/trips/{trip_id}/assessments` accepts work and returns 202 with a `RunRef`. Nothing has
+been assessed when it returns; the client follows the run over SSE or by polling.
+
+### The ordering that stops runs being lost
+
+The request row is **committed before the agent is called**. Not flushed — committed. Every other
+order loses runs:
+
+| Order | What it loses |
+| --- | --- |
+| Call the agent, then write | The run, whenever this process dies between the two |
+| Write without committing, then call | The run, to the rollback triggered by the very failure being handled |
+| **Commit, then call** | Nothing. The worst case is a run that exists and failed |
+
+So an agent that is down produces a run in `FAILED` with a retryable error code, which the
+traveller can see and retry — not a request that vanished with nothing to poll.
+
+### The state machine
+
+`app/domain/run.py` decides which reports from the agent are allowed to change the record.
+
+- `COMPLETED`, `PARTIAL`, `FAILED` and `CANCELLED` are terminal and accept no successor. A late or
+  replayed message about a finished run is dropped. A traveller told their assessment failed has
+  already acted on that; reviving the run would change the answer under them.
+- Nothing returns to `QUEUED`. A started run cannot become unstarted.
+- A status outside the contract is refused rather than coerced. `SUCCEEDED` is not silently read as
+  `COMPLETED` — that is how a future agent release would start reporting failures as successes.
+
+An unrecognised *stage*, by contrast, is dropped and the run continues: a stage is a display hint,
+and losing a hint is a smaller harm than failing a run over a label.
+
+### Idempotency
+
+`Idempotency-Key` uses the same table trips use. The same key with the same body returns the
+original run (200, not 202); the same key with a different body is `IDEMPOTENCY_CONFLICT`. This
+service's own `request_id` is sent to the agent as *its* idempotency key, so a retry at the HTTP
+layer cannot start a second assessment either.
+
+### SSE
+
+`GET /api/v1/runs/{request_id}/events`. Ownership is checked before the stream opens, while a
+status code can still say so — once the response has begun, a refusal can only be an event, and a
+browser's `EventSource` retries those for ever.
+
+Events live in a Redis **stream**, `sta:{env}:run:{request_id}:events`, not pub/sub. A stream keeps
+what it published, so a client that reconnects with `Last-Event-ID` receives what it missed.
+Pub/sub delivers only to whoever is connected, which means a dropped connection can lose the
+terminal event — the one event that decides what the traveller is told.
+
+The bridge forwards an event only if its name is in the contract and its payload validates against
+that name's model, and the models forbid undeclared fields. That is the last place a prompt, a
+provider body or a token can be stopped before it reaches a browser. An event that fails is dropped
+whole rather than stripped: something nobody expected is something nobody has reasoned about.
+
+Streams are capped per user and have a hard duration; a client that needs longer reconnects and
+loses nothing. `X-Accel-Buffering: no` stops nginx turning progress into one long silence.
+
+### Validating the result before exposing it
+
+When the agent reports `COMPLETED`, this service fetches the recommendation from module 08 and
+checks it against the contract *before* the run is marked complete. It must parse, carry sources
+and freshness, hold known enum values, and name the same run and trip that asked for it. Anything
+else and the run becomes `FAILED` with `POLICY_VALIDATION_FAILED`, and the id is never handed out —
+an id leading to an object this service could not read is worse than no id, because the traveller
+would act on it.
+
+If module 08 is merely *unreachable*, the run stays in flight and the next poll tries again. It is
+neither completed on an unverified result nor failed on a result that may be perfectly good.
+
+### Caching
+
+A run's state is one person's journey, so no shared cache may hold it. The poll endpoint sends
+`private, max-age=2` with `Vary: Authorization`; cancellation and the SSE stream send `no-store`.
+The max-age is small on purpose — the point of polling is freshness, and a proxy holding a run's
+state even briefly can show a verdict that has since changed.
+
 ## The audit trail
 
 `identity.audit_log` records that something happened and never what it said. A profile write is
@@ -387,16 +470,30 @@ In production, plain-HTTP CORS origins and a plain-HTTP OIDC issuer are rejected
   frozen OpenAPI yet — it needs a contract change, so the worker is driven by CLI for now.
 - Key rotation re-wraps one row at a time through the repository; there is no bulk rotation command.
 - Travel-mode coverage is a flat configured list, not per region. The contract's 422 anticipates
-  "no coverage *in that region*", which needs module 04's provider registry; that lands with the
-  assessment flow in phase 5. Today a mode is either supported everywhere or nowhere.
+  "no coverage *in that region*", which needs module 04's provider registry. Still outstanding
+  after phase 5: the registry is module 04's to expose. Today a mode is supported everywhere or
+  nowhere.
 - `GET /api/v1/locations/search` needs module 04 running and `INTERNAL_SERVICE_TOKEN` set. Without
   either it returns 503 `DEPENDENCY_UNAVAILABLE` — never an empty result list, because "nothing
   matched" and "search is down" lead a traveller to do different things.
-- Assessments, runs, SSE and recommendations do not exist. Phases 5–6. `latest_request_id` and
-  `selected_route_id` are already cleared whenever the journey changes, so phase 5 inherits a trip
-  that cannot be showing a verdict for a route it no longer describes.
-- Idempotency is implemented for trip creation. The assessment-run idempotency the plan puts in
-  phase 5 shares the same table and will reuse `app/repositories/idempotency.py`.
+- **Module 03 does not exist yet.** The agent client, the state machine, the SSE bridge and the
+  recommendation gate are all implemented and tested, but no agent has ever answered them. Until
+  `services/agent` serves `/internal/v1/runs`, every real assessment ends as a `FAILED` run with
+  `DEPENDENCY_UNAVAILABLE` — correctly, and visibly, rather than with an invented verdict. The
+  same applies to module 08 and the recommendation fetch.
+- Nothing publishes `run.progress` yet. This service writes `run.accepted` and the terminal event;
+  the stages in between are module 03's to publish to the same Redis stream. A stream with only
+  those two events is what a client sees today.
+- `POST /internal/v1/runs/{id}/resume` is not called. Resuming a `NEEDS_INPUT` run is phase 6,
+  with conversations; the state machine already permits the transition.
+- Cancellation is best effort outward. The run is marked `CANCELLED` here whether or not the agent
+  can be told, so a cancellation never blocks on an unreachable service — but the agent may keep
+  working until it notices.
+- The SSE per-user stream cap fails open when Redis is unavailable. A Redis blip must not cost
+  every client its progress reporting; the trade is that the cap is not enforced during one.
+- `GET /api/v1/recommendations/{id}` does not exist — phase 6. Phase 5 exposes the recommendation's
+  *id* once validated, and validates the top level of the object plus its provenance; the nested
+  route, alert and contact entities are modelled in phase 6, where they are actually served.
 - No rate limiting yet, although Redis is already required and probed. Phase 7.
 - A token stays valid until it expires. Disabling an account takes effect immediately because the
   local row is checked on every request, but there is no token introspection or revocation list.
