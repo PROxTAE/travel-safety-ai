@@ -13,6 +13,8 @@ from app.adapters.eonet import EonetAdapter
 from app.adapters.gdacs import GdacsAdapter
 from app.adapters.open_meteo_geocoding import OpenMeteoGeocodingAdapter
 from app.adapters.open_meteo_weather import OpenMeteoWeatherAdapter
+from app.adapters.openrouteservice import OpenRouteServiceAdapter
+from app.adapters.ors_pois import OrsPoisAdapter
 from app.adapters.usgs import UsgsAdapter
 from app.cache.provider_cache import ProviderCache
 from app.domain.enums import ProviderKind
@@ -26,6 +28,8 @@ ADAPTERS: dict[str, type[ProviderAdapter]] = {  # type: ignore[type-arg]
     "usgs_earthquake": UsgsAdapter,
     "gdacs": GdacsAdapter,
     "nasa_eonet": EonetAdapter,
+    "openrouteservice": OpenRouteServiceAdapter,
+    "ors_pois": OrsPoisAdapter,
 }
 
 
