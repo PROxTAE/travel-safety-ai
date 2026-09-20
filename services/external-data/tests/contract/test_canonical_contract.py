@@ -302,9 +302,7 @@ def test_at_least_one_captured_place_has_no_name() -> None:
     """
     payload = _fixture("openrouteservice/pois_emergency_bangkok.json")
     unnamed = [
-        f
-        for f in payload["features"]
-        if not (f["properties"].get("osm_tags") or {}).get("name")
+        f for f in payload["features"] if not (f["properties"].get("osm_tags") or {}).get("name")
     ]
     assert unnamed, "the captured POI fixture no longer contains an unnamed place"
 
@@ -395,9 +393,7 @@ def test_the_poi_type_enum_gap_is_still_what_was_reported() -> None:
     """
     from app.domain.enums import PlaceType
 
-    schema = json.loads(
-        (CONTRACTS / "emergency-poi.schema.json").read_text(encoding="utf-8")
-    )
+    schema = json.loads((CONTRACTS / "emergency-poi.schema.json").read_text(encoding="utf-8"))
     contract_values = set(schema["properties"]["poi_type"]["enum"])
     ours = {member.value for member in PlaceType}
 
