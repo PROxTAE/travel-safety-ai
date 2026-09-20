@@ -1,4 +1,4 @@
-FROM node:22.22.0-alpine AS base
+FROM node:22.23.2-alpine3.24 AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable
@@ -17,7 +17,7 @@ FROM dependencies AS development
 COPY --chown=node:node . .
 USER node
 
-FROM node:22.22.0-alpine AS runtime
+FROM node:22.23.2-alpine3.24 AS runtime
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
