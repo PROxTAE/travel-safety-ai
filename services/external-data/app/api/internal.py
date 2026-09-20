@@ -1,9 +1,9 @@
 """Internal API surface.
 
 Health and metrics probes, provider health, plus the geocoding and weather
-capabilities, plus disasters, routes and the emergency directory. The
-remaining capability endpoints (transport, context) arrive with their adapters
-in Phases 5-6.
+capabilities, plus disasters, routes, the emergency directory and the combined
+context fan-out. Transport is the one capability still missing: module 04 has
+no GTFS adapter, so the registry reports it unavailable rather than pretending.
 """
 
 from __future__ import annotations
@@ -21,6 +21,8 @@ from app.adapters.open_meteo_weather import CoordinateSample, WeatherQuery
 from app.api.deps import InternalAuth
 from app.api.envelope import success
 from app.api.schemas import (
+    CONTEXT_CAPABILITIES,
+    ContextQueryRequest,
     DisasterQueryRequest,
     GeocodeSearchRequest,
     NearbyPlacesRequest,
@@ -31,8 +33,18 @@ from app.domain.enums import HealthState, ProviderKind, ProviderStatus
 from app.domain.errors import ProviderError, ProviderErrorCode
 from app.domain.queries import DisasterQuery, NearbyPlacesQuery, RouteQuery
 from app.observability.logging import get_logger
-from app.observability.metrics import REGISTRY
+from app.observability.metrics import (
+    REGISTRY,
+    context_capabilities,
+    degraded_results,
+)
 from app.providers.registry import ResolvedRegistry
+from app.services.context import (
+    CapabilityCall,
+    CapabilityResult,
+    ContextGatherer,
+    Outcome,
+)
 from app.services.dedup import find_duplicate_groups
 from app.settings import get_settings
 
@@ -446,3 +458,274 @@ async def places_nearby(
             "attribution": registry.attributions([adapter.provider_id]),
         }
     )
+
+
+@router.post("/internal/v1/context/query")
+async def context_query(
+    request: Request, body: ContextQueryRequest, _: InternalAuth
+) -> dict[str, Any]:
+    """Everything module 04 knows about one journey, in one call (contract § 5.2).
+
+    The capabilities run concurrently under a single deadline. One that overruns
+    is cancelled and reported as timed out; the rest of the answer still comes
+    back, because a traveller waiting on a hazard check should not lose the
+    weather because a routing provider is slow.
+
+    Every capability appears in `capabilities[]` with what happened to it, even
+    the ones that answered nothing. An absent key would be indistinguishable
+    from "nothing to report", and for hazards those are opposite answers.
+
+    Nothing here is combined into a verdict. This endpoint concatenates records
+    and says where each came from; building `IntegratedTravelContext` out of
+    them is module 05 (shared context § 7 step 5), and judging them is 06/07.
+    """
+    adapters: AdapterRegistry = request.app.state.adapters
+    registry: ResolvedRegistry = request.app.state.registry
+
+    requested = _requested_capabilities(body)
+    plan: dict[ProviderKind, CapabilityCall] = {}
+    unavailable: dict[ProviderKind, str] = {}
+
+    for kind in requested:
+        call = _capability_call(adapters, kind, body)
+        if isinstance(call, str):
+            unavailable[kind] = call
+        else:
+            plan[kind] = call
+
+    gatherer = ContextGatherer(adapters)
+    result = await gatherer.gather(
+        plan,
+        deadline_seconds=body.deadline_seconds,
+        skipped=[kind for kind in CONTEXT_CAPABILITIES if kind not in requested],
+    )
+
+    for kind, reason in unavailable.items():
+        result.capabilities[kind] = CapabilityResult(
+            kind=kind, outcome=Outcome.UNAVAILABLE, reason=reason
+        )
+        context_capabilities.labels(
+            capability=str(kind), outcome=str(Outcome.UNAVAILABLE).lower()
+        ).inc()
+
+    degraded = result.degraded_services
+    if degraded:
+        degraded_results.labels(capability="context").inc()
+
+    return success(
+        {
+            "weather": [
+                record.model_dump(mode="json")
+                for record in result.records(ProviderKind.WEATHER)
+            ],
+            "disaster_events": [
+                record.model_dump(mode="json")
+                for record in result.records(ProviderKind.DISASTER)
+            ],
+            "routes": [
+                record.model_dump(mode="json")
+                for record in result.records(ProviderKind.ROUTE)
+            ],
+            "places": [
+                record.model_dump(mode="json")
+                for record in result.records(ProviderKind.EMERGENCY_DIRECTORY)
+            ],
+            # Grouped, never merged - every record above is still present.
+            "duplicate_groups": [group.as_dict() for group in result.duplicate_groups],
+            # What happened to each capability, including the ones that did not
+            # run. This is the part a caller must read before rendering.
+            "capabilities": [
+                result.capabilities[kind].as_dict()
+                for kind in CONTEXT_CAPABILITIES
+                if kind in result.capabilities
+            ],
+            "provider_health": _health_snapshot(adapters, registry),
+            "attribution": registry.attributions(result.answering_providers),
+        },
+        degraded=degraded,
+    )
+
+
+def _requested_capabilities(body: ContextQueryRequest) -> list[ProviderKind]:
+    """What to ask, from what was sent.
+
+    Naming a capability explicitly always wins; otherwise the inputs decide, so
+    that a caller who sent no waypoints is not charged a routing call against a
+    200-a-day quota.
+    """
+    if body.include:
+        return list(dict.fromkeys(body.include))
+
+    wanted: list[ProviderKind] = []
+    if body.samples:
+        wanted.append(ProviderKind.WEATHER)
+    # Hazards are the reason this service exists; a bbox or a journey is enough.
+    wanted.append(ProviderKind.DISASTER)
+    if body.waypoints:
+        wanted.append(ProviderKind.ROUTE)
+    if body.place_types or body.places_near:
+        wanted.append(ProviderKind.EMERGENCY_DIRECTORY)
+    return wanted
+
+
+def _places_anchor(body: ContextQueryRequest) -> tuple[float, float] | None:
+    """Where to look for hospitals and police.
+
+    The destination by default: that is where a traveller who needs them will
+    be, and the origin is usually home.
+    """
+    if body.places_near is not None:
+        return (body.places_near.longitude, body.places_near.latitude)
+    if body.waypoints:
+        return body.waypoints[-1]
+    if body.samples:
+        last = body.samples[-1]
+        return (last.longitude, last.latitude)
+    return None
+
+
+def _disaster_call(
+    adapters: AdapterRegistry, body: ContextQueryRequest
+) -> CapabilityCall | str:
+    available = adapters.all_for_kind(ProviderKind.DISASTER)
+    if not available:
+        return adapters.blocked_reason(ProviderKind.DISASTER)
+
+    query = DisasterQuery(
+        bbox=body.bbox,
+        start=body.start,
+        end=body.end,
+        event_types=list(body.event_types),
+    )
+
+    async def run(budget: float) -> tuple[list[Any], list[str]]:
+        # The disaster sources are complementary, not interchangeable: the same
+        # earthquake appears in more than one, so all of them are asked and
+        # everything they return is emitted.
+        results = await asyncio.gather(
+            *(adapter.query(query, deadline_seconds=budget) for adapter in available),
+            return_exceptions=True,
+        )
+        events: list[Any] = []
+        answered: list[str] = []
+        last_error: ProviderError | None = None
+        for adapter, outcome in zip(available, results, strict=True):
+            if isinstance(outcome, ProviderError):
+                last_error = outcome
+            elif isinstance(outcome, BaseException):
+                raise outcome
+            else:
+                events.extend(outcome)
+                answered.append(adapter.provider_id)
+        if not answered and last_error is not None:
+            # Every source failing is not the same as no hazards, and an empty
+            # list is the one answer this module must never invent.
+            raise last_error
+        events.sort(key=lambda event: event.effective_at, reverse=True)
+        return events, answered
+
+    return run
+
+
+def _capability_call(
+    adapters: AdapterRegistry, kind: ProviderKind, body: ContextQueryRequest
+) -> CapabilityCall | str:
+    """Bind one capability to a callable, or say why it cannot run.
+
+    Returning the reason as a string rather than raising keeps an unconfigured
+    provider out of the concurrent fan-out entirely: there is nothing to wait
+    for, and the caller still learns exactly what is missing.
+    """
+    if kind is ProviderKind.DISASTER:
+        return _disaster_call(adapters, body)
+
+    try:
+        adapter = adapters.for_kind(kind)
+    except ProviderError as error:
+        return error.message
+
+    if kind is ProviderKind.WEATHER:
+        weather_query = WeatherQuery(
+            samples=[
+                CoordinateSample(
+                    latitude=sample.latitude,
+                    longitude=sample.longitude,
+                    eta=sample.eta,
+                    sample_id=sample.sample_id,
+                )
+                for sample in body.samples
+            ],
+            start=body.start,
+            end=body.end,
+        )
+
+        async def weather(budget: float) -> tuple[list[Any], list[str]]:
+            records = await adapter.query(weather_query, deadline_seconds=budget)
+            return list(records), [adapter.provider_id]
+
+        return weather
+
+    if kind is ProviderKind.ROUTE:
+        if not body.waypoints:
+            return "routes were requested but no waypoints were sent"
+        route_query = RouteQuery(
+            waypoints=[(lon, lat) for lon, lat in body.waypoints],
+            mode=body.mode,
+            alternatives=body.alternatives,
+            avoid_polygons=body.avoid_polygons,
+            departure_at=body.start,
+            language=body.language,
+        )
+
+        async def routes(budget: float) -> tuple[list[Any], list[str]]:
+            records = await adapter.query(route_query, deadline_seconds=budget)
+            return list(records), [adapter.provider_id]
+
+        return routes
+
+    anchor = _places_anchor(body)
+    if anchor is None:
+        return (
+            "emergency places were requested but there is no coordinate "
+            "to search around"
+        )
+    places_query = NearbyPlacesQuery(
+        longitude=anchor[0],
+        latitude=anchor[1],
+        radius_m=body.places_radius_m,
+        place_types=list(body.place_types),
+        language=body.language,
+    )
+
+    async def places(budget: float) -> tuple[list[Any], list[str]]:
+        records = await adapter.query(places_query, deadline_seconds=budget)
+        return list(records), [adapter.provider_id]
+
+    return places
+
+
+def _health_snapshot(
+    adapters: AdapterRegistry, registry: ResolvedRegistry
+) -> list[dict[str, Any]]:
+    """Registry-level health for the capabilities this endpoint covers.
+
+    Included in the response on purpose: a consumer deciding whether to show a
+    "we could not check" banner needs it in the same payload as the records, not
+    from a second call that may see a different moment.
+    """
+    snapshot: list[dict[str, Any]] = []
+    for kind in CONTEXT_CAPABILITIES:
+        for resolved in registry.for_kind(kind):
+            adapter = adapters.get(resolved.id)
+            report = adapter.health() if adapter is not None else None
+            snapshot.append(
+                {
+                    "provider": resolved.id,
+                    "capability": str(kind),
+                    "effective_status": str(resolved.effective_status),
+                    "health": str(report.state) if report is not None else "UNKNOWN",
+                    "reason": resolved.reason
+                    or (report.reason if report is not None else None),
+                }
+            )
+    return snapshot
