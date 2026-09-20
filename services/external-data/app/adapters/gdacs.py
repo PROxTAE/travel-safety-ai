@@ -363,11 +363,39 @@ def _quality(
     client_side_filtered: bool,
     severity_text: str | None,
 ) -> DataQuality:
-    age_seconds = max(0, int((fetched_at - effective_at).total_seconds()))
+    # The age of our copy of the data, not the age of the disaster. Shared
+    # context section 10 gives a disaster event a ten-minute budget and says
+    # "fetch again" past it, which is only a coherent instruction about a stale
+    # read - re-fetching cannot make an old cyclone younger. Measuring event age
+    # here marked every record STALE regardless of when it was read.
+    #
+    # Unlike the USGS feed, GDACS publishes no feed generation time, so the
+    # provider's own lag between an event occurring and appearing here is not
+    # measurable. This says so rather than implying it is zero.
+    age_seconds = 0
     flags: list[QualityFlag] = [QualityFlag.INFERRED]
     notes = [
         "provider timestamps carry no timezone offset and are read as UTC",
+        "the feed carries no generation time, so freshness is the age of this "
+        "read; any delay between the event and its publication here is not "
+        "visible to us",
     ]
+
+    revised_at = _parse_naive_utc(properties.datemodified)
+    if revised_at is not None:
+        stale_for = max(0, int((fetched_at - revised_at).total_seconds()))
+        notes.append(
+            f"provider last revised this record {revised_at:%Y-%m-%dT%H:%M:%SZ}"
+        )
+        # A record the provider has not touched in a day while still calling the
+        # event current is worth flagging on its own - but as a flag, not as the
+        # freshness of the read, which is a different question.
+        if _wire_bool(properties.iscurrent) and stale_for > 24 * 3600:
+            flags.append(QualityFlag.STALE)
+            notes.append(
+                "the provider still marks this event current but has not "
+                f"revised the record in {stale_for // 3600} hours"
+            )
 
     if client_side_filtered:
         notes.append(

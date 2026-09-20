@@ -397,11 +397,24 @@ def _quality(
     is_closed: bool,
     magnitude_unit: str | None,
 ) -> DataQuality:
-    age_seconds = max(0, int((fetched_at - observed_at).total_seconds()))
+    # The age of our copy of the feed, not the age of the event. Shared context
+    # section 10 gives a disaster event a ten-minute budget and says "fetch
+    # again" past it, which only makes sense about a stale read - re-fetching
+    # cannot make an old wildfire younger. Measuring from the last observation
+    # marked every EONET record STALE, because a curated source that publishes
+    # once or twice a day can never be ten minutes old by that measure.
+    #
+    # EONET, like GDACS and unlike USGS, publishes no feed generation time, so
+    # the provider's own publication lag is not measurable here. The note says
+    # so instead of implying it is zero.
+    age_seconds = 0
     flags: list[QualityFlag] = []
     notes = [
         "EONET is curated and publishes more slowly than USGS or GDACS; treat as "
-        "corroboration, not as the first alert"
+        "corroboration, not as the first alert",
+        "the feed carries no generation time, so freshness is the age of this "
+        "read; the provider's publication lag is not visible to us",
+        f"the provider last observed this event {observed_at:%Y-%m-%dT%H:%M:%SZ}",
     ]
 
     if track_length > 1:
