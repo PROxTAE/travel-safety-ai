@@ -31,6 +31,9 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.domain.run import RunStatus
+from app.schemas.envelope import DegradedService, ResponseMeta
+from app.schemas.run import RunRefModel
+from app.schemas.trip import TripModel
 
 ActionCode = Literal["NORMAL", "CHANGE_ROUTE", "DELAY", "AVOID"]
 RiskLevel = Literal["LOW", "MEDIUM", "HIGH", "UNKNOWN"]
@@ -105,8 +108,42 @@ class RecommendationResponseModel(BaseModel):
     sources: list[dict[str, Any]]
     freshness: FreshnessModel
     limitations: list[dict[str, Any]]
-    degraded_services: list[dict[str, Any]]
+    degraded_services: list[DegradedService]
     versions: ResponseVersionsModel
 
     expires_at: datetime | None = None
     created_at: datetime
+
+
+class ApplyRouteRequest(BaseModel):
+    """What a traveller sends to lock a route into their journey.
+
+    `extra="forbid"`: unrecognised fields are rejected.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    recommendation_id: UUID
+    route_id: Annotated[str, Field(min_length=1, max_length=256)]
+    risk_acknowledged: bool = False
+
+
+class ApplyRouteData(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    trip: TripModel
+    run: RunRefModel
+
+
+class ApplyRouteResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    data: ApplyRouteData
+    meta: ResponseMeta
+
+
+class RecommendationResponseEnvelope(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    data: RecommendationResponseModel
+    meta: ResponseMeta

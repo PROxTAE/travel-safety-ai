@@ -1455,7 +1455,7 @@ components:
           description: The recommendation the route was offered in, so the choice is auditable.
           $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
         route_id:
-          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/RecordId'
         risk_acknowledged:
           description: |
             Required when the chosen route is MEDIUM or HIGH. Records that the traveller was

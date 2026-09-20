@@ -35,9 +35,14 @@ from redis.asyncio import Redis
 from app.api import health as health_routes
 from app.api.v1 import assessments as assessment_routes
 from app.api.v1 import consents as consent_routes
+from app.api.v1 import conversations as conversation_routes
+from app.api.v1 import emergency as emergency_routes
+from app.api.v1 import feedback as feedback_routes
 from app.api.v1 import locations as location_routes
 from app.api.v1 import me as me_routes
+from app.api.v1 import recommendations as recommendation_routes
 from app.api.v1 import runs as run_routes
+from app.api.v1 import safety as safety_routes
 from app.api.v1 import trips as trip_routes
 from app.auth.jwks import JwksCache
 from app.db.engine import create_engine, create_session_factory, dispose_engine
@@ -219,6 +224,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # sub-path rather than a competing one, so ordering is cosmetic but kept obvious.
     app.include_router(assessment_routes.router)
     app.include_router(run_routes.router)
+    app.include_router(recommendation_routes.router)
+    app.include_router(conversation_routes.router)
+    app.include_router(safety_routes.router)
+    app.include_router(emergency_routes.router)
+    app.include_router(feedback_routes.router)
 
     instrument_app(app)
     return app

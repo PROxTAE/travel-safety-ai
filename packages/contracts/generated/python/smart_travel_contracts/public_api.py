@@ -7,7 +7,6 @@ Editing this file by hand makes the models disagree with the contract, which is 
 failure this pipeline exists to prevent.
 """
 
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -1358,7 +1357,7 @@ class ApplyRouteRequest(BaseModel):
     """
     The recommendation the route was offered in, so the choice is auditable.
     """
-    route_id: Uuid
+    route_id: RecordId
     risk_acknowledged: bool | None = False
     """
     Required when the chosen route is MEDIUM or HIGH. Records that the traveller was
