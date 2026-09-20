@@ -459,6 +459,38 @@ A request with a bearer token and coordinates in the query string logged:
 No token, no query string, no coordinates. Across all API logs: 0 JWT-shaped strings, 0 occurrences
 of the test user's e-mail or display name.
 
+### Re-verification, 2026-09-20 — one compose defect found and fixed
+
+Phase 1 was re-checked from a clean stack under the default project name rather than `sta-phase1`,
+which is how a reviewer will run it. Everything above reproduced, and one defect appeared that the
+original run's build order had hidden.
+
+Neither compose file named the `api` image, so both stages of the Dockerfile resolved to the same
+default tag. Building the dev stage overwrote it, and `docker compose -f compose.yaml --profile app
+up api` then started the **dev** image, whose `CMD` is `uv run pytest`: the suite ran, the process
+exited, `restart: unless-stopped` started it again, and the container never served a request. The
+healthcheck correctly refused to go healthy; compose reported `container smart-travel-api-1 is
+unhealthy`.
+
+Fixed by tagging each stage explicitly — `smart-travel-api:runtime` in `compose.yaml`,
+`smart-travel-api:dev` in `compose.dev.yaml`. Verified by building the dev stage and then starting
+the runtime service, the order that used to fail:
+
+```text
+$ docker compose -f compose.yaml -f compose.dev.yaml build api
+Image smart-travel-api:dev Built
+
+$ docker compose -f compose.yaml --profile app up -d --wait api
+Container smart-travel-api-1 Healthy
+health=healthy image=smart-travel-api:runtime
+cmd=[uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000 …]
+```
+
+Full suite after the fix: `255 passed`, ruff `All checks passed!`, `77 files already formatted`,
+mypy `Success: no issues found in 53 source files`, `alembic upgrade head` applying `0001`–`0003`
+onto an empty database. A `PATCH /api/v1/me` carrying a marker token and a marker body field left
+0 occurrences of either in the container logs.
+
 ## 11. UI evidence
 
 N/A — this module has no UI.
