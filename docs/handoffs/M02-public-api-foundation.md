@@ -491,6 +491,36 @@ mypy `Success: no issues found in 53 source files`, `alembic upgrade head` apply
 onto an empty database. A `PATCH /api/v1/me` carrying a marker token and a marker body field left
 0 occurrences of either in the container logs.
 
+### Review of the pull request — three findings, two fixed and one declined
+
+**The `api` CI job was red, and the report above had not caught it.** Five of the seven tests in
+`tests/test_keycloak_end_to_end.py` skipped without a realm; two reached the app through
+`keycloak_app`, which did not request `keycloak_available`, so they ran in CI and failed. Fixed by
+requesting it there. Reproduced both ways against an unreachable realm: `2 failed, 5 skipped`
+before, `7 skipped` after, and all seven still run and pass against the real realm.
+
+**mypy was strict and checking nothing where it mattered.** The pydantic plugin types synthesised
+`__init__` arguments as `Any` unless `init_typed` is set, so every response model was built
+unchecked. Enabled it, and it found `app/api/v1/consents.py:111` passing a `str` where the contract
+allows five literal values — the column is `String(32)`, so reading it back loses the type. Fixed by
+returning `body.type`, the value pydantic already validated and the one that was written, rather
+than casting the widened value back.
+
+**Declined: adding defaults to `POSTGRES_USER` and `POSTGRES_PASSWORD` in `Settings`.** Review
+reported a mypy error here; it does not reproduce, under the committed configuration or under the
+stricter one above — `pydantic-settings` reads these from the environment, so `Settings()` needs no
+argument. Adding defaults would remove the fail-fast this service depends on:
+
+```text
+$ POSTGRES_USER= POSTGRES_PASSWORD= python -c 'from app.settings import Settings; Settings()'
+ValidationError: 2 validation errors for Settings
+POSTGRES_USER    Field required
+POSTGRES_PASSWORD  Field required
+```
+
+A default would let the process boot without a configured credential and fail later at connect
+time, which is what "settings validation" in phase 1 exists to prevent.
+
 ## 11. UI evidence
 
 N/A — this module has no UI.
