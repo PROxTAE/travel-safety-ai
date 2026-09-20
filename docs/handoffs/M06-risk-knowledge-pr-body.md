@@ -89,7 +89,7 @@ docker run --rm sta-risk-knowledge:test mypy app
   Success: no issues found in 30 source files.
 
 docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term
-  37 passed, 0 failed, 0 skipped; total coverage 90.54% (gate 80%).
+  39 passed, 0 failed, 0 skipped; total coverage 90.77% (gate 80%).
 
 $files = @(git ls-files '*.py')
 docker run --rm -e PYTHONPYCACHEPREFIX=/tmp/pycache -v "H:/travel-safety-ai:/repo:ro" -w /repo python:3.11-slim python -m py_compile $files
@@ -118,6 +118,9 @@ runtime smoke
 HTTP error regression
   FastAPI-raised 403 and Starlette router-level 404 both return the v1 error envelope.
 
+Route selection regression
+  `/risk/assess` and `/routes/evaluate` return 422 for duplicate route IDs and IDs absent from the supplied snapshot.
+
 PostgreSQL paused
   liveness 200; readiness 503 not_ready/DATABASE_UNAVAILABLE in 2.027 s.
 
@@ -134,7 +137,7 @@ docker scout cves --only-severity critical,high --exit-code local://sta-risk-kno
   Last completed scan: 0 critical, 1 high: CVE-2026-85091 in Debian zlib; no fixed version.
 ```
 
-- Runtime image: `sha256:2f67a9c87090d34efacc050009872808eb7c10d393829c0df362f7ea582e49c1`, non-root `app`, read-only, 2 CPU, 2 GiB. The review-fix image keeps the same pinned base and lock; a new external Scout metadata submission was not authorized.
+- Runtime image: `sha256:b31842b776f68a1011cffc24790ebb99ea3896746904523d1a59d61916362ca4`, non-root `app`, read-only, 2 CPU, 2 GiB. The route-validation image keeps the same pinned base and lock; a new external Scout metadata submission was not authorized.
 - SBOM: SPDX 2.3 generated successfully, 180 packages; artifact SHA-256 `bea0c0dd9e1668ed506ed3f82e0c8cb253f5ab463bc5421db10c843998b8b926`.
 - UI screenshots/video: N/A; no UI ownership or changes.
 - Sanitized IDs: request `50000000-0000-4000-8000-000000000001`, correlation `...0002`, trace `0123456789abcdef0123456789abcdef`.
@@ -163,6 +166,7 @@ docker scout cves --only-severity critical,high --exit-code local://sta-risk-kno
 ## Risks and limitations
 
 - Contract/feature/route/source approvals are not yet recorded; proposed shared surfaces require review.
+- Canonical `source_id` and quality score-version fields still differ across M04, M05 PR #15, and M06; M02/API owner decision plus producer/consumer tests are required before merge.
 - Full image scan has one upstream-unfixed high `zlib` CVE. Do not merge without a security disposition; no exception or VEX is asserted by this PR.
 - No active model or knowledge collection is shipped. This is intentionally visible as degraded/unavailable.
 - `/internal/v1/evidence/package` intentionally returns 503 until Phase 7.

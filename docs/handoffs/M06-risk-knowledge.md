@@ -7,11 +7,11 @@
 | Module/owner | Module 06 — Risk and Knowledge Services |
 | Issue/PR | Draft PR #12; body mirrored in `docs/handoffs/M06-risk-knowledge-pr-body.md` |
 | Branch | `contract/06-risk-evidence-route-schema` |
-| Base/final commit SHA | `b63348058cfd9506ec9306923845aec53fe69b36` / review-fix head `44b99ed` (report refresh commit follows) |
-| Date/time/timezone | 2026-09-20 02:45 +07:00 (Asia/Bangkok) |
+| Base/final commit SHA | `b63348058cfd9506ec9306923845aec53fe69b36` / route-validation head `9c77f14` (report refresh commit follows) |
+| Date/time/timezone | 2026-09-20 12:49 +07:00 (Asia/Bangkok) |
 | Reviewers | Required: Team Lead plus contracts/security reviewer; contract consumers: modules 03, 05, and 07 |
 | Contract version | `1.0.0` |
-| Docker image digest/tag | `sta-risk-knowledge:phase1`, `sha256:2f67a9c87090d34efacc050009872808eb7c10d393829c0df362f7ea582e49c1` |
+| Docker image digest/tag | `sta-risk-knowledge:phase1`, `sha256:b31842b776f68a1011cffc24790ebb99ea3896746904523d1a59d61916362ca4` |
 | Related model/policy/prompt/collection version | feature `1.0.0`; route policy `1.0.0` pending approval; fallback `fallback-safety-1.0.0`; no active model or collection |
 
 ## 2. Executive summary
@@ -215,7 +215,7 @@ docker compose -f compose.yaml -f compose.dev.yaml --profile app up -d risk-know
 - Port: internal 8004; volumes: read-only model artifacts; PostgreSQL/Qdrant named volumes.
 - Readiness: `200 ready/degraded` when critical DB/auth work; `503 not_ready` when critical dependency/config is unavailable. Liveness checks process only.
 - Limits: 2 CPUs and 2 GiB RAM; load/peak memory not measured in Phase 1.
-- Image: 336,800,824 bytes uncompressed, digest `sha256:2f67a9c...`.
+- Image: 336,800,915 bytes uncompressed, digest `sha256:b31842b...`.
 
 ## 10. Tests and verification
 
@@ -223,7 +223,7 @@ docker compose -f compose.yaml -f compose.dev.yaml --profile app up -d risk-know
 | --- | --- | ---: | ---: | ---: | --- |
 | Format/lint | `docker run --rm sta-risk-knowledge:test ruff check ...` and `ruff format --check ...` | 43 files formatted; lint pass | 0 | 0 | post-rebase run |
 | Type | `docker run --rm sta-risk-knowledge:test mypy app` | 30 source files | 0 | 0 | strict mode |
-| Unit + contract | `docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term` | 37 | 0 | 0 | 90.54% branch-aware coverage; threshold 80% |
+| Unit + contract | `docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term` | 39 | 0 | 0 | 90.77% branch-aware coverage; threshold 80% |
 | Repository CI compatibility | Python 3.11 `py_compile` over `git ls-files '*.py'` | 118 tracked files | 0 | 0 | matches temporary shared workflow interpreter |
 | OpenAPI | `npx --yes @redocly/cli@1.34.5 lint ...` | valid | 0 | 0 | four advisory warnings documented above |
 | Integration | real PostgreSQL/Qdrant containers; migration up/down/up; HTTP/DB smoke | pass | 0 | 0 | revision/ownership/persistence verified |
@@ -236,6 +236,7 @@ docker compose -f compose.yaml -f compose.dev.yaml --profile app up -d risk-know
 
 - Success/degraded: readiness 200 degraded; risk 200 `UNKNOWN/DEGRADED`; route 200 usable hard-constraint fallback; knowledge 200 empty/unavailable.
 - Invalid/unauthorized: standard 422 contract errors and 401 `AUTHENTICATION_REQUIRED`.
+- Route selection: both risk and route endpoints reject duplicate IDs and IDs absent from the supplied immutable snapshot with 422.
 - HTTP routing: both FastAPI-raised 403 and Starlette router 404 use the standard versioned error envelope.
 - DB outage: liveness 200; readiness 503 `not_ready`, DB unavailable, 2.027 seconds.
 - Shared Compose: validates without `RISK_KNOWLEDGE_DB_PASSWORD`; PostgreSQL init exits 0 after explicitly skipping only the M06 role.
@@ -279,6 +280,7 @@ Findings:
 | Shared Compose required an M06-only DB secret | interpolation happened even when another member did not start M06 | Compose review and config reproduction without the variable | optional interpolation plus an explicit no-secret role-bootstrap skip; M06 itself remains not-ready without credentials | existing volumes still need explicit role bootstrap before M06 migration |
 | Per-service auth token diverged from team contract | initial M06 name introduced an unnecessary second credential | review against `.env.example` and M04 shared-token convention | M06 now reads only `INTERNAL_SERVICE_TOKEN` | shared secret rotation remains a platform concern |
 | Router 404 escaped the standard error envelope | Starlette raises its own HTTP exception for unmatched routes | regression test against an unknown route | register both FastAPI and Starlette HTTP exception classes | none observed |
+| Route evaluation accepted IDs outside the supplied snapshot | runtime model enforced only shape, while subset validation existed only on risk assessment | regression tests for unknown and duplicate IDs on both endpoints | shared runtime validator enforces uniqueness and snapshot membership before persistence | none observed |
 
 ## 14. Performance and operational behavior
 
@@ -303,11 +305,13 @@ Findings:
 | Evidence package unavailable | consumers call sub-capabilities or handle 503 | stable error envelope | M06 | high | Phase 7 |
 | One unfixed base CVE | security gate cannot be declared fully green | monitor upstream; security review before merge | Security/Lead | high | dependency bot/base rebuild |
 | TestClient deprecation warnings | test-only future maintenance | migrate when FastAPI/Starlette finalizes `httpx2` path | M06 | low | later maintenance |
+| Canonical provenance/quality fields differ across M04, M05 PR #15, and M06 | real M04 records can be rejected by strict M06 schema | keep PR draft; M02 must settle `source_id` type and quality formula-version field before a versioned producer/consumer update | M02/M04/M05/M06 | high | contract review before merge |
 
 ## 16. Handoff to other members
 
 | Recipient/module | What is ready | What they must change/do | Contract/config | Blocking? |
 | --- | --- | --- | --- | --- |
+| M02 API | incompatibility evidence from real M04 payload | settle `source_id` type and `score_version`/`formula_version` name | canonical provenance/quality schema | blocks merge |
 | M03 agent | stable v1 request/response and degraded semantics | review evidence/status consumption | OpenAPI + JSON Schema 1.0.0 | approval blocks merge |
 | M05 integration | feature/null/provenance contract proposal | approve mapping and feature meanings | `feature_schema.v1.yaml` | approval blocks model phases |
 | M07 decision | risk/route/evidence inputs and hard constraints | approve acceptance targets/route policy | governance 1.0.0 | approval blocks model/ranking |
@@ -324,9 +328,11 @@ Findings:
 3e4735e fix(risk): support repository CI Python version
 6faf99f docs(risk): refresh post-rebase verification
 44b99ed fix(risk): address phase one review findings
+2da61ab docs(risk): record review fix evidence
+9c77f14 fix(risk): validate selected snapshot routes
 ```
 
-- PR review findings addressed locally: commit authors rewritten to `Nonyeol`; shared Compose secret coupling removed; shared internal token adopted; HTTP 404 envelope covered. Push and re-review remain pending.
+- PR review findings addressed locally: commit authors rewritten to `Nonyeol`; shared Compose secret coupling removed; shared internal token adopted; HTTP 404 envelope covered; selected route IDs now fail closed. Canonical provenance/quality alignment and CVE disposition remain pending external decisions.
 - Required checks: all Phase 0/1 functional checks pass; full image scan has one upstream-unfixed high finding requiring disposition.
 - Rebased on main SHA: `b63348058cfd9506ec9306923845aec53fe69b36`; Compose retains both merged M04 external-data and M06 risk-knowledge/MLflow services.
 - Proposed squash title: `feat(risk): establish risk evidence contracts and service foundation`.
