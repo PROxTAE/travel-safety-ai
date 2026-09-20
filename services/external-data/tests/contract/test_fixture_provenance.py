@@ -22,6 +22,8 @@ REQUIRED = {
     "captured_at",
     "raw_bytes",
     "content_hash",
+    "stored_sha256",
+    "stored_bytes",
     "license",
     "redaction",
 }
@@ -36,10 +38,17 @@ def _manifest() -> dict[str, Any]:
 
 
 def test_manifest_lists_every_captured_file() -> None:
+    """Every file, not every JSON file.
+
+    This globbed `*.json` until a GTFS schedule (a zip) and a GTFS-Realtime
+    message (protobuf) arrived, at which point two unlisted fixtures would have
+    sat in the tree with no recorded licence or provenance and nothing would
+    have said so.
+    """
     on_disk = {
         str(path.relative_to(FIXTURE_ROOT)).replace("\\", "/")
-        for path in FIXTURE_ROOT.rglob("*.json")
-        if path.name != "MANIFEST.json"
+        for path in FIXTURE_ROOT.rglob("*")
+        if path.is_file() and path.name not in ("MANIFEST.json", "README.md")
     }
     listed = {entry["path"] for entry in _manifest()["fixtures"]}
     assert on_disk == listed
@@ -75,14 +84,37 @@ def test_a_captured_error_says_why_it_was_captured(entry: dict[str, Any]) -> Non
 
 @pytest.mark.parametrize("entry", _manifest()["fixtures"], ids=lambda e: e["fixture_id"])
 def test_fixture_file_parses_and_is_non_empty(entry: dict[str, Any]) -> None:
-    payload = json.loads((FIXTURE_ROOT / entry["path"]).read_text(encoding="utf-8"))
-    assert payload
+    path = FIXTURE_ROOT / entry["path"]
+    if path.suffix != ".json":
+        # A zip or a protobuf message has its own reader; all that is checked
+        # here is that the bytes recorded in the manifest are the bytes on disk.
+        assert path.read_bytes()
+        return
+    assert json.loads(path.read_text(encoding="utf-8"))
 
 
 @pytest.mark.parametrize("entry", _manifest()["fixtures"], ids=lambda e: e["fixture_id"])
 def test_fixture_carries_no_credential(entry: dict[str, Any]) -> None:
-    text = (FIXTURE_ROOT / entry["path"]).read_text(encoding="utf-8")
+    path = FIXTURE_ROOT / entry["path"]
+    text = path.read_text(encoding="utf-8", errors="ignore")
     assert not SECRET_PATTERN.search(text)
+
+
+@pytest.mark.parametrize("entry", _manifest()["fixtures"], ids=lambda e: e["fixture_id"])
+def test_stored_hash_matches_the_bytes_on_disk(entry: dict[str, Any]) -> None:
+    """The file must still be the file that was recorded.
+
+    Note which hash this checks. `content_hash` describes the upstream response
+    as the provider sent it - compact JSON, or a 5.6 MB archive - while the copy
+    in the repository is pretty-printed or trimmed, so the two legitimately
+    differ. Asserting the upstream hash against the stored file was the first
+    version of this test and it failed on six fixtures that were perfectly fine.
+    """
+    import hashlib
+
+    raw = (FIXTURE_ROOT / entry["path"]).read_bytes()
+    assert entry["stored_sha256"] == "sha256:" + hashlib.sha256(raw).hexdigest()
+    assert entry["stored_bytes"] == len(raw)
 
 
 def test_capture_urls_are_keyless() -> None:

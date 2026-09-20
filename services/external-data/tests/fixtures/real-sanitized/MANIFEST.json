@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "module": "04-external-data",
-  "note": "Real provider responses captured once for deterministic tests. Never served on a runtime path.",
+  "note": "Real provider responses captured once for deterministic tests. Never served on a runtime path. `content_hash` and `raw_bytes` describe the upstream response as the provider sent it; `stored_sha256` and `stored_bytes` describe the file in this repository. They differ whenever the stored copy was reformatted or trimmed, which `capture_method` states.",
   "fixtures": [
     {
       "fixture_id": "open_meteo_geocoding_search_bangkok",
@@ -14,7 +14,9 @@
       "content_hash": "sha256:6eef1f54dd4a41efd842164eb041e749bd51748f19025a7b9c2d06c0444b31f1",
       "license": "CC-BY-4.0 (Open-Meteo), upstream data OpenStreetMap contributors (ODbL)",
       "redaction": "public place-name records only; no credential in query, no PII in payload",
-      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)"
+      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)",
+      "stored_bytes": 1254,
+      "stored_sha256": "sha256:9bba97b974c74c0835174a95fcc433b4d990d0f8bc7fb1c4c45b3a0cef1be731"
     },
     {
       "fixture_id": "open_meteo_forecast_bangkok",
@@ -27,7 +29,9 @@
       "content_hash": "sha256:4485fbaed4434ff1c578d2167288ff9dd9d785c0860caf7f3c24665e086c58ea",
       "license": "CC-BY-4.0 (Open-Meteo)",
       "redaction": "keyless endpoint; coordinates are a public landmark, not a user location",
-      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)"
+      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)",
+      "stored_bytes": 7026,
+      "stored_sha256": "sha256:beff2949898a2f8f50fc915ddf31b28887690f9a2be193f7d56461ba6172f1d6"
     },
     {
       "fixture_id": "open_meteo_forecast_batched",
@@ -40,7 +44,9 @@
       "content_hash": "sha256:5640ad4508d868f68ad18dd7c8f7d285876d3d837a6651bb98bb33672f5396fb",
       "license": "CC-BY-4.0 (Open-Meteo)",
       "redaction": "keyless endpoint; two public landmarks (Bangkok, Chiang Mai), no PII",
-      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)"
+      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)",
+      "stored_bytes": 16146,
+      "stored_sha256": "sha256:a26bc2c2bd9ae193132d1bcb3b189f019e971e854c7857d181bc9f92b29a4cbd"
     },
     {
       "fixture_id": "usgs_significant_month",
@@ -53,7 +59,9 @@
       "content_hash": "sha256:3d9c20db29804cee19f3f0957abbbe85de0d75fb7c00cb7582c52cde2e5fc8d2",
       "license": "US Government public domain (USGS)",
       "redaction": "public earthquake catalogue; no credential, no PII",
-      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)"
+      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)",
+      "stored_bytes": 10650,
+      "stored_sha256": "sha256:cbce9a8105b71e24be5d50d0609566d8f1eed7bb99180c917aa1cb67748bfc96"
     },
     {
       "fixture_id": "gdacs_eventlist_eq",
@@ -66,7 +74,9 @@
       "content_hash": "sha256:b45d5d11e15be450cfba9aec7ecd9e7609a833693171ebdc4afc7602d171c5b2",
       "license": "GDACS terms of use — free reuse with attribution to GDACS/JRC",
       "redaction": "public multi-hazard event list; no credential, no PII",
-      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)"
+      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)",
+      "stored_bytes": 50975,
+      "stored_sha256": "sha256:2925f7f9701d30d2c83aa161e28cef6b35baceb8e0d6b0f0d3ddb21f5a7ef859"
     },
     {
       "fixture_id": "eonet_events",
@@ -79,7 +89,9 @@
       "content_hash": "sha256:6297f61bdb154a8ad896d12afa0faf2b0d44e3fda3a625aa05357aab048ba8fa",
       "license": "NASA open data policy (EONET v3)",
       "redaction": "public natural-event catalogue; no credential, no PII",
-      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)"
+      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)",
+      "stored_bytes": 6290,
+      "stored_sha256": "sha256:c02003e44429248562be54ab7795b8434ed536fff56cf328b964d8ea21e9e6d4"
     },
     {
       "fixture_id": "ors_directions_bangkok_ayutthaya",
@@ -112,7 +124,9 @@
       "content_hash": "sha256:81102410127ff6cce9a9527255264897fcbbd21362abd9d64af4d2b5ccbbd70e",
       "license": "openrouteservice terms; upstream data © OpenStreetMap contributors (ODbL)",
       "redaction": "no credential in the body (the key travels in the Authorization header, which is not part of the payload); public infrastructure records only, no PII",
-      "capture_method": "single live POST, stored pretty-printed (UTF-8, 2-space indent)"
+      "capture_method": "single live POST, stored pretty-printed (UTF-8, 2-space indent)",
+      "stored_bytes": 86428,
+      "stored_sha256": "sha256:81102410127ff6cce9a9527255264897fcbbd21362abd9d64af4d2b5ccbbd70e"
     },
     {
       "fixture_id": "ors_directions_no_routable_point",
@@ -138,7 +152,9 @@
       "content_hash": "sha256:b9e301c3ca781cdfdbd2349ac0a61158651936205c5b7a6cbfbdd2ac7cadcb19",
       "license": "openrouteservice terms; upstream data © OpenStreetMap contributors (ODbL)",
       "redaction": "no credential in the body (the key travels in the Authorization header, which is not part of the payload); public infrastructure records only, no PII",
-      "capture_method": "single live POST, stored pretty-printed (UTF-8, 2-space indent)"
+      "capture_method": "single live POST, stored pretty-printed (UTF-8, 2-space indent)",
+      "stored_bytes": 424,
+      "stored_sha256": "sha256:b9e301c3ca781cdfdbd2349ac0a61158651936205c5b7a6cbfbdd2ac7cadcb19"
     },
     {
       "fixture_id": "ors_directions_alternatives_over_limit",
@@ -167,7 +183,9 @@
       "content_hash": "sha256:581c8271e2edcd15c84dfaf339ba51367df4cb781915bdb59a2e87f807efe6c7",
       "license": "openrouteservice terms; upstream data © OpenStreetMap contributors (ODbL)",
       "redaction": "no credential in the body (the key travels in the Authorization header, which is not part of the payload); public infrastructure records only, no PII",
-      "capture_method": "single live POST, stored pretty-printed (UTF-8, 2-space indent)"
+      "capture_method": "single live POST, stored pretty-printed (UTF-8, 2-space indent)",
+      "stored_bytes": 440,
+      "stored_sha256": "sha256:581c8271e2edcd15c84dfaf339ba51367df4cb781915bdb59a2e87f807efe6c7"
     },
     {
       "fixture_id": "ors_pois_emergency_bangkok",
@@ -202,7 +220,41 @@
       "content_hash": "sha256:e5aa9cf856634d2924c654103a9ccd29e4d75f1bbf5a9aad51c1b90d7361b976",
       "license": "openrouteservice terms; upstream data © OpenStreetMap contributors (ODbL)",
       "redaction": "no credential in the body (the key travels in the Authorization header, which is not part of the payload); public infrastructure records only, no PII",
-      "capture_method": "single live POST, stored pretty-printed (UTF-8, 2-space indent)"
+      "capture_method": "single live POST, stored pretty-printed (UTF-8, 2-space indent)",
+      "stored_bytes": 11175,
+      "stored_sha256": "sha256:e5aa9cf856634d2924c654103a9ccd29e4d75f1bbf5a9aad51c1b90d7361b976"
+    },
+    {
+      "fixture_id": "mta_subway_ace_schedule",
+      "path": "gtfs_mta/mta_subway_ace_static.zip",
+      "source_url": "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip",
+      "http_status": 200,
+      "content_type": "application/zip",
+      "note": "Trimmed from the 5.6 MB agency feed to the A/C/E lines, and specifically to the trips the captured realtime message reports on plus five it does not - so both the matched and unmatched join paths are exercised. The first trim kept the first forty trips in the file and matched none of them, which made the fixture unable to test the thing it exists for.",
+      "captured_at": "2026-09-20T13:33:21Z",
+      "raw_bytes": 12295,
+      "content_hash": "sha256:b2172602d9f626a37f07430d96fc82a22c9f384764b4361a7169f3553658e1c6",
+      "license": "MTA open data terms (https://www.mta.info/developers)",
+      "redaction": "public timetable and vehicle-movement records only; no credential (the feeds need none) and no personal data",
+      "capture_method": "single live GET",
+      "stored_bytes": 12295,
+      "stored_sha256": "sha256:b2172602d9f626a37f07430d96fc82a22c9f384764b4361a7169f3553658e1c6"
+    },
+    {
+      "fixture_id": "mta_subway_ace_trip_updates",
+      "path": "gtfs_mta/mta_subway_ace_tripupdates.pb",
+      "source_url": "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace",
+      "http_status": 200,
+      "content_type": "application/x-protobuf",
+      "note": "Stored byte-for-byte rather than decoded to JSON: GTFS-Realtime is a binary wire format and the parsing of it is part of what this fixture tests.",
+      "captured_at": "2026-09-20T13:33:21Z",
+      "raw_bytes": 69243,
+      "content_hash": "sha256:8ab2c71a996929166be61f3cabde915025499c83cb780eecc4b6d766e8d72db0",
+      "license": "MTA open data terms (https://www.mta.info/developers)",
+      "redaction": "public timetable and vehicle-movement records only; no credential (the feeds need none) and no personal data",
+      "capture_method": "single live GET",
+      "stored_bytes": 69243,
+      "stored_sha256": "sha256:8ab2c71a996929166be61f3cabde915025499c83cb780eecc4b6d766e8d72db0"
     }
   ]
 }
