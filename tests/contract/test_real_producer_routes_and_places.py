@@ -80,16 +80,13 @@ def provenance(m04: Any) -> Any:
 
 
 def _route_payload(record: Any) -> dict[str, Any]:
-    """Module 04's RouteCandidate under the contract's field names.
+    """Module 04's RouteCandidate, now under the contract's own field names.
 
-    One rename: the producer carries `source`, because a raw route comes from exactly one provider,
-    and the contract carries `sources`, because a stitched itinerary may carry several. Module 04
-    is making that change on their side; applying it here keeps this test about the schema rather
-    than about the timing of their merge.
+    This used to rename `source` to `sources` while module 04 caught up. That
+    shim is gone: the producer emits `sources` itself, so the test is once again
+    about the schema rather than about a translation written here.
     """
-    payload = record.model_dump(mode="json")
-    payload["sources"] = [payload.pop("source")]
-    return payload
+    return record.model_dump(mode="json")
 
 
 # --- routes ---------------------------------------------------------------------------------------
@@ -126,7 +123,7 @@ def test_a_real_route_validates_with_a_reproducible_id(m04: Any, provenance: Any
         duration_seconds=3183.8,
         transfers=0,
         quality=canonical.DataQuality.from_age(age_seconds=5, fresh_within_seconds=1800),
-        source=provenance,
+        sources=[provenance],
         bbox=(100.5, 13.7, 100.6, 14.4),
     )
 
@@ -154,7 +151,7 @@ def test_a_raw_route_carries_no_exposure_and_unknown_risk(m04: Any, provenance: 
         distance_m=73688.3,
         duration_seconds=3183.8,
         quality=canonical.DataQuality.from_age(age_seconds=5, fresh_within_seconds=1800),
-        source=provenance,
+        sources=[provenance],
     )
 
     payload = _route_payload(route)
@@ -226,14 +223,12 @@ def test_an_evaluated_route_still_requires_its_exposure() -> None:
 
 
 def _poi_payload(record: Any) -> dict[str, Any]:
-    """Module 04's EmergencyPlace under the contract's field names.
+    """Module 04's EmergencyPlace, now under the contract's own field names.
 
-    `place_id`/`place_type` become `poi_id`/`poi_type`; module 04 is renaming on their side.
+    The `place_id`/`place_type` shim is gone - the producer emits `poi_id` and
+    `poi_type` directly.
     """
-    payload = record.model_dump(mode="json")
-    payload["poi_id"] = payload.pop("place_id")
-    payload["poi_type"] = payload.pop("place_type")
-    return payload
+    return record.model_dump(mode="json")
 
 
 def test_a_hospital_with_no_name_in_openstreetmap_validates(m04: Any, provenance: Any) -> None:
@@ -247,8 +242,8 @@ def test_a_hospital_with_no_name_in_openstreetmap_validates(m04: Any, provenance
     """
     canonical, enums, records = m04
     place = records.EmergencyPlace(
-        place_id="ors_pois:osm:156924967",
-        place_type=enums.PlaceType.HOSPITAL,
+        poi_id="ors_pois:osm:156924967",
+        poi_type=enums.PlaceType.HOSPITAL,
         name=None,
         location=records.GeoPoint.from_lat_lon(13.7649, 100.5383),
         distance_m=335.0,
@@ -266,8 +261,8 @@ def test_a_place_without_a_distance_validates(m04: Any, provenance: Any) -> None
     """Null rather than zero, which would read as "you are here"."""
     canonical, enums, records = m04
     place = records.EmergencyPlace(
-        place_id="ors_pois:osm:1",
-        place_type=enums.PlaceType.POLICE,
+        poi_id="ors_pois:osm:1",
+        poi_type=enums.PlaceType.POLICE,
         name="Phaya Thai Police Station",
         location=records.GeoPoint.from_lat_lon(13.7649, 100.5383),
         distance_m=None,
@@ -294,8 +289,8 @@ def test_the_poi_types_module_04_produces_are_in_the_contract(
     """
     canonical, enums, records = m04
     place = records.EmergencyPlace(
-        place_id=f"ors_pois:osm:{place_type.lower()}",
-        place_type=enums.PlaceType(place_type),
+        poi_id=f"ors_pois:osm:{place_type.lower()}",
+        poi_type=enums.PlaceType(place_type),
         name="Somewhere",
         location=records.GeoPoint.from_lat_lon(13.7649, 100.5383),
         distance_m=120.0,
