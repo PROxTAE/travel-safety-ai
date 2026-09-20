@@ -1,22 +1,56 @@
 "use client";
 
 import { Button } from "@heroui/react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 export function RoutePlaceholder({
   title,
   description,
-}: Readonly<{ title: string; description: string }>) {
+  iconSrc = "/assets/branding/app-logo-mark.png",
+  mascotSrc = "/assets/mascot/mascot-welcome.png",
+}: Readonly<{
+  title: string;
+  description: string;
+  iconSrc?: string;
+  mascotSrc?: string;
+}>) {
   const router = useRouter();
 
   return (
-    <section className="page-card" aria-labelledby="page-title">
-      <p className="muted">Smart Travel Assistant</p>
-      <h1 id="page-title">{title}</h1>
-      <p>{description}</p>
-      <Button variant="secondary" onPress={() => router.push("/emergency")}>
-        Open Emergency Center
-      </Button>
+    <section className="route-screen" aria-labelledby="page-title">
+      <header className="route-heading">
+        <span className="route-heading-icon" aria-hidden="true">
+          <Image src={iconSrc} width={58} height={58} alt="" />
+        </span>
+        <span>
+          <h1 id="page-title">{title}</h1>
+          <p>{description}</p>
+        </span>
+      </header>
+
+      <div className="empty-workspace">
+        <div className="empty-workspace-copy">
+          <span className="availability-pill">
+            <span aria-hidden="true" /> No live data available
+          </span>
+          <h2>Your travel information will appear here</h2>
+          <p>
+            When live sources are available, this page will show current information with its source
+            and freshness.
+          </p>
+          <Button
+            className="emergency-action"
+            variant="secondary"
+            onPress={() => router.push("/emergency")}
+          >
+            Open Emergency Center
+          </Button>
+        </div>
+        <div className="empty-workspace-art" aria-hidden="true">
+          <Image src={mascotSrc} width={300} height={320} alt="" priority />
+        </div>
+      </div>
     </section>
   );
 }

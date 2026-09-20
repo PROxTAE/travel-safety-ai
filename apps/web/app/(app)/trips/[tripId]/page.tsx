@@ -5,6 +5,7 @@ export default function TripPage() {
     <RoutePlaceholder
       title="Trip details"
       description="Trip details and current assessment status will appear here."
+      iconSrc="/assets/icons/route.png"
     />
   );
 }

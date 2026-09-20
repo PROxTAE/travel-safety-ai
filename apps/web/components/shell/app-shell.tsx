@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { navigationItems } from "./navigation";
@@ -15,11 +16,9 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <div className="shell-grid">
       <aside className="app-sidebar" aria-label="Primary navigation">
-        <Link className="brand" href="/dashboard" aria-label="Smart Travel Assistant home">
-          <span className="brand-mark" aria-hidden="true">
-            ✦
-          </span>
-          <span className="nav-label">Smart Travel</span>
+        <Link className="sidebar-brand" href="/dashboard" aria-label="Smart Travel Assistant home">
+          <Image src="/assets/branding/app-logo-mark.png" width={76} height={76} alt="" priority />
+          <span className="sr-only">Smart Travel Assistant</span>
         </Link>
         <nav>
           <ul className="nav-list">
@@ -31,7 +30,7 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
                   data-active={isActive(pathname, item.href)}
                 >
                   <span className="nav-icon" aria-hidden="true">
-                    {item.icon}
+                    <Image src={item.icon} width={34} height={34} alt="" />
                   </span>
                   <span className="nav-label">{item.label}</span>
                 </Link>
@@ -39,30 +38,43 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
             ))}
           </ul>
         </nav>
+        <p className="sidebar-tagline" aria-hidden="true">
+          Travel safer.
+          <br />
+          Go further.
+        </p>
       </aside>
       <main className="app-main">
         <header className="app-header">
-          <Link className="brand" href="/dashboard">
-            <span className="brand-mark" aria-hidden="true">
-              ✦
-            </span>
-            <span>Smart Travel Assistant</span>
+          <Link className="header-brand" href="/dashboard" aria-label="Smart Travel Assistant home">
+            <Image
+              src="/assets/branding/logo-horizontal.png"
+              width={360}
+              height={120}
+              alt="Smart Travel Assistant"
+              priority
+            />
           </Link>
           <div className="profile-summary" aria-label="Profile summary">
-            <span className="profile-copy">
-              <strong>Hello, traveler</strong>
-              <br />
-              Sign in to personalize
+            <span className="header-sun" aria-hidden="true">
+              ☀
             </span>
-            <span className="profile-avatar" aria-hidden="true">
-              🙂
+            <span className="profile-copy">
+              <strong>Hello, Traveler!</strong>
+              <br />
+              Explore the world safely
+            </span>
+            <span className="profile-avatar">
+              <Image
+                src="/assets/branding/app-logo-mark.png"
+                width={42}
+                height={42}
+                alt="Guest profile"
+              />
             </span>
           </div>
         </header>
-        <div className="data-status" role="status">
-          Live travel data will appear here when you are signed in.
-        </div>
-        {children}
+        <div className="content-frame">{children}</div>
       </main>
       <nav className="mobile-nav" aria-label="Primary navigation">
         {navigationItems.map((item) => (
@@ -72,7 +84,8 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
             data-active={isActive(pathname, item.href)}
             aria-label={item.label}
           >
-            <span aria-hidden="true">{item.icon}</span>
+            <Image src={item.icon} width={30} height={30} alt="" aria-hidden="true" />
+            <span className="mobile-nav-label">{item.label}</span>
           </Link>
         ))}
       </nav>

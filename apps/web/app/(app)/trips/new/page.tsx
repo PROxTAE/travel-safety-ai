@@ -5,6 +5,7 @@ export default function NewTripPage() {
     <RoutePlaceholder
       title="Plan a new trip"
       description="Search and confirm your locations to start a real safety assessment."
+      iconSrc="/assets/icons/route.png"
     />
   );
 }

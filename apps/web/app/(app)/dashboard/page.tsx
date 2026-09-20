@@ -5,6 +5,7 @@ export default function DashboardPage() {
     <RoutePlaceholder
       title="Travel overview"
       description="Your sourced weather, transport and safety recommendation will appear here."
+      iconSrc="/assets/branding/app-logo-mark.png"
     />
   );
 }
