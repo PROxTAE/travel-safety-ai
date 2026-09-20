@@ -130,9 +130,7 @@ def validate_departure_window(
     return errors
 
 
-def validate_travel_modes(
-    modes: Sequence[str], *, supported: Iterable[str]
-) -> list[FieldError]:
+def validate_travel_modes(modes: Sequence[str], *, supported: Iterable[str]) -> list[FieldError]:
     """Refuse a mode this deployment has no real data source for.
 
     `UNSUPPORTED_COVERAGE` rather than a quiet acceptance. A flight leg that no provider covers

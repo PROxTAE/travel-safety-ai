@@ -134,9 +134,7 @@ def test_trip_requires_what_the_contract_requires() -> None:
     from app.schemas.trip import TripModel
 
     required = set(_schema("trip.schema.json")["required"])
-    non_optional = {
-        name for name, field in TripModel.model_fields.items() if field.is_required()
-    }
+    non_optional = {name for name, field in TripModel.model_fields.items() if field.is_required()}
 
     missing = required - non_optional
     assert not missing, f"optional here but required by the contract: {sorted(missing)}"

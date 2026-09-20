@@ -219,9 +219,9 @@ async def soft_delete(
 async def count_owned(session: AsyncSession, *, owner_id: uuid.UUID) -> int:
     """How many live trips the caller has. Used by the export job, not by the API."""
     total = await session.scalar(
-        select(func.count()).select_from(Trip).where(
-            Trip.user_id == owner_id, Trip.deleted_at.is_(None)
-        )
+        select(func.count())
+        .select_from(Trip)
+        .where(Trip.user_id == owner_id, Trip.deleted_at.is_(None))
     )
     return int(total or 0)
 

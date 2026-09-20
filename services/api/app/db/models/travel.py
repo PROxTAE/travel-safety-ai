@@ -128,9 +128,7 @@ class Trip(Base):
         comment="Most recent assessment started for this trip. Cleared when the journey changes.",
     )
 
-    status: Mapped[str] = mapped_column(
-        String(16), nullable=False, server_default=text("'DRAFT'")
-    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False, server_default=text("'DRAFT'"))
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

@@ -444,7 +444,7 @@ async def update_trip(
         # Includes `If-Match: *`, which means "whatever is current" — precisely the unconditional
         # overwrite this header exists to prevent.
         raise PreconditionFailed(
-            "If-Match must carry the revision you last read, for example W/\"3\"."
+            'If-Match must carry the revision you last read, for example W/"3".'
         )
 
     current = await trips.get_owned(session, owner_id=principal.user_id, trip_id=trip_id)

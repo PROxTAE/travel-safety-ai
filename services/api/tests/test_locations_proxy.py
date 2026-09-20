@@ -150,9 +150,7 @@ async def test_the_caller_never_supplies_a_url(client: httpx.AsyncClient, token:
     Anything else would make this service, which sits on the internal network holding a service
     credential, an SSRF proxy for everything behind the firewall.
     """
-    route = respx.post(GEOCODE_URL).mock(
-        return_value=httpx.Response(200, json=geocode_body())
-    )
+    route = respx.post(GEOCODE_URL).mock(return_value=httpx.Response(200, json=geocode_body()))
 
     await client.get(
         "/api/v1/locations/search",
@@ -169,9 +167,7 @@ async def test_the_profile_locale_chooses_the_language(
     client: httpx.AsyncClient, token: str
 ) -> None:
     """Someone whose account is Thai gets Thai place names without asking each time."""
-    route = respx.post(GEOCODE_URL).mock(
-        return_value=httpx.Response(200, json=geocode_body())
-    )
+    route = respx.post(GEOCODE_URL).mock(return_value=httpx.Response(200, json=geocode_body()))
     await client.patch("/api/v1/me", headers=auth(token), json={"locale": "th-TH"})
 
     await client.get("/api/v1/locations/search", headers=auth(token), params={"q": "กรุงเทพ"})
@@ -183,9 +179,7 @@ async def test_the_profile_locale_chooses_the_language(
 async def test_an_explicit_locale_overrides_the_profile(
     client: httpx.AsyncClient, token: str
 ) -> None:
-    route = respx.post(GEOCODE_URL).mock(
-        return_value=httpx.Response(200, json=geocode_body())
-    )
+    route = respx.post(GEOCODE_URL).mock(return_value=httpx.Response(200, json=geocode_body()))
     await client.patch("/api/v1/me", headers=auth(token), json={"locale": "th-TH"})
 
     await client.get(
@@ -198,9 +192,7 @@ async def test_an_explicit_locale_overrides_the_profile(
 
 
 @respx.mock
-async def test_the_response_is_privately_cacheable(
-    client: httpx.AsyncClient, token: str
-) -> None:
+async def test_the_response_is_privately_cacheable(client: httpx.AsyncClient, token: str) -> None:
     """Private: the query is something a person typed, and the answer follows their locale."""
     respx.post(GEOCODE_URL).mock(return_value=httpx.Response(200, json=geocode_body()))
 
@@ -217,9 +209,7 @@ async def test_the_correlation_id_reaches_the_internal_call(
     client: httpx.AsyncClient, token: str
 ) -> None:
     """A trace that stops at this service cannot answer why a search was slow."""
-    route = respx.post(GEOCODE_URL).mock(
-        return_value=httpx.Response(200, json=geocode_body())
-    )
+    route = respx.post(GEOCODE_URL).mock(return_value=httpx.Response(200, json=geocode_body()))
     correlation = str(uuid.uuid4())
 
     await client.get(
@@ -235,9 +225,7 @@ async def test_the_correlation_id_reaches_the_internal_call(
 
 
 async def test_a_one_character_query_is_rejected(client: httpx.AsyncClient, token: str) -> None:
-    response = await client.get(
-        "/api/v1/locations/search", headers=auth(token), params={"q": "x"}
-    )
+    response = await client.get("/api/v1/locations/search", headers=auth(token), params={"q": "x"})
 
     assert response.status_code == 400, response.text
 
@@ -272,9 +260,7 @@ async def test_an_unreachable_provider_is_not_an_empty_result(
 
 
 @respx.mock
-async def test_a_timeout_is_reported_as_a_timeout(
-    client: httpx.AsyncClient, token: str
-) -> None:
+async def test_a_timeout_is_reported_as_a_timeout(client: httpx.AsyncClient, token: str) -> None:
     respx.post(GEOCODE_URL).mock(side_effect=httpx.ReadTimeout("too slow"))
 
     response = await client.get(
@@ -375,20 +361,14 @@ async def test_a_missing_service_credential_reports_unavailable(
     from app.main import create_app
 
     with respx.mock(assert_all_mocked=False, assert_all_called=False) as mock:
-        route = mock.post(GEOCODE_URL).mock(
-            return_value=httpx.Response(200, json=geocode_body())
-        )
-        unconfigured = create_app(
-            live_settings.model_copy(update={"internal_service_token": None})
-        )
+        route = mock.post(GEOCODE_URL).mock(return_value=httpx.Response(200, json=geocode_body()))
+        unconfigured = create_app(live_settings.model_copy(update={"internal_service_token": None}))
         unconfigured.state.jwks = StubJwks.containing(key)
 
         async with unconfigured.router.lifespan_context(unconfigured):
             unconfigured.state.jwks = StubJwks.containing(key)
             transport = httpx.ASGITransport(app=unconfigured, raise_app_exceptions=False)
-            async with httpx.AsyncClient(
-                transport=transport, base_url="http://testserver"
-            ) as bare:
+            async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as bare:
                 response = await bare.get(
                     "/api/v1/locations/search", headers=auth(token), params={"q": "Bangkok"}
                 )

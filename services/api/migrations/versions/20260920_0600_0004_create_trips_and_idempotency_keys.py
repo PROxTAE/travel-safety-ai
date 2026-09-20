@@ -130,9 +130,7 @@ def upgrade() -> None:
             "deleted_at",
             sa.DateTime(timezone=True),
             nullable=True,
-            comment=(
-                "Soft delete; the purge of child data runs asynchronously under retention."
-            ),
+            comment=("Soft delete; the purge of child data runs asynchronously under retention."),
         ),
         sa.CheckConstraint("revision >= 1", name=op.f("ck_trips_revision_positive")),
         sa.CheckConstraint(

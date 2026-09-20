@@ -119,9 +119,7 @@ async def test_an_unconfirmed_origin_is_refused(client: httpx.AsyncClient, token
     assert error["field_errors"][0]["code"] == "NOT_CONFIRMED"
 
 
-async def test_a_swapped_coordinate_pair_is_refused(
-    client: httpx.AsyncClient, token: str
-) -> None:
+async def test_a_swapped_coordinate_pair_is_refused(client: httpx.AsyncClient, token: str) -> None:
     """Bangkok is [100.5, 13.75]. Reversed, the latitude is 100.5, which is not a latitude.
 
     Without the per-element bound this would validate and quietly relocate the trip.
@@ -240,9 +238,7 @@ async def test_two_users_may_use_the_same_key(
 # --- read and ownership -------------------------------------------------------------------------
 
 
-async def test_a_trip_can_be_read_back_with_its_etag(
-    client: httpx.AsyncClient, token: str
-) -> None:
+async def test_a_trip_can_be_read_back_with_its_etag(client: httpx.AsyncClient, token: str) -> None:
     created = await create(client, token)
     trip_id = created.json()["data"]["trip_id"]
 
@@ -265,18 +261,14 @@ async def test_another_users_trip_is_reported_as_not_found(
     assert response.json()["error"]["code"] == "NOT_FOUND"
 
 
-async def test_an_unknown_trip_gives_the_same_answer(
-    client: httpx.AsyncClient, token: str
-) -> None:
+async def test_an_unknown_trip_gives_the_same_answer(client: httpx.AsyncClient, token: str) -> None:
     """Identical to the previous case on purpose: the two must not be distinguishable."""
     response = await client.get(f"/api/v1/trips/{uuid.uuid4()}", headers=auth(token))
 
     assert response.status_code == 404, response.text
 
 
-async def test_a_trip_cannot_be_read_without_a_token(
-    client: httpx.AsyncClient, token: str
-) -> None:
+async def test_a_trip_cannot_be_read_without_a_token(client: httpx.AsyncClient, token: str) -> None:
     created = await create(client, token)
 
     response = await client.get(f"/api/v1/trips/{created.json()['data']['trip_id']}")
@@ -302,9 +294,7 @@ async def test_an_update_increments_the_revision(client: httpx.AsyncClient, toke
     assert response.headers["ETag"] == 'W/"2"'
 
 
-async def test_an_update_without_if_match_is_refused(
-    client: httpx.AsyncClient, token: str
-) -> None:
+async def test_an_update_without_if_match_is_refused(client: httpx.AsyncClient, token: str) -> None:
     """428, so the client knows the request would be accepted with the header."""
     created = await create(client, token)
     trip_id = created.json()["data"]["trip_id"]
@@ -564,9 +554,7 @@ async def test_trips_come_back_newest_departure_first(
     assert departures == sorted(departures, reverse=True)
 
 
-async def test_paging_returns_every_row_exactly_once(
-    client: httpx.AsyncClient, token: str
-) -> None:
+async def test_paging_returns_every_row_exactly_once(client: httpx.AsyncClient, token: str) -> None:
     """The bug keyset pagination exists to avoid: a boundary that hides or repeats a row."""
     base = datetime.now(UTC) + timedelta(days=2)
     for offset in range(5):
@@ -622,9 +610,7 @@ async def test_a_handmade_cursor_is_rejected(client: httpx.AsyncClient, token: s
     assert [item["path"] for item in response.json()["error"]["field_errors"]] == ["cursor"]
 
 
-async def test_an_unknown_status_filter_is_rejected(
-    client: httpx.AsyncClient, token: str
-) -> None:
+async def test_an_unknown_status_filter_is_rejected(client: httpx.AsyncClient, token: str) -> None:
     response = await client.get(
         "/api/v1/trips", headers=auth(token), params={"status": "GOING_WELL"}
     )

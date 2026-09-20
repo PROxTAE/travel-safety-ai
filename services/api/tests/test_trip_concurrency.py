@@ -96,9 +96,7 @@ async def test_only_one_of_two_simultaneous_updates_wins(
     assert winners[0].revision == 2
 
 
-async def test_the_loser_can_retry_after_re_reading(
-    live_app: FastAPI, owner_id: uuid.UUID
-) -> None:
+async def test_the_loser_can_retry_after_re_reading(live_app: FastAPI, owner_id: uuid.UUID) -> None:
     """412 is only useful if the documented recovery actually works."""
     async with session_scope(live_app.state.session_factory) as session:
         created = await trips.create(session, owner_id=owner_id, values=trip_values())
@@ -202,9 +200,7 @@ async def test_two_concurrent_claims_of_one_key_produce_one_trip(
         async with session_scope(live_app.state.session_factory) as session:
             try:
                 async with session.begin_nested():
-                    created = await trips.create(
-                        session, owner_id=owner_id, values=trip_values()
-                    )
+                    created = await trips.create(session, owner_id=owner_id, values=trip_values())
                     await idempotency.record(
                         session,
                         owner_id=owner_id,
@@ -223,8 +219,6 @@ async def test_two_concurrent_claims_of_one_key_produce_one_trip(
 
     async with session_scope(live_app.state.session_factory) as session:
         remaining = await session.scalar(
-            text("SELECT count(*) FROM travel.trips WHERE user_id = :uid").bindparams(
-                uid=owner_id
-            )
+            text("SELECT count(*) FROM travel.trips WHERE user_id = :uid").bindparams(uid=owner_id)
         )
     assert remaining == 1, "the losing attempt left an orphan trip behind"

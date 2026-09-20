@@ -117,9 +117,7 @@ class ExternalDataClient:
                 path=GEOCODE_PATH,
                 error_type=type(exc).__name__,
             )
-            raise DependencyUnavailable(
-                DEPENDENCY, message="Place search is unavailable."
-            ) from exc
+            raise DependencyUnavailable(DEPENDENCY, message="Place search is unavailable.") from exc
 
         if response.status_code >= 500:
             logger.warning(
