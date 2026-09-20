@@ -11,11 +11,14 @@ from app.db.models.identity import (
     EmergencyProfile,
     UserProfile,
 )
+from app.db.models.travel import IdempotencyKey, Trip
 
 __all__ = [
     "AuditLogEntry",
     "Consent",
     "DataSubjectRequest",
     "EmergencyProfile",
+    "IdempotencyKey",
+    "Trip",
     "UserProfile",
 ]
