@@ -1,0 +1,141 @@
+{
+  "_note": "Geometry and steps are truncated here for readability - the real response carries 442 positions and 20 steps. exposure is null and risk_level is UNKNOWN because module 04 has no view on hazards; the contract now enforces that an unassessed route cannot claim a risk level.",
+  "_generated_from": "real captured provider responses in services/external-data/tests/fixtures/real-sanitized/",
+  "_warning": "Sample output, not a contract. packages/contracts is the contract. Timestamps are from generation time and will look stale.",
+  "records": [
+    {
+      "route_id": "openrouteservice:3ca4459b8d41b503",
+      "provider_route_id": "0@3ca4459b8d41b503",
+      "label": "ORIGINAL",
+      "mode": "CAR",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            100.538733,
+            13.764725
+          ],
+          [
+            100.538688,
+            13.76462
+          ],
+          [
+            100.538591,
+            13.764488
+          ],
+          [
+            100.538406,
+            13.76437
+          ],
+          [
+            100.538268,
+            13.764343
+          ]
+        ]
+      },
+      "segments": [
+        {
+          "segment_id": "0",
+          "mode": "CAR",
+          "from_name": null,
+          "to_name": null,
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                100.538733,
+                13.764725
+              ],
+              [
+                100.538688,
+                13.76462
+              ],
+              [
+                100.538591,
+                13.764488
+              ],
+              [
+                100.538406,
+                13.76437
+              ],
+              [
+                100.538268,
+                13.764343
+              ]
+            ]
+          },
+          "distance_m": 73688.3,
+          "duration_seconds": 3183.8,
+          "departure_time": null,
+          "arrival_time": null,
+          "transport_status_id": null,
+          "steps": [
+            {
+              "distance_m": 334.8,
+              "duration_seconds": 64.9,
+              "instruction": "Head southwest on ถนนราชวิถี",
+              "street_name": "ถนนราชวิถี",
+              "way_points": [
+                0,
+                21
+              ]
+            },
+            {
+              "distance_m": 768.1,
+              "duration_seconds": 87.4,
+              "instruction": "Continue straight onto ถนนราชวิถี",
+              "street_name": "ถนนราชวิถี",
+              "way_points": [
+                21,
+                44
+              ]
+            }
+          ]
+        }
+      ],
+      "distance_m": 73688.3,
+      "duration_seconds": 3183.8,
+      "transfers": 0,
+      "exposure": null,
+      "risk_level": "UNKNOWN",
+      "quality": {
+        "status": "FRESH",
+        "score": null,
+        "score_version": null,
+        "flags": [
+          "INCOMPLETE"
+        ],
+        "coverage": null,
+        "completeness": null,
+        "freshness_seconds": 689760,
+        "conflicts": [],
+        "notes": [
+          "exposure and risk_level are not set by module 04 - a routing provider has no view on hazards; they are filled by /internal/v1/routes/evaluate",
+          "freshness is the age of the road graph (built 2026-09-12), not the age of this request"
+        ]
+      },
+      "sources": [
+        {
+          "source_id": "openrouteservice:0@3ca4459b8d41b503",
+          "provider": "openrouteservice",
+          "provider_record_id": "0@3ca4459b8d41b503",
+          "authority": "LICENSED_PROVIDER",
+          "source_url": "https://example.invalid/captured",
+          "license": "openrouteservice terms (CC-BY-4.0 style attribution)",
+          "observed_at": null,
+          "published_at": "2026-09-12T17:48:32Z",
+          "fetched_at": "2026-09-20T17:24:32.117030Z",
+          "expires_at": "2026-09-20T18:24:32.117030Z",
+          "content_hash": "sha256:6462df6477adce77c64e854c9211c46f3415c476eb13c1fd621826891e82ff23",
+          "schema_version": "1.0.0"
+        }
+      ],
+      "bbox": [
+        100.537762,
+        13.762822,
+        100.620884,
+        14.354648
+      ]
+    }
+  ]
+}
