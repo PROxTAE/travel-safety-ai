@@ -138,8 +138,14 @@ async def request_token(username: str, password: str, *, scope: str) -> httpx.Re
 
 
 @pytest.fixture
-async def keycloak_app(live_settings: Any) -> AsyncIterator[FastAPI]:
-    """The real app, pointed at the real realm, with the real JWKS cache."""
+async def keycloak_app(keycloak_available: bool, live_settings: Any) -> AsyncIterator[FastAPI]:
+    """The real app, pointed at the real realm, with the real JWKS cache.
+
+    `keycloak_available` is requested for its skip, not its value. Without it the tests that reach
+    this fixture without also asking for a realm-backed one — the JWKS fetch and the readiness
+    check — ran in CI, where no realm exists, and failed on an empty key set and a red `oidc`
+    probe instead of skipping like the rest of the file.
+    """
     from app.main import create_app
     from tests.conftest import build_settings
 
