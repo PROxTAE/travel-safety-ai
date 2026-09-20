@@ -1,0 +1,1566 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "bbox": [
+        105.229,
+        29.2752,
+        105.229,
+        29.2752
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          105.229,
+          29.2752
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1562260,
+        "episodeid": 1729706,
+        "eventname": "",
+        "glide": "EQ-2026-000168-CHN",
+        "name": "Earthquake in China",
+        "description": "Earthquake in China",
+        "htmldescription": "Orange M 5 Earthquake in China at: 28 Aug 2026 05:13:35.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1562260&episodeid=1729706",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1562260&episodeid=1729706&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1562260"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.02196166728945,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "China",
+        "fromdate": "2026-08-28T05:13:35",
+        "todate": "2026-08-28T05:13:35",
+        "datemodified": "2026-08-28T07:04:27",
+        "iso3": "CHN",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "CN",
+            "iso3": "CHN",
+            "countryname": "China"
+          }
+        ],
+        "severitydata": {
+          "severity": 5.0,
+          "severitytext": "Magnitude 5M, Depth:10km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        121.3517,
+        -8.3101,
+        121.3517,
+        -8.3101
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.3517,
+          -8.3101
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1558059,
+        "episodeid": 1725109,
+        "eventname": "",
+        "glide": "",
+        "name": "Earthquake in Indonesia",
+        "description": "Earthquake in Indonesia",
+        "htmldescription": "Red M 7.7 Earthquake in Indonesia at: 14 Aug 2026 21:58:21.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Red/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Red/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1558059&episodeid=1725109",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1558059&episodeid=1725109&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1558059"
+        },
+        "alertlevel": "Red",
+        "alertscore": 3,
+        "episodealertlevel": "Red",
+        "episodealertscore": 2.14589742473401,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Indonesia",
+        "fromdate": "2026-08-14T21:58:21",
+        "todate": "2026-08-14T21:58:21",
+        "datemodified": "2026-09-19T07:45:26",
+        "iso3": "IDN",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "ID",
+            "iso3": "IDN",
+            "countryname": "Indonesia"
+          }
+        ],
+        "severitydata": {
+          "severity": 7.7,
+          "severitytext": "Magnitude 7.7M, Depth:10km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        -76.2422,
+        4.8436,
+        -76.2422,
+        4.8436
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -76.2422,
+          4.8436
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1557236,
+        "episodeid": 1724218,
+        "eventname": "",
+        "glide": "",
+        "name": "Earthquake in Colombia",
+        "description": "Earthquake in Colombia",
+        "htmldescription": "Red M 7.4 Earthquake in Colombia at: 10 Aug 2026 12:34:28.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Red/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Red/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1557236&episodeid=1724218",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1557236&episodeid=1724218&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1557236"
+        },
+        "alertlevel": "Red",
+        "alertscore": 3,
+        "episodealertlevel": "Red",
+        "episodealertscore": 2.27096883026439,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Colombia",
+        "fromdate": "2026-08-10T12:34:28",
+        "todate": "2026-08-10T12:34:28",
+        "datemodified": "2026-09-19T07:45:27",
+        "iso3": "COL",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "CO",
+            "iso3": "COL",
+            "countryname": "Colombia"
+          }
+        ],
+        "severitydata": {
+          "severity": 7.4,
+          "severitytext": "Magnitude 7.4M, Depth:110.285km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        125.276,
+        5.1812,
+        125.276,
+        5.1812
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          125.276,
+          5.1812
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1556215,
+        "episodeid": 1723078,
+        "eventname": "",
+        "glide": "",
+        "name": "Earthquake in Philippines",
+        "description": "Earthquake in Philippines",
+        "htmldescription": "Orange M 6.3 Earthquake in Philippines at: 05 Aug 2026 04:14:06.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1556215&episodeid=1723078",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1556215&episodeid=1723078&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1556215"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.07318512524065,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Philippines",
+        "fromdate": "2026-08-05T04:14:06",
+        "todate": "2026-08-05T04:14:06",
+        "datemodified": "2026-08-06T14:02:30",
+        "iso3": "PHL",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "PH",
+            "iso3": "PHL",
+            "countryname": "Philippines"
+          }
+        ],
+        "severitydata": {
+          "severity": 6.3,
+          "severitytext": "Magnitude 6.3M, Depth:10km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        130.7217,
+        32.6817,
+        130.7217,
+        32.6817
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          130.7217,
+          32.6817
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1554552,
+        "episodeid": 1721238,
+        "eventname": "",
+        "glide": "EQ-2026-000135-JPN",
+        "name": "Earthquake in Japan",
+        "description": "Earthquake in Japan",
+        "htmldescription": "Orange M 6.8 Earthquake in Japan at: 28 Jul 2026 07:27:15.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1554552&episodeid=1721238",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1554552&episodeid=1721238&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1554552"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.04568866159891,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Japan",
+        "fromdate": "2026-07-28T07:27:15",
+        "todate": "2026-07-28T07:27:15",
+        "datemodified": "2026-09-19T07:40:15",
+        "iso3": "JPN",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "JP",
+            "iso3": "JPN",
+            "countryname": "Japan"
+          }
+        ],
+        "severitydata": {
+          "severity": 6.8,
+          "severitytext": "Magnitude 6.8M, Depth:10km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        99.5198,
+        35.3685,
+        99.5198,
+        35.3685
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.5198,
+          35.3685
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1554510,
+        "episodeid": 1721184,
+        "eventname": "",
+        "glide": "",
+        "name": "Earthquake in China",
+        "description": "Earthquake in China",
+        "htmldescription": "Orange M 5.7 Earthquake in China at: 28 Jul 2026 03:16:08.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1554510&episodeid=1721184",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1554510&episodeid=1721184&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1554510"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.34010816441183,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "China",
+        "fromdate": "2026-07-28T03:16:08",
+        "todate": "2026-07-28T03:16:08",
+        "datemodified": "2026-08-05T02:05:35",
+        "iso3": "CHN",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "CN",
+            "iso3": "CHN",
+            "countryname": "China"
+          }
+        ],
+        "severitydata": {
+          "severity": 5.7,
+          "severitytext": "Magnitude 5.7M, Depth:10km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        -75.3034,
+        -12.1036,
+        -75.3034,
+        -12.1036
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -75.3034,
+          -12.1036
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1552752,
+        "episodeid": 1719805,
+        "eventname": "",
+        "glide": "",
+        "name": "Earthquake in Peru",
+        "description": "Earthquake in Peru",
+        "htmldescription": "Orange M 5.5 Earthquake in Peru at: 19 Jul 2026 02:24:35.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1552752&episodeid=1719805",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1552752&episodeid=1719805&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1552752"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.93224355119598,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Peru",
+        "fromdate": "2026-07-19T02:24:35",
+        "todate": "2026-07-19T02:24:35",
+        "datemodified": "2026-07-22T02:06:24",
+        "iso3": "PER",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "PE",
+            "iso3": "PER",
+            "countryname": "Peru"
+          }
+        ],
+        "severitydata": {
+          "severity": 5.5,
+          "severitytext": "Magnitude 5.5M, Depth:10km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        125.1965,
+        5.2392,
+        125.1965,
+        5.2392
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          125.1965,
+          5.2392
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1548668,
+        "episodeid": 1714645,
+        "eventname": "",
+        "glide": "",
+        "name": "Earthquake in Philippines",
+        "description": "Earthquake in Philippines",
+        "htmldescription": "Orange M 6.5 Earthquake in Philippines at: 26 Jun 2026 11:34:41.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1548668&episodeid=1714645",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1548668&episodeid=1714645&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1548668"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.16567254335647,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Philippines",
+        "fromdate": "2026-06-26T11:34:41",
+        "todate": "2026-06-26T11:34:41",
+        "datemodified": "2026-06-27T14:03:54",
+        "iso3": "PHL",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "PH",
+            "iso3": "PHL",
+            "countryname": "Philippines"
+          }
+        ],
+        "severitydata": {
+          "severity": 6.5,
+          "severitytext": "Magnitude 6.5M, Depth:42km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        -68.5139,
+        10.453,
+        -68.5139,
+        10.453
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -68.5139,
+          10.453
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1548377,
+        "episodeid": 1714328,
+        "eventname": "",
+        "glide": "",
+        "name": "Earthquake in Venezuela",
+        "description": "Earthquake in Venezuela",
+        "htmldescription": "Red M 7.5 Earthquake in Venezuela at: 24 Jun 2026 22:05:12.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Red/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Red/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1548377&episodeid=1714328",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1548377&episodeid=1714328&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1548377"
+        },
+        "alertlevel": "Red",
+        "alertscore": 3,
+        "episodealertlevel": "Red",
+        "episodealertscore": 2.46930149234461,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Venezuela",
+        "fromdate": "2026-06-24T22:05:12",
+        "todate": "2026-06-24T22:05:12",
+        "datemodified": "2026-09-19T07:40:22",
+        "iso3": "VEN",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "VE",
+            "iso3": "VEN",
+            "countryname": "Venezuela"
+          }
+        ],
+        "severitydata": {
+          "severity": 7.5,
+          "severitytext": "Magnitude 7.5M, Depth:10km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        -68.5277,
+        10.436,
+        -68.5277,
+        10.436
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -68.5277,
+          10.436
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1548473,
+        "episodeid": 1714423,
+        "eventname": "",
+        "glide": "",
+        "name": "Earthquake in Venezuela",
+        "description": "Earthquake in Venezuela",
+        "htmldescription": "Red M 7.2 Earthquake in Venezuela at: 24 Jun 2026 22:04:32.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Red/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Red/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1548473&episodeid=1714423",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1548473&episodeid=1714423&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1548473"
+        },
+        "alertlevel": "Red",
+        "alertscore": 3,
+        "episodealertlevel": "Red",
+        "episodealertscore": 2.2751371095533,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Venezuela",
+        "fromdate": "2026-06-24T22:04:32",
+        "todate": "2026-06-24T22:04:32",
+        "datemodified": "2026-09-19T07:40:22",
+        "iso3": "VEN",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "VE",
+            "iso3": "VEN",
+            "countryname": "Venezuela"
+          }
+        ],
+        "severitydata": {
+          "severity": 7.2,
+          "severitytext": "Magnitude 7.2M, Depth:20.294km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        95.4028,
+        37.8888,
+        95.4028,
+        37.8888
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          95.4028,
+          37.8888
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1546719,
+        "episodeid": 1712478,
+        "eventname": "",
+        "glide": "EQ-2026-000088-CHN",
+        "name": "Earthquake in China",
+        "description": "Earthquake in China",
+        "htmldescription": "Orange M 6.3 Earthquake in China at: 16 Jun 2026 09:06:55.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1546719&episodeid=1712478",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1546719&episodeid=1712478&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1546719"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.97557264355714,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "China",
+        "fromdate": "2026-06-16T09:06:55",
+        "todate": "2026-06-16T09:06:55",
+        "datemodified": "2026-06-18T02:00:44",
+        "iso3": "CHN",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "CN",
+            "iso3": "CHN",
+            "countryname": "China"
+          }
+        ],
+        "severitydata": {
+          "severity": 6.3,
+          "severitytext": "Magnitude 6.3M, Depth:10km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        120.2301,
+        -1.1312,
+        120.2301,
+        -1.1312
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.2301,
+          -1.1312
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1546617,
+        "episodeid": 1712368,
+        "eventname": "",
+        "glide": "",
+        "name": "Earthquake in Indonesia",
+        "description": "Earthquake in Indonesia",
+        "htmldescription": "Orange M 6.7 Earthquake in Indonesia at: 16 Jun 2026 03:27:44.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1546617&episodeid=1712368",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1546617&episodeid=1712368&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1546617"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.88036671588976,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Indonesia",
+        "fromdate": "2026-06-16T03:27:44",
+        "todate": "2026-06-16T03:27:44",
+        "datemodified": "2026-09-19T07:40:22",
+        "iso3": "IDN",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "ID",
+            "iso3": "IDN",
+            "countryname": "Indonesia"
+          }
+        ],
+        "severitydata": {
+          "severity": 6.7,
+          "severitytext": "Magnitude 6.7M, Depth:10km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        125.0469,
+        5.5918,
+        125.0469,
+        5.5918
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          125.0469,
+          5.5918
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1544720,
+        "episodeid": 1710268,
+        "eventname": "",
+        "glide": "",
+        "name": "Earthquake in Philippines",
+        "description": "Earthquake in Philippines",
+        "htmldescription": "Orange M 7.8 Earthquake in Philippines at: 07 Jun 2026 23:37:40.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1544720&episodeid=1710268",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1544720&episodeid=1710268&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1544720"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.85732597406707,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Philippines",
+        "fromdate": "2026-06-07T23:37:40",
+        "todate": "2026-06-07T23:37:40",
+        "datemodified": "2026-09-19T07:40:22",
+        "iso3": "PHL",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "PH",
+            "iso3": "PHL",
+            "countryname": "Philippines"
+          }
+        ],
+        "severitydata": {
+          "severity": 7.8,
+          "severitytext": "Magnitude 7.8M, Depth:55.193km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        109.2073,
+        24.4799,
+        109.2073,
+        24.4799
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          109.2073,
+          24.4799
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1541314,
+        "episodeid": 1706481,
+        "eventname": "",
+        "glide": "EQ-2026-000073-CHN",
+        "name": "Earthquake in China",
+        "description": "Earthquake in China",
+        "htmldescription": "Orange M 5.1 Earthquake in China at: 18 May 2026 13:44:26.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1541314&episodeid=1706481",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1541314&episodeid=1706481&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1541314"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.3170899011268,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "China",
+        "fromdate": "2026-05-18T13:44:26",
+        "todate": "2026-05-18T13:44:26",
+        "datemodified": "2026-05-23T03:00:26",
+        "iso3": "CHN",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "CN",
+            "iso3": "CHN",
+            "countryname": "China"
+          }
+        ],
+        "severitydata": {
+          "severity": 5.1,
+          "severitytext": "Magnitude 5.1M, Depth:10km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        143.0462,
+        39.9532,
+        143.0462,
+        39.9532
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          143.0462,
+          39.9532
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1536386,
+        "episodeid": 1701063,
+        "eventname": "",
+        "glide": "EQ-2026-000057-JPN",
+        "name": "Earthquake in Japan",
+        "description": "Earthquake in Japan",
+        "htmldescription": "Orange M 7.4 Earthquake in Japan at: 20 Apr 2026 07:53:00.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1536386&episodeid=1701063",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1536386&episodeid=1701063&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1536386"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.005,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Japan",
+        "fromdate": "2026-04-20T07:53:00",
+        "todate": "2026-04-20T07:53:00",
+        "datemodified": "2026-04-21T09:01:16",
+        "iso3": "JPN",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "JP",
+            "iso3": "JPN",
+            "countryname": "Japan"
+          }
+        ],
+        "severitydata": {
+          "severity": 7.4,
+          "severitytext": "Magnitude 7.4M, Depth:35km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        89.1394,
+        22.4513,
+        89.1394,
+        22.4513
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          89.1394,
+          22.4513
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1526507,
+        "episodeid": 1690089,
+        "eventname": "",
+        "glide": "",
+        "name": "Earthquake in Bangladesh",
+        "description": "Earthquake in Bangladesh",
+        "htmldescription": "Orange M 5.3 Earthquake in Bangladesh at: 27 Feb 2026 07:52:24.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1526507&episodeid=1690089",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1526507&episodeid=1690089&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1526507"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.40097388459505,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Bangladesh",
+        "fromdate": "2026-02-27T07:52:24",
+        "todate": "2026-02-27T07:52:24",
+        "datemodified": "2026-04-15T15:14:42",
+        "iso3": "BGD",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "BD",
+            "iso3": "BGD",
+            "countryname": "Bangladesh"
+          }
+        ],
+        "severitydata": {
+          "severity": 5.3,
+          "severitytext": "Magnitude 5.3M, Depth:9.751km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        90.6489,
+        23.8079,
+        90.6489,
+        23.8079
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          90.6489,
+          23.8079
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1511252,
+        "episodeid": 1673729,
+        "eventname": "",
+        "glide": "",
+        "name": "Earthquake in Bangladesh",
+        "description": "Earthquake in Bangladesh",
+        "htmldescription": "Orange M 5.4 Earthquake in Bangladesh at: 21 Nov 2025 04:38:28.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1511252&episodeid=1673729",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1511252&episodeid=1673729&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1511252"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.67378070876879,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Bangladesh",
+        "fromdate": "2025-11-21T04:38:28",
+        "todate": "2025-11-21T04:38:28",
+        "datemodified": "2025-11-27T11:13:45",
+        "iso3": "BGD",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "BD",
+            "iso3": "BGD",
+            "countryname": "Bangladesh"
+          }
+        ],
+        "severitydata": {
+          "severity": 5.4,
+          "severitytext": "Magnitude 5.4M, Depth:27km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        67.4843,
+        36.5894,
+        67.4843,
+        36.5894
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          67.4843,
+          36.5894
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1508467,
+        "episodeid": 1669785,
+        "eventname": "",
+        "glide": "EQ-2025-000202-AFG",
+        "name": "Earthquake in Afghanistan",
+        "description": "Earthquake in Afghanistan",
+        "htmldescription": "Red M 6.3 Earthquake in Afghanistan at: 02 Nov 2025 20:29:02.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Red/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Red/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1508467&episodeid=1669785",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1508467&episodeid=1669785&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1508467"
+        },
+        "alertlevel": "Red",
+        "alertscore": 3,
+        "episodealertlevel": "Red",
+        "episodealertscore": 3.04796336083887,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Afghanistan",
+        "fromdate": "2025-11-02T20:29:02",
+        "todate": "2025-11-02T20:29:02",
+        "datemodified": "2026-02-11T12:10:14.497",
+        "iso3": "AFG",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "AF",
+            "iso3": "AFG",
+            "countryname": "Afghanistan"
+          }
+        ],
+        "severitydata": {
+          "severity": 6.3,
+          "severitytext": "Magnitude 6.3M, Depth:28km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        28.2462,
+        39.1921,
+        28.2462,
+        39.1921
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          28.2462,
+          39.1921
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1507329,
+        "episodeid": 1668520,
+        "eventname": "",
+        "glide": "EQ-2025-000197-TUR",
+        "name": "Earthquake in Türkiye",
+        "description": "Earthquake in Türkiye",
+        "htmldescription": "Orange M 6 Earthquake in Türkiye at: 27 Oct 2025 19:48:29.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1507329&episodeid=1668520",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1507329&episodeid=1668520&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1507329"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.53623973572392,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Türkiye",
+        "fromdate": "2025-10-27T19:48:29",
+        "todate": "2025-10-27T19:48:29",
+        "datemodified": "2025-10-29T15:00:37",
+        "iso3": "TUR",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "TR",
+            "iso3": "TUR",
+            "countryname": "Türkiye"
+          }
+        ],
+        "severitydata": {
+          "severity": 6.0,
+          "severitytext": "Magnitude 6M, Depth:10km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        123.9375,
+        10.9457,
+        123.9375,
+        10.9457
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          123.9375,
+          10.9457
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1504796,
+        "episodeid": 1665698,
+        "eventname": "",
+        "glide": "EQ-2025-000192-PHL",
+        "name": "Earthquake in Philippines",
+        "description": "Earthquake in Philippines",
+        "htmldescription": "Orange M 5.7 Earthquake in Philippines at: 12 Oct 2025 17:05:59.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1504796&episodeid=1665698",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1504796&episodeid=1665698&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1504796"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.30992531920971,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Philippines",
+        "fromdate": "2025-10-12T17:05:59",
+        "todate": "2025-10-12T17:05:59",
+        "datemodified": "2025-10-14T15:00:42",
+        "iso3": "PHL",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "PH",
+            "iso3": "PHL",
+            "countryname": "Philippines"
+          }
+        ],
+        "severitydata": {
+          "severity": 5.7,
+          "severitytext": "Magnitude 5.7M, Depth:10km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        39.8663,
+        13.7902,
+        39.8663,
+        13.7902
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          39.8663,
+          13.7902
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1504616,
+        "episodeid": 1665515,
+        "eventname": "",
+        "glide": "EQ-2025-000191-ETH",
+        "name": "Earthquake in Ethiopia",
+        "description": "Earthquake in Ethiopia",
+        "htmldescription": "Orange M 5.6 Earthquake in Ethiopia at: 11 Oct 2025 16:18:25.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1504616&episodeid=1665515",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1504616&episodeid=1665515&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1504616"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.00888044629637,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Ethiopia",
+        "fromdate": "2025-10-11T16:18:25",
+        "todate": "2025-10-11T16:18:25",
+        "datemodified": "2025-10-14T15:00:40",
+        "iso3": "ETH",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "ET",
+            "iso3": "ETH",
+            "countryname": "Ethiopia"
+          }
+        ],
+        "severitydata": {
+          "severity": 5.6,
+          "severitytext": "Magnitude 5.6M, Depth:10km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        126.7545,
+        7.2649,
+        126.7545,
+        7.2649
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          126.7545,
+          7.2649
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1504268,
+        "episodeid": 1665061,
+        "eventname": "",
+        "glide": "EQ-2025-000189-PHL",
+        "name": "Earthquake in Philippines",
+        "description": "Earthquake in Philippines",
+        "htmldescription": "Orange M 7.4 Earthquake in Philippines at: 10 Oct 2025 01:43:59.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1504268&episodeid=1665061",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1504268&episodeid=1665061&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1504268"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.53345744983787,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Philippines",
+        "fromdate": "2025-10-10T01:43:59",
+        "todate": "2025-10-10T01:43:59",
+        "datemodified": "2025-10-11T17:00:57",
+        "iso3": "PHL",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "PH",
+            "iso3": "PHL",
+            "countryname": "Philippines"
+          }
+        ],
+        "severitydata": {
+          "severity": 7.4,
+          "severitytext": "Magnitude 7.4M, Depth:58.087km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        99.92,
+        30.9113,
+        99.92,
+        30.9113
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          99.92,
+          30.9113
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1504188,
+        "episodeid": 1664983,
+        "eventname": "",
+        "glide": "EQ-2025-000188-CHN",
+        "name": "Earthquake in China",
+        "description": "Earthquake in China",
+        "htmldescription": "Orange M 5.5 Earthquake in China at: 09 Oct 2025 05:17:40.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1504188&episodeid=1664983",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1504188&episodeid=1664983&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1504188"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.05093481375371,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "China",
+        "fromdate": "2025-10-09T05:17:40",
+        "todate": "2025-10-09T05:17:40",
+        "datemodified": "2025-10-11T15:00:53",
+        "iso3": "CHN",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "CN",
+            "iso3": "CHN",
+            "countryname": "China"
+          }
+        ],
+        "severitydata": {
+          "severity": 5.5,
+          "severitytext": "Magnitude 5.5M, Depth:10km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        124.1376,
+        11.1514,
+        124.1376,
+        11.1514
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          124.1376,
+          11.1514
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1502713,
+        "episodeid": 1663312,
+        "eventname": "",
+        "glide": "EQ-2025-000181-PHL",
+        "name": "Earthquake in Philippines",
+        "description": "Earthquake in Philippines",
+        "htmldescription": "Orange M 6.9 Earthquake in Philippines at: 30 Sep 2025 13:59:43.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1502713&episodeid=1663312",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1502713&episodeid=1663312&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1502713"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.74280597137795,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Philippines",
+        "fromdate": "2025-09-30T13:59:43",
+        "todate": "2025-09-30T13:59:43",
+        "datemodified": "2025-10-02T15:01:34",
+        "iso3": "PHL",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "PH",
+            "iso3": "PHL",
+            "countryname": "Philippines"
+          }
+        ],
+        "severitydata": {
+          "severity": 6.9,
+          "severitytext": "Magnitude 6.9M, Depth:10km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        -70.6916,
+        9.9272,
+        -70.6916,
+        9.9272
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -70.6916,
+          9.9272
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1501948,
+        "episodeid": 1662434,
+        "eventname": "",
+        "glide": "EQ-2025-000175-VEN",
+        "name": "Earthquake in Venezuela",
+        "description": "Earthquake in Venezuela",
+        "htmldescription": "Orange M 6.3 Earthquake in Venezuela at: 25 Sep 2025 03:51:39.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1501948&episodeid=1662434",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1501948&episodeid=1662434&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1501948"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.11596182069929,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Venezuela",
+        "fromdate": "2025-09-25T03:51:39",
+        "todate": "2025-09-25T03:51:39",
+        "datemodified": "2025-09-25T07:02:32",
+        "iso3": "VEN",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "VE",
+            "iso3": "VEN",
+            "countryname": "Venezuela"
+          }
+        ],
+        "severitydata": {
+          "severity": 6.3,
+          "severitytext": "Magnitude 6.3M, Depth:14km",
+          "severityunit": "M"
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "bbox": [
+        -70.7174,
+        9.9222,
+        -70.7174,
+        9.9222
+      ],
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -70.7174,
+          9.9222
+        ]
+      },
+      "properties": {
+        "eventtype": "EQ",
+        "eventid": 1501915,
+        "episodeid": 1662390,
+        "eventname": "",
+        "glide": "EQ-2025-000173-VEN",
+        "name": "Earthquake in Venezuela",
+        "description": "Earthquake in Venezuela",
+        "htmldescription": "Orange M 6.2 Earthquake in Venezuela at: 24 Sep 2025 22:21:55.",
+        "icon": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "iconoverall": "https://www.gdacs.org/images/gdacs_icons/maps/Orange/EQ.png",
+        "url": {
+          "geometry": "https://www.gdacs.org/gdacsapi/api/polygons/getgeometry?eventtype=EQ&eventid=1501915&episodeid=1662390",
+          "report": "https://www.gdacs.org/report.aspx?eventid=1501915&episodeid=1662390&eventtype=EQ",
+          "details": "https://www.gdacs.org/gdacsapi/api/events/geteventdata?eventtype=EQ&eventid=1501915"
+        },
+        "alertlevel": "Orange",
+        "alertscore": 2,
+        "episodealertlevel": "Orange",
+        "episodealertscore": 1.01005791328465,
+        "istemporary": "false",
+        "iscurrent": "false",
+        "country": "Venezuela",
+        "fromdate": "2025-09-24T22:21:55",
+        "todate": "2025-09-24T22:21:55",
+        "datemodified": "2025-09-25T01:02:45",
+        "iso3": "VEN",
+        "source": "NEIC",
+        "sourceid": "",
+        "polygonlabel": "Centroid",
+        "Class": "Point_Centroid",
+        "affectedcountries": [
+          {
+            "iso2": "VE",
+            "iso3": "VEN",
+            "countryname": "Venezuela"
+          }
+        ],
+        "severitydata": {
+          "severity": 6.2,
+          "severitytext": "Magnitude 6.2M, Depth:7.815km",
+          "severityunit": "M"
+        }
+      }
+    }
+  ],
+  "bbox": null
+}

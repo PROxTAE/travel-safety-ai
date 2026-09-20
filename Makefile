@@ -8,13 +8,13 @@ help:            ## แสดง target ทั้งหมด
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
 
 core:            ## เปิดเฉพาะ infra กลาง (postgres redis qdrant keycloak) แบบ dev
-	$(COMPOSE_DEV) --profile core up -d --wait
+	$(COMPOSE_DEV) up -d --wait
 
 up:              ## เปิดทุกอย่าง (core + app) แบบ dev
-	$(COMPOSE_DEV) --profile core --profile app up -d --build
+	$(COMPOSE_DEV) --profile app up -d --build
 
 down:            ## ปิดทุกกล่อง (ข้อมูลใน volume ยังอยู่)
-	$(COMPOSE_DEV) --profile core --profile app down
+	$(COMPOSE_DEV) --profile app down
 
 ps:              ## สถานะกล่อง
 	$(COMPOSE_DEV) ps
@@ -23,7 +23,7 @@ logs:            ## ดู log: make logs S=api
 	$(COMPOSE_DEV) logs -f --tail=200 $(S)
 
 compose-validate: ## ตรวจไฟล์ compose อ่านได้
-	$(COMPOSE_DEV) --profile core --profile app config > /dev/null && echo "compose OK"
+	$(COMPOSE_DEV) --profile app config > /dev/null && echo "compose OK"
 
 # --- ด้านล่างนี้แต่ละ module เติมคำสั่งของตัวเองใน PR (ตอนนี้ยังไม่มี service จริง) ---
 lint:            ## lint ทุก service

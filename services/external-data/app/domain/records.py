@@ -1,0 +1,168 @@
+"""Canonical records emitted by module 04.
+
+Shapes follow 00_API_AND_DATA_CONTRACTS.md § 3. `LocationRef` is reproduced
+field-for-field from § 3.1, so provenance and quality ride alongside it in
+`GeocodeResult` rather than being bolted onto the contract shape.
+`WeatherForecastPoint` (§ 3.5) carries `quality` and `source` directly, because
+the contract puts them there.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Literal, Self
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from app.domain.canonical import DataQuality, SourceProvenance
+from app.domain.enums import EventType, Severity
+
+
+class GeoPoint(BaseModel):
+    """GeoJSON Point, RFC 7946: coordinates are [longitude, latitude]."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["Point"] = "Point"
+    coordinates: tuple[float, float]
+
+    @model_validator(mode="after")
+    def _within_range(self) -> Self:
+        longitude, latitude = self.coordinates
+        if not -180.0 <= longitude <= 180.0:
+            raise ValueError(f"longitude {longitude} out of range")
+        if not -90.0 <= latitude <= 90.0:
+            # Catches the classic reversed-coordinate bug: a latitude above 90
+            # almost always means lon/lat were swapped.
+            raise ValueError(f"latitude {latitude} out of range")
+        return self
+
+    @classmethod
+    def from_lat_lon(cls, latitude: float, longitude: float) -> GeoPoint:
+        return cls(coordinates=(longitude, latitude))
+
+    @property
+    def latitude(self) -> float:
+        return self.coordinates[1]
+
+    @property
+    def longitude(self) -> float:
+        return self.coordinates[0]
+
+
+class LocationRef(BaseModel):
+    """Contract § 3.1, reproduced exactly."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    place_id: str
+    display_name: str
+    coordinates: GeoPoint
+    country_code: str | None = None
+    admin1: str | None = None
+    timezone: str | None = None
+    provider: str
+    # Module 04 never sets this true: confirmation is a user action owned by
+    # modules 01/02.
+    confirmed_by_user: bool = False
+
+    @model_validator(mode="after")
+    def _country_code_shape(self) -> Self:
+        if self.country_code is not None:
+            code = self.country_code.upper()
+            if len(code) != 2 or not code.isalpha():
+                raise ValueError("country_code must be ISO-3166-1 alpha-2")
+            object.__setattr__(self, "country_code", code)
+        return self
+
+
+class GeocodeResult(BaseModel):
+    """A LocationRef with the provenance and quality every module-04 record carries."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    location: LocationRef
+    quality: DataQuality
+    source: SourceProvenance
+
+
+class WeatherForecastPoint(BaseModel):
+    """Contract § 3.5.
+
+    Every measurement is nullable on purpose. A value the provider does not
+    supply is `null` plus a quality flag - never `0`, which would read as
+    "no rain" rather than "unknown".
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    location: GeoPoint
+    valid_at: datetime
+
+    temperature_c: float | None = None
+    apparent_temperature_c: float | None = None
+    precipitation_mm: float | None = None
+    precipitation_probability: int | None = Field(default=None, ge=0, le=100)
+    snowfall_cm: float | None = None
+    wind_speed_kmh: float | None = None
+    wind_gust_kmh: float | None = None
+    visibility_m: float | None = None
+    weather_code: int | None = None
+
+    # Left UNKNOWN until Q2/Q3 are answered by modules 05/06. The contract
+    # requires the field; inventing a mapping here would be a silent decision
+    # about what counts as dangerous weather.
+    severity: Severity = Severity.UNKNOWN
+
+    quality: DataQuality
+    source: SourceProvenance
+
+    # Set when the caller supplied an ETA: how far the chosen forecast hour sits
+    # from the time the traveller is actually expected at this point.
+    eta_offset_seconds: int | None = None
+    sample_id: str | None = None
+
+
+class DisasterEvent(BaseModel):
+    """Contract § 3.7.
+
+    The optional measurement fields below are an extension, agreed in
+    `docs/canonical-field-mapping.md`: until Q2/Q3 are answered, `severity`
+    stays UNKNOWN and the provider's own numbers are carried through in typed
+    fields so modules 05/06 can decide what they mean. Discarding them and
+    emitting only UNKNOWN would throw away the evidence the decision needs.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    event_id: str
+    event_type: EventType
+    title: str
+    description: str | None = None
+    severity: Severity = Severity.UNKNOWN
+    geometry: GeoPoint
+    effective_at: datetime
+    ends_at: datetime | None = None
+    instruction: str | None = None
+    official: bool
+    quality: DataQuality
+    source: SourceProvenance
+
+    # --- provider measurements, carried through rather than interpreted ---
+    magnitude: float | None = None
+    magnitude_unit: str | None = None
+    depth_km: float | None = None
+    # PAGER green/yellow/orange/red, GDACS Green/Orange/Red - an impact alert
+    # scale, deliberately NOT cast to Severity (open question Q3).
+    alert_level: str | None = None
+    tsunami: bool | None = None
+    # Identifiers **of this event** in other networks - a USGS cross-network id,
+    # a GLIDE number. Module 05 matches on these, so anything in here that does
+    # not identify one specific event will make it merge unrelated hazards.
+    cross_reference_ids: list[str] = Field(default_factory=list)
+    # Who reported it, which is a different question from which event it is.
+    # A network name is shared by every event that network publishes.
+    reporting_networks: list[str] = Field(default_factory=list)
+    # One provider event can have many episodes (a storm's successive updates).
+    episode_id: str | None = None

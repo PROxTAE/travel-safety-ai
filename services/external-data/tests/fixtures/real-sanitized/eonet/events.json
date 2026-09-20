@@ -1,0 +1,262 @@
+{
+  "title": "EONET Events",
+  "description": "Natural events from EONET.",
+  "link": "https://eonet.gsfc.nasa.gov/api/v3/events",
+  "events": [
+    {
+      "id": "EONET_24483",
+      "title": "Wildfire Breezy, Starr, Texas",
+      "description": "7 Miles NE from Rio Grande City, TX",
+      "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_24483",
+      "closed": null,
+      "categories": [
+        {
+          "id": "wildfires",
+          "title": "Wildfires"
+        }
+      ],
+      "sources": [
+        {
+          "id": "IRWIN",
+          "url": "https://irwin.doi.gov/observer/incidents/2026-TXTXS-268653"
+        }
+      ],
+      "geometry": [
+        {
+          "magnitudeValue": 500.0,
+          "magnitudeUnit": "acres",
+          "date": "2026-09-16T20:17:00Z",
+          "type": "Point",
+          "coordinates": [
+            -98.712896,
+            26.45826
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EONET_24488",
+      "title": "Wildfire FLORISTON, Nevada, California",
+      "description": "10 Miles NE from Truckee, CA",
+      "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_24488",
+      "closed": null,
+      "categories": [
+        {
+          "id": "wildfires",
+          "title": "Wildfires"
+        }
+      ],
+      "sources": [
+        {
+          "id": "IRWIN",
+          "url": "https://irwin.doi.gov/observer/incidents/2026-CANEU-029037"
+        }
+      ],
+      "geometry": [
+        {
+          "magnitudeValue": 610.0,
+          "magnitudeUnit": "acres",
+          "date": "2026-09-16T13:01:00Z",
+          "type": "Point",
+          "coordinates": [
+            -120.025216,
+            39.394425
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EONET_24317",
+      "title": "Typhoon Dujuan",
+      "description": null,
+      "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_24317",
+      "closed": null,
+      "categories": [
+        {
+          "id": "severeStorms",
+          "title": "Severe Storms"
+        }
+      ],
+      "sources": [
+        {
+          "id": "JTWC",
+          "url": "https://www.metoc.navy.mil/jtwc/products/wp2426.tcw"
+        }
+      ],
+      "geometry": [
+        {
+          "magnitudeValue": 35.0,
+          "magnitudeUnit": "kts",
+          "date": "2026-09-16T12:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            149.5,
+            16.5
+          ]
+        },
+        {
+          "magnitudeValue": 40.0,
+          "magnitudeUnit": "kts",
+          "date": "2026-09-16T18:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            149.9,
+            17.6
+          ]
+        },
+        {
+          "magnitudeValue": 50.0,
+          "magnitudeUnit": "kts",
+          "date": "2026-09-17T00:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            150.4,
+            19
+          ]
+        },
+        {
+          "magnitudeValue": 50.0,
+          "magnitudeUnit": "kts",
+          "date": "2026-09-17T06:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            150.3,
+            21.6
+          ]
+        },
+        {
+          "magnitudeValue": 55.0,
+          "magnitudeUnit": "kts",
+          "date": "2026-09-17T12:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            148.6,
+            22.8
+          ]
+        },
+        {
+          "magnitudeValue": 65.0,
+          "magnitudeUnit": "kts",
+          "date": "2026-09-17T18:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            146,
+            25.2
+          ]
+        },
+        {
+          "magnitudeValue": 60.0,
+          "magnitudeUnit": "kts",
+          "date": "2026-09-18T00:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            144.5,
+            25.1
+          ]
+        },
+        {
+          "magnitudeValue": 60.0,
+          "magnitudeUnit": "kts",
+          "date": "2026-09-18T06:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            142.9,
+            25.9
+          ]
+        },
+        {
+          "magnitudeValue": 60.0,
+          "magnitudeUnit": "kts",
+          "date": "2026-09-18T12:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            141.7,
+            25.4
+          ]
+        },
+        {
+          "magnitudeValue": 65.0,
+          "magnitudeUnit": "kts",
+          "date": "2026-09-18T18:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            140.7,
+            26.2
+          ]
+        },
+        {
+          "magnitudeValue": 65.0,
+          "magnitudeUnit": "kts",
+          "date": "2026-09-19T00:00:00Z",
+          "type": "Point",
+          "coordinates": [
+            139.7,
+            26.2
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EONET_24499",
+      "title": "Prescribed Fire RX CALV BU 104-108, Vernon, Louisiana",
+      "description": null,
+      "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_24499",
+      "closed": null,
+      "categories": [
+        {
+          "id": "wildfires",
+          "title": "Wildfires"
+        }
+      ],
+      "sources": [
+        {
+          "id": "IRWIN",
+          "url": "https://irwin.doi.gov/observer/incidents/2026-LAKIF-000378"
+        }
+      ],
+      "geometry": [
+        {
+          "magnitudeValue": 878.0,
+          "magnitudeUnit": "acres",
+          "date": "2026-09-16T09:08:00Z",
+          "type": "Point",
+          "coordinates": [
+            -93.164867,
+            30.957333
+          ]
+        }
+      ]
+    },
+    {
+      "id": "EONET_24482",
+      "title": "Wildfire Clark, Edwards, Texas",
+      "description": "10 Miles SW from Rock Springs, TX",
+      "link": "https://eonet.gsfc.nasa.gov/api/v3/events/EONET_24482",
+      "closed": null,
+      "categories": [
+        {
+          "id": "wildfires",
+          "title": "Wildfires"
+        }
+      ],
+      "sources": [
+        {
+          "id": "IRWIN",
+          "url": "https://irwin.doi.gov/observer/incidents/2026-TXTXS-268613"
+        }
+      ],
+      "geometry": [
+        {
+          "magnitudeValue": 1523.0,
+          "magnitudeUnit": "acres",
+          "date": "2026-09-16T00:29:00Z",
+          "type": "Point",
+          "coordinates": [
+            -100.3453084,
+            29.9328492
+          ]
+        }
+      ]
+    }
+  ]
+}

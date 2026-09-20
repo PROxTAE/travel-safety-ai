@@ -1,0 +1,85 @@
+{
+  "schema_version": "1.0.0",
+  "module": "04-external-data",
+  "note": "Real provider responses captured once for deterministic tests. Never served on a runtime path.",
+  "fixtures": [
+    {
+      "fixture_id": "open_meteo_geocoding_search_bangkok",
+      "path": "open_meteo_geocoding/search_bangkok.json",
+      "source_url": "https://geocoding-api.open-meteo.com/v1/search?name=Bangkok&count=3&language=en&format=json",
+      "http_status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "captured_at": "2026-09-19T07:45:36Z",
+      "raw_bytes": 883,
+      "content_hash": "sha256:6eef1f54dd4a41efd842164eb041e749bd51748f19025a7b9c2d06c0444b31f1",
+      "license": "CC-BY-4.0 (Open-Meteo), upstream data OpenStreetMap contributors (ODbL)",
+      "redaction": "public place-name records only; no credential in query, no PII in payload",
+      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)"
+    },
+    {
+      "fixture_id": "open_meteo_forecast_bangkok",
+      "path": "open_meteo_weather/forecast_bangkok.json",
+      "source_url": "https://api.open-meteo.com/v1/forecast?latitude=13.7563&longitude=100.5018&hourly=temperature_2m,apparent_temperature,precipitation,precipitation_probability,snowfall,wind_speed_10m,wind_gusts_10m,visibility,weather_code&forecast_days=2&timezone=UTC&timeformat=iso8601&wind_speed_unit=kmh&precipitation_unit=mm&temperature_unit=celsius",
+      "http_status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "captured_at": "2026-09-19T07:45:37Z",
+      "raw_bytes": 3596,
+      "content_hash": "sha256:4485fbaed4434ff1c578d2167288ff9dd9d785c0860caf7f3c24665e086c58ea",
+      "license": "CC-BY-4.0 (Open-Meteo)",
+      "redaction": "keyless endpoint; coordinates are a public landmark, not a user location",
+      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)"
+    },
+    {
+      "fixture_id": "open_meteo_forecast_batched",
+      "path": "open_meteo_weather/forecast_batched.json",
+      "source_url": "https://api.open-meteo.com/v1/forecast?latitude=13.7563,18.7883&longitude=100.5018,98.9853&hourly=temperature_2m,apparent_temperature,precipitation,precipitation_probability,snowfall,wind_speed_10m,wind_gusts_10m,visibility,weather_code&forecast_days=2&timezone=UTC&timeformat=iso8601&wind_speed_unit=kmh&precipitation_unit=mm&temperature_unit=celsius",
+      "http_status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "captured_at": "2026-09-19T08:28:03Z",
+      "raw_bytes": 7186,
+      "content_hash": "sha256:5640ad4508d868f68ad18dd7c8f7d285876d3d837a6651bb98bb33672f5396fb",
+      "license": "CC-BY-4.0 (Open-Meteo)",
+      "redaction": "keyless endpoint; two public landmarks (Bangkok, Chiang Mai), no PII",
+      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)"
+    },
+    {
+      "fixture_id": "usgs_significant_month",
+      "path": "usgs/significant_month.json",
+      "source_url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson",
+      "http_status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "captured_at": "2026-09-19T07:45:38Z",
+      "raw_bytes": 7163,
+      "content_hash": "sha256:3d9c20db29804cee19f3f0957abbbe85de0d75fb7c00cb7582c52cde2e5fc8d2",
+      "license": "US Government public domain (USGS)",
+      "redaction": "public earthquake catalogue; no credential, no PII",
+      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)"
+    },
+    {
+      "fixture_id": "gdacs_eventlist_eq",
+      "path": "gdacs/eventlist_eq.json",
+      "source_url": "https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=EQ",
+      "http_status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "captured_at": "2026-09-19T07:45:48Z",
+      "raw_bytes": 35540,
+      "content_hash": "sha256:b45d5d11e15be450cfba9aec7ecd9e7609a833693171ebdc4afc7602d171c5b2",
+      "license": "GDACS terms of use — free reuse with attribution to GDACS/JRC",
+      "redaction": "public multi-hazard event list; no credential, no PII",
+      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)"
+    },
+    {
+      "fixture_id": "eonet_events",
+      "path": "eonet/events.json",
+      "source_url": "https://eonet.gsfc.nasa.gov/api/v3/events?limit=5&status=open",
+      "http_status": 200,
+      "content_type": "application/rss+xml; charset=utf-8",
+      "captured_at": "2026-09-19T07:45:49Z",
+      "raw_bytes": 5309,
+      "content_hash": "sha256:6297f61bdb154a8ad896d12afa0faf2b0d44e3fda3a625aa05357aab048ba8fa",
+      "license": "NASA open data policy (EONET v3)",
+      "redaction": "public natural-event catalogue; no credential, no PII",
+      "capture_method": "single live GET, stored pretty-printed (UTF-8, 2-space indent)"
+    }
+  ]
+}

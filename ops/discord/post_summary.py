@@ -15,6 +15,7 @@ import json
 import re
 import sys
 import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import yaml
@@ -24,6 +25,43 @@ from discord_api import Discord, load_dotenv
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 IDS_FILE = HERE / "out" / "discord-ids.json"
+
+# Written into every post's footer and used by --replace to find them again.
+# One constant for both sides: if the display text drifted from the filter,
+# --replace would silently match nothing and post a second full set.
+FOOTER_MARKER = "SafetyTravel Assistant · ภาพรวมโปรเจกต์"
+# Discord bulk-delete refuses messages older than this; older ones go one by one.
+BULK_DELETE_MAX_AGE = timedelta(days=14) - timedelta(hours=1)
+
+
+def own_posts(api: Discord, channel: str, me: str) -> list[dict]:
+    """Every post this script made in the channel, however far back (paginated),
+    identified by the footer marker so other bot posts (e.g. the diagram) are left alone."""
+    found: list[dict] = []
+    before = ""
+    while True:
+        page = api.get(f"/channels/{channel}/messages?limit=100{before}")
+        if not page:
+            return found
+        found += [m for m in page if m["author"]["id"] == me and (
+            FOOTER_MARKER in ((m.get("embeds") or [{}])[0].get("footer") or {}).get("text", "")
+            or m.get("type") == 6   # "X pinned a message" system notice Discord adds for our own pins
+        )]
+        before = f"&before={page[-1]['id']}"
+
+
+def delete_messages(api: Discord, channel: str, messages: list[dict]) -> None:
+    """bulk-delete what Discord allows (2-100 messages, < 14 days old); the rest one by one."""
+    cutoff = datetime.now(UTC) - BULK_DELETE_MAX_AGE
+    recent = [m for m in messages if datetime.fromisoformat(m["timestamp"]) > cutoff]
+    old = [m for m in messages if m not in recent]
+    for chunk in (recent[i:i + 100] for i in range(0, len(recent), 100)):
+        if len(chunk) >= 2:
+            api.post(f"/channels/{channel}/messages/bulk-delete", {"messages": [m["id"] for m in chunk]})
+        else:
+            old += chunk
+    for m in old:
+        api.delete(f"/channels/{channel}/messages/{m['id']}")
 
 
 def main():
@@ -64,7 +102,7 @@ def main():
         if p.get("fields"):
             embed["fields"] = [{"name": fill(f["name"]), "value": fill(f["value"]).strip(),
                                 "inline": bool(f.get("inline", False))} for f in p["fields"]]
-        embed["footer"] = {"text": f"SafetyTravel Assistant · ภาพรวมโปรเจกต์ {i}/{len(posts)}"}
+        embed["footer"] = {"text": f"{FOOTER_MARKER} {i}/{len(posts)}"}
         files = []
         for slot in ("image", "thumbnail"):
             if p.get(slot):
@@ -85,15 +123,14 @@ def main():
         return
 
     me = api.me()["id"]
-    mine = [m for m in api.get(f"/channels/{channel}/messages?limit=100") if m["author"]["id"] == me]
+    mine = own_posts(api, channel, me)
     if mine:
         if not a.replace:
             raise SystemExit(f"the bot already has {len(mine)} post(s) in #{doc['channel']} - use --replace to redo")
-        if len(mine) >= 2:
-            api.post(f"/channels/{channel}/messages/bulk-delete", {"messages": [m["id"] for m in mine]})
-        else:
-            api.delete(f"/channels/{channel}/messages/{mine[0]['id']}")
+        delete_messages(api, channel, mine)
         print(f"removed {len(mine)} earlier post(s)")
+    elif a.replace:
+        print("no earlier posts from this script found - posting a fresh set")
 
     for p, payload, files in built:
         msg = api.send_message(channel, payload, files=files or None)
