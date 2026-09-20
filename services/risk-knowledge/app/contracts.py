@@ -153,16 +153,22 @@ class IntegratedTravelContext(BaseModel):
     supersedes_snapshot_id: UUID | None = None
 
 
+def validate_route_selection(snapshot: IntegratedTravelContext, route_ids: list[UUID]) -> None:
+    if len(route_ids) != len(set(route_ids)):
+        raise ValueError("route_ids must not contain duplicates")
+
+    candidates = {route.route_id for route in snapshot.route_candidates}
+    if set(route_ids) - candidates:
+        raise ValueError("route_ids must all exist in snapshot.route_candidates")
+
+
 class RiskAssessRequest(StrictModel):
     snapshot: IntegratedTravelContext
     route_ids: list[UUID] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def route_ids_must_exist(self) -> RiskAssessRequest:
-        candidates = {route.route_id for route in self.snapshot.route_candidates}
-        missing = set(self.route_ids) - candidates
-        if missing:
-            raise ValueError("route_ids must all exist in snapshot.route_candidates")
+    def validate_route_ids(self) -> RiskAssessRequest:
+        validate_route_selection(self.snapshot, self.route_ids)
         return self
 
 
@@ -181,6 +187,11 @@ class RouteEvaluateRequest(StrictModel):
     route_ids: list[UUID] = Field(min_length=1)
     avoid_geometries: list[dict[str, Any]]
     preferences: dict[str, Any]
+
+    @model_validator(mode="after")
+    def validate_route_ids(self) -> RouteEvaluateRequest:
+        validate_route_selection(self.snapshot, self.route_ids)
+        return self
 
 
 class EvidencePackageRequest(StrictModel):

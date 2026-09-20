@@ -47,6 +47,8 @@ Copy-Item .env.example .env
 # Set POSTGRES_PASSWORD, RISK_KNOWLEDGE_DB_PASSWORD,
 # KEYCLOAK_ADMIN_PASSWORD, and the shared INTERNAL_SERVICE_TOKEN.
 docker compose -f compose.yaml -f compose.dev.yaml --profile core up -d --wait
+# Required once for existing postgres-data volumes; do not delete the volume.
+docker compose exec postgres bash /docker-entrypoint-initdb.d/01-risk-knowledge-role.sh
 docker compose -f compose.yaml -f compose.dev.yaml run --rm risk-knowledge alembic upgrade head
 docker compose -f compose.yaml -f compose.dev.yaml --profile app up -d risk-knowledge
 curl.exe -fsS http://localhost:8004/health/live

@@ -159,6 +159,42 @@ def test_internal_fallback_endpoints_are_explicit_and_persisted(
     assert len(routes.json()["data"]["routes"]) == 1
 
 
+@pytest.mark.parametrize(
+    ("path", "extra_payload"),
+    [
+        ("/internal/v1/risk/assess", {}),
+        (
+            "/internal/v1/routes/evaluate",
+            {"avoid_geometries": [], "preferences": {}},
+        ),
+    ],
+)
+def test_route_selection_rejects_unknown_and_duplicate_ids(
+    snapshot_payload: dict[str, Any], path: str, extra_payload: dict[str, Any]
+) -> None:
+    client = make_client()
+    existing_route_id = snapshot_payload["route_candidates"][0]["route_id"]
+    invalid_route_selections = [
+        ["60000000-0000-4000-8000-000000000099"],
+        [existing_route_id, existing_route_id],
+    ]
+
+    for route_ids in invalid_route_selections:
+        response = client.post(
+            path,
+            headers=HEADERS,
+            json={
+                "snapshot": snapshot_payload,
+                "route_ids": route_ids,
+                **extra_payload,
+            },
+        )
+
+        assert response.status_code == 422
+        assert response.headers["X-Error-Code"] == "VALIDATION_ERROR"
+        assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
 def test_status_evidence_and_error_contracts(snapshot_payload: dict[str, Any]) -> None:
     client = make_client()
     assert client.get("/internal/v1/models/current", headers=HEADERS).status_code == 200
