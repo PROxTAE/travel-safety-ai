@@ -209,17 +209,28 @@ providers:
   - id: gtfs_registry
     name: Registered agency GTFS / GTFS-Realtime feeds
     kind: TRANSIT
-    status: PENDING_LEAD_APPROVAL
+    # Activated 2026-09-20 with one registered agency. The module plan requires
+    # at least ONE real GTFS-RT region to work for the demo; Bangkok publishes
+    # no live GTFS-RT (only a stale static snapshot), so the demo region is the
+    # New York City subway, whose feeds need no credential. Coverage is recorded
+    # per feed below and is never claimed to be global.
+    status: ACTIVE
     authority: OFFICIAL
     base_url_env: null
     endpoints: {}
     health:
-      url: null
-      notes: per-feed health is resolved from the feed entry once a region is chosen
+      # A region is now registered, so this resolves to that feed's realtime
+      # endpoint - the thing the module actually depends on. Probing the
+      # schedule archive instead would download 5.6 MB every five minutes to
+      # learn nothing about whether live data is flowing.
+      url: https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace
+      method: GET
+      expect_status: 200
+      notes: resolves to the registered feed's realtime endpoint
     credential:
       required: per_feed
       env: null
-      owner: TBD — Team Lead to pick the demo region and record each feed's terms
+      owner: "Mrbeer19 (module 04 owner) — the registered feed needs no credential"
     coverage:
       global: false
       notes: >-
@@ -232,16 +243,42 @@ providers:
       commercial_use: per_feed
     attribution:
       required: true
-      text: per feed — recorded in `feeds[]` when the region is chosen
+      # One registered feed today, so the provider-level line names it. A second
+      # agency means this becomes a join of the per-feed lines below.
+      text: "Transit data from the Metropolitan Transportation Authority (MTA open data)"
     quota:
-      documented: "per feed; many agencies publish a minimum polling interval"
-      source: null
+      # Measured 2026-09-20: the feed sends no rate-limit header. The agency
+      # regenerates trip updates about every 30s, so polling faster than the
+      # 30s realtime TTL below buys nothing and is impolite.
+      documented: "no published hard quota; the agency regenerates trip updates about every 30 seconds"
+      source: https://api.mta.info/
       verification_required: true
     cache:
       static_ttl_seconds: 86400
       realtime_ttl_seconds: 30
       key_fields: [provider, feed_id, schema_version, route_or_stop, time_window]
-    feeds: []  # filled in Phase 5 once the Lead approves a region
+    feeds:
+      - feed_id: mta_nyct_subway
+        agency: Metropolitan Transportation Authority — New York City Transit
+        mode: TRAIN
+        timezone: America/New_York
+        # GeoJSON order. New York City only; every query outside this box is
+        # answered OUTSIDE_COVERAGE rather than with an empty list.
+        bbox: [-74.30, 40.45, -73.68, 40.95]
+        schedule_url: https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip
+        # The A/C/E lines. The agency splits realtime by line group; this is the
+        # group the captured fixture came from.
+        realtime_trip_updates_url: https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace
+        realtime_alerts_url: https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/camsys%2Fsubway-alerts
+        credential_required: false
+        license:
+          spdx_or_name: MTA open data terms
+          url: https://www.mta.info/developers
+        attribution: "Transit data from the Metropolitan Transportation Authority"
+        notes: >-
+          The realtime trip_id is the schedule trip_id with its service prefix
+          stripped, so the two only join on the suffix after the last
+          underscore. Joining them verbatim matches nothing at all, silently.
 
   # ----------------------------------------------------------------- DISASTER
   - id: usgs_earthquake

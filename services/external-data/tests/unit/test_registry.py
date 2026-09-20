@@ -23,12 +23,19 @@ def test_registry_file_parses_and_ids_are_unique(registry: ResolvedRegistry) -> 
 
 
 def test_keyless_providers_are_callable(registry: ResolvedRegistry) -> None:
+    """The providers that need no credential must work on a bare checkout.
+
+    This is the state a teammate cloning the repo is in, so it is worth pinning
+    exactly rather than as a count.
+    """
     expected = {
         "open_meteo_geocoding",
         "open_meteo_forecast",
         "usgs_earthquake",
         "gdacs",
         "nasa_eonet",
+        # The registered transit feed needs no credential either.
+        "gtfs_registry",
     }
     assert {p.id for p in registry.all() if p.is_callable} == expected
 
@@ -103,9 +110,22 @@ def test_active_providers_have_a_health_probe(registry: ResolvedRegistry) -> Non
 
 
 def test_active_providers_resolve_a_base_url(registry: ResolvedRegistry) -> None:
+    """An active provider must have somewhere to send a request.
+
+    A multi-feed provider is the exception: its URLs live per feed, because two
+    registered agencies do not share a host. It still has to declare feeds -
+    "no base URL and no feeds" is a provider that cannot be called at all.
+    """
     for provider in registry.all():
-        if provider.is_callable:
-            assert provider.base_url, f"{provider.id} has no base URL configured"
+        if not provider.is_callable:
+            continue
+        if provider.entry.feeds:
+            for feed in provider.entry.feeds:
+                assert feed.get("realtime_trip_updates_url") or feed.get(
+                    "schedule_url"
+                ), f"{provider.id} feed {feed.get('feed_id')} has no URL"
+            continue
+        assert provider.base_url, f"{provider.id} has no base URL configured"
 
 
 def test_cache_ttls_match_the_shared_freshness_table(

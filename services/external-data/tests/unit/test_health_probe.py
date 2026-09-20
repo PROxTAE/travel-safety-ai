@@ -76,6 +76,9 @@ def test_only_callable_providers_with_a_probe_url_are_targeted() -> None:
         "usgs_earthquake",
         "gdacs",
         "nasa_eonet",
+        # The registered transit feed is keyless, so it is ACTIVE on a bare
+        # checkout and probed like the rest.
+        "gtfs_registry",
     }
     # openrouteservice declares a health URL but is PENDING_CREDENTIAL.
     assert "openrouteservice" not in ids
