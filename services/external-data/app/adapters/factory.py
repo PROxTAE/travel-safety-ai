@@ -11,6 +11,7 @@ from __future__ import annotations
 from app.adapters.base import HealthRecorder, ProviderAdapter
 from app.adapters.eonet import EonetAdapter
 from app.adapters.gdacs import GdacsAdapter
+from app.adapters.gtfs import GtfsAdapter
 from app.adapters.open_meteo_geocoding import OpenMeteoGeocodingAdapter
 from app.adapters.open_meteo_weather import OpenMeteoWeatherAdapter
 from app.adapters.openrouteservice import OpenRouteServiceAdapter
@@ -30,6 +31,7 @@ ADAPTERS: dict[str, type[ProviderAdapter]] = {  # type: ignore[type-arg]
     "nasa_eonet": EonetAdapter,
     "openrouteservice": OpenRouteServiceAdapter,
     "ors_pois": OrsPoisAdapter,
+    "gtfs_registry": GtfsAdapter,
 }
 
 
