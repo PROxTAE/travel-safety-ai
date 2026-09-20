@@ -12,7 +12,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from app.domain.enums import EventType, PlaceType, TravelMode
+from app.domain.enums import EventType, PlaceType, ProviderKind, TravelMode
 
 MAX_SAMPLES = 200
 # Mirrors the provider limits verified in app/domain/queries.py; repeated here
@@ -20,6 +20,16 @@ MAX_SAMPLES = 200
 # than travelling all the way to a provider 400.
 MAX_ALTERNATIVES = 3
 MAX_PLACE_RADIUS_M = 10_000
+# Every capability a combined context request may ask for. Flight and transit
+# are absent on purpose: module 04 has no adapter for either, and offering them
+# here would invite a caller to build a screen around an answer that will never
+# arrive.
+CONTEXT_CAPABILITIES = (
+    ProviderKind.WEATHER,
+    ProviderKind.DISASTER,
+    ProviderKind.ROUTE,
+    ProviderKind.EMERGENCY_DIRECTORY,
+)
 
 
 class GeocodeSearchRequest(BaseModel):
@@ -142,3 +152,93 @@ class NearbyPlacesRequest(BaseModel):
     place_types: list[PlaceType] = Field(default_factory=list)
     limit: int = Field(default=20, ge=1, le=100)
     language: str = Field(default="en", min_length=2, max_length=5)
+
+
+class ContextQueryRequest(BaseModel):
+    """One question about a journey, answered by every capability that applies.
+
+    Nothing here is required on its own; what is present decides what gets
+    asked. Sending nothing at all is a mistake rather than a global query, so
+    it is refused - a request that accidentally asks for everything everywhere
+    is expensive against free-tier quota and almost never what was meant.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    # Points along the journey, each with the time the traveller is expected
+    # there. Drives weather, and gives the other capabilities somewhere to look.
+    samples: list[CoordinateSampleIn] = Field(default_factory=list, max_length=MAX_SAMPLES)
+    # Origin first, GeoJSON order. Present -> routes are requested too.
+    waypoints: list[tuple[float, float]] | None = Field(default=None, max_length=50)
+    # Where to look for hazards. Absent -> whatever window feed the sources
+    # publish, filtered by the times below.
+    bbox: tuple[float, float, float, float] | None = None
+    start: datetime | None = None
+    end: datetime | None = None
+
+    mode: TravelMode = TravelMode.CAR
+    alternatives: int = Field(default=0, ge=0, le=MAX_ALTERNATIVES)
+    avoid_polygons: dict[str, object] | None = None
+    event_types: list[EventType] = Field(default_factory=list)
+    place_types: list[PlaceType] = Field(default_factory=list)
+    places_radius_m: int = Field(default=2000, ge=1, le=MAX_PLACE_RADIUS_M)
+    # Where to look for hospitals and police. Absent -> the destination, which
+    # is where a traveller most often needs them.
+    places_near: CoordinateSampleIn | None = None
+
+    # Empty -> infer from what was sent. Naming one explicitly also serves as
+    # "ask this even though nothing implied it".
+    include: list[ProviderKind] = Field(default_factory=list)
+
+    language: str = Field(default="en", min_length=2, max_length=5)
+    # The whole request, not each provider. A capability that overruns is
+    # cancelled and reported; the rest of the answer still comes back.
+    deadline_seconds: float = Field(default=25.0, ge=1.0, le=60.0)
+
+    @model_validator(mode="after")
+    def _has_something_to_go_on(self) -> Self:
+        if not self.samples and not self.waypoints and not self.bbox:
+            raise ValueError(
+                "send at least one of samples, waypoints or bbox - "
+                "an empty context query would ask every provider about everywhere"
+            )
+        for name in ("start", "end"):
+            value = getattr(self, name)
+            if value is not None and value.tzinfo is None:
+                raise ValueError(f"{name} must carry a timezone offset")
+        if self.start and self.end and self.end < self.start:
+            raise ValueError("end must not precede start")
+
+        if self.waypoints is not None:
+            if len(self.waypoints) < 2:
+                raise ValueError("a route needs at least an origin and a destination")
+            for longitude, latitude in self.waypoints:
+                if not -180.0 <= longitude <= 180.0:
+                    raise ValueError("waypoint longitude out of range")
+                if not -90.0 <= latitude <= 90.0:
+                    # Almost always lon/lat written the wrong way round.
+                    raise ValueError("waypoint latitude out of range")
+
+        if self.bbox is not None:
+            min_lon, min_lat, max_lon, max_lat = self.bbox
+            if not (-180.0 <= min_lon <= 180.0 and -180.0 <= max_lon <= 180.0):
+                raise ValueError("bbox longitude out of range")
+            if not (-90.0 <= min_lat <= 90.0 and -90.0 <= max_lat <= 90.0):
+                raise ValueError("bbox latitude out of range")
+
+        unsupported = [
+            kind for kind in self.include if kind not in CONTEXT_CAPABILITIES
+        ]
+        if unsupported:
+            names = ", ".join(str(kind) for kind in unsupported)
+            raise ValueError(
+                f"module 04 has no adapter for: {names}; "
+                f"this endpoint answers {', '.join(str(k) for k in CONTEXT_CAPABILITIES)}"
+            )
+
+        if self.avoid_polygons is not None:
+            if self.avoid_polygons.get("type") not in ("Polygon", "MultiPolygon"):
+                raise ValueError(
+                    "avoid_polygons must be a GeoJSON Polygon or MultiPolygon"
+                )
+        return self

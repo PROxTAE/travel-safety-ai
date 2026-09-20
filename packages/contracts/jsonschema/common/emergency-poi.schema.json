@@ -17,20 +17,28 @@
       "$ref": "primitives.schema.json#/$defs/RecordId"
     },
     "poi_type": {
+      "description": "OTHER is the required escape hatch: a provider category this contract does not model is mapped to OTHER and kept, never discarded and never guessed into a neighbouring type. provider_category, where a producer supplies it, records what the provider actually said.",
       "type": "string",
       "enum": [
         "HOSPITAL",
         "CLINIC",
+        "DOCTOR",
         "PHARMACY",
         "POLICE",
         "FIRE_STATION",
         "EMBASSY",
         "CONSULATE",
-        "SHELTER"
+        "TOWNHALL",
+        "SHELTER",
+        "OTHER"
       ]
     },
     "name": {
-      "type": "string",
+      "description": "Null when the provider has no name for the place. OpenStreetMap leaves roughly one emergency POI in ten untagged, including real hospitals; the shared context calls this data 'frequently stale or missing'. The two alternatives were both worse: dropping the record hides the nearest hospital from somebody who needs it, and synthesising 'Unnamed hospital' puts words in the provider's mouth inside a data field. A consumer renders the type and the distance, and says the name is unknown.",
+      "type": [
+        "string",
+        "null"
+      ],
       "maxLength": 512
     },
     "location": {
@@ -52,7 +60,11 @@
       "maxLength": 32
     },
     "distance_m": {
-      "type": "number",
+      "description": "Straight-line metres from the query point, not travel distance — there may be no road. Null when the provider did not give one, rather than zero, which would read as 'you are here'.",
+      "type": [
+        "number",
+        "null"
+      ],
       "minimum": 0
     },
     "open_now": {

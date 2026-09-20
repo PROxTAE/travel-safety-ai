@@ -61,10 +61,33 @@ function renderRecommendation(recommendation: Schemas['RecommendationResponse'])
 void renderRecommendation;
 
 // A route that an official source has closed must always expose that fact.
-function isRouteClosed(route: Schemas['RouteCandidate']): boolean {
-  return route.exposure.closed;
+//
+// `exposure` is null until modules 05/06 have measured the corridor, and that is deliberately not
+// the same as "nothing found". The two questions below are kept apart because collapsing them is
+// the mistake the nullability invites: a raw route straight from a routing provider would answer
+// "not closed" to a naive check and be rendered as though somebody had looked.
+//
+// The schema also refuses `exposure: null` beside any `risk_level` other than UNKNOWN, so a
+// consumer that reads the risk level cannot be told an unmeasured route is low risk.
+function isKnownClosed(route: Schemas['RouteCandidate']): boolean {
+  return route.exposure?.closed === true;
 }
-void isRouteClosed;
+void isKnownClosed;
+
+function mayBePresentedAsOpen(route: Schemas['RouteCandidate']): boolean {
+  // False for a closed route and false for an unevaluated one. Only a measured, open corridor
+  // earns a yes.
+  return route.exposure !== null && route.exposure.closed === false;
+}
+void mayBePresentedAsOpen;
+
+// An emergency place may have no name: OpenStreetMap leaves real hospitals untagged. The UI
+// renders the type and the distance and says the name is unknown - it never drops the record,
+// because the nearest hospital is exactly the one somebody needs.
+function placeLabel(place: Schemas['EmergencyPoi']): string {
+  return place.name ?? `${place.poi_type} (name unknown)`;
+}
+void placeLabel;
 
 // --- Progress events carry an i18n key, never a pre-translated sentence. -----------------------
 

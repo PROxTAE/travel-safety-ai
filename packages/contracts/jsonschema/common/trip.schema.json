@@ -16,49 +16,90 @@
     "updated_at"
   ],
   "properties": {
-    "trip_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "trip_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
     "revision": {
       "description": "Monotonic revision counter, also served as the ETag.",
       "type": "integer",
       "minimum": 1
     },
-    "title": { "type": ["string", "null"], "maxLength": 256 },
-    "origin": { "$ref": "location-ref.schema.json" },
-    "destination": { "$ref": "location-ref.schema.json" },
-    "departure_time": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
-    "return_time": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
-    "timezone": { "$ref": "primitives.schema.json#/$defs/Timezone" },
+    "title": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 256
+    },
+    "origin": {
+      "$ref": "location-ref.schema.json"
+    },
+    "destination": {
+      "$ref": "location-ref.schema.json"
+    },
+    "departure_time": {
+      "$ref": "primitives.schema.json#/$defs/Timestamp"
+    },
+    "return_time": {
+      "$ref": "primitives.schema.json#/$defs/NullableTimestamp"
+    },
+    "timezone": {
+      "$ref": "primitives.schema.json#/$defs/Timezone"
+    },
     "travel_modes": {
       "type": "array",
       "minItems": 1,
       "maxItems": 7,
       "uniqueItems": true,
-      "items": { "$ref": "enums.schema.json#/$defs/TravelMode" }
+      "items": {
+        "$ref": "enums.schema.json#/$defs/TravelMode"
+      }
     },
-    "preferences": { "$ref": "travel-preference.schema.json" },
+    "preferences": {
+      "$ref": "travel-preference.schema.json"
+    },
     "selected_route_id": {
-      "description": "Route the traveller applied. Set only by apply-route, never by the client directly.",
+      "description": "Route the traveller applied. Set only by apply-route, never by the client directly. A RecordId rather than a Uuid because it holds a RouteCandidate.route_id, and those are producer-minted and reproducible (`openrouteservice:3ca4459b8d41b503`) so that the same route asked for twice is recognisably the same route.",
       "oneOf": [
-        { "$ref": "primitives.schema.json#/$defs/Uuid" },
-        { "type": "null" }
+        {
+          "$ref": "primitives.schema.json#/$defs/RecordId"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
     "previous_selected_route_id": {
+      "description": "The route this trip had applied before the current one, kept so a reassessment can say what changed. Same type as selected_route_id for the same reason.",
       "oneOf": [
-        { "$ref": "primitives.schema.json#/$defs/Uuid" },
-        { "type": "null" }
+        {
+          "$ref": "primitives.schema.json#/$defs/RecordId"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
     "latest_request_id": {
       "description": "Most recent assessment started for this trip revision.",
       "oneOf": [
-        { "$ref": "primitives.schema.json#/$defs/Uuid" },
-        { "type": "null" }
+        {
+          "$ref": "primitives.schema.json#/$defs/Uuid"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
-    "status": { "$ref": "enums.schema.json#/$defs/TripStatus" },
-    "created_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
-    "updated_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+    "status": {
+      "$ref": "enums.schema.json#/$defs/TripStatus"
+    },
+    "created_at": {
+      "$ref": "primitives.schema.json#/$defs/Timestamp"
+    },
+    "updated_at": {
+      "$ref": "primitives.schema.json#/$defs/Timestamp"
+    },
     "deleted_at": {
       "description": "Set by soft delete. Purge of the underlying rows happens asynchronously under the retention policy.",
       "$ref": "primitives.schema.json#/$defs/NullableTimestamp"

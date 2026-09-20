@@ -78,3 +78,20 @@ degraded_results = Counter(
     ["capability"],
     registry=REGISTRY,
 )
+
+# --- Phase 6: what a combined context request actually managed to gather ---
+context_capabilities = Counter(
+    "external_data_context_capabilities_total",
+    "Outcome of each capability inside a combined /context/query request",
+    # answered | unavailable | failed | timed_out | not_requested
+    ["capability", "outcome"],
+    registry=REGISTRY,
+)
+source_disagreements = Counter(
+    "external_data_source_disagreements_total",
+    "Groups where more than one provider reported what looks like the same "
+    "event. Not an error: it is the signal that two sources are describing one "
+    "hazard differently, which module 05 has to reconcile.",
+    ["capability"],
+    registry=REGISTRY,
+)

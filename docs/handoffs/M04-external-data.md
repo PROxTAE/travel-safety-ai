@@ -223,28 +223,46 @@ route `INCOMPLETE`. **Decision needed:** either make `exposure` nullable in the
 frozen schema, or split a raw producer shape from the evaluated one. Raised on
 PR #15.
 
-### 9.5 Disaster freshness measures the wrong thing — a real defect
+### 9.5 Disaster freshness measured the wrong thing — fixed in PR #19
 
-`app/adapters/usgs.py:338` computes `age_seconds` as `fetched_at - occurred_at`,
-so `FRESH_WITHIN_SECONDS = 600` marks every earthquake older than ten minutes
-`STALE`. A live query on 2026-09-20 returned 268 events, **268 of them STALE and
-none FRESH**, including all 32 quakes of magnitude 5.0 and above.
+Kept here rather than deleted: it is the clearest example so far of a defect
+that every test agreed with.
 
-A field with the same value on every record carries no information, and a
-consumer filtering `status != STALE` as the contract suggests would receive
-nothing at all.
+All three disaster adapters computed `age_seconds` from when the *event*
+happened rather than from how old our copy of the feed is. With the ten-minute
+budget shared context § 10 gives disaster events, that marked every event older
+than ten minutes `STALE`. A live query on 2026-09-20 returned 268 events, **268
+of them STALE and none FRESH**, including all 32 quakes of magnitude 5.0 and
+above.
 
-The fix exists in the data already: the USGS feed carries `metadata.generated`,
-the moment the feed itself was built, which is what "how fresh is our read"
-actually means. The adapter does not currently reference it. Event age belongs
-in its own field.
+Two things were wrong at once. A field carrying the same value on every record
+tells a consumer nothing, and a consumer filtering `status != STALE` — which is
+what § 10 tells them to do — received nothing at all.
 
-The same question applies to GDACS and EONET, which share the pattern. This was
-found by auditing the running service, not by a test, and it is **not fixed in
-this branch** — it is in merged Phase 3 code and deserves its own PR. The
-routing adapter added here deliberately does not repeat it: it measures
-freshness from the road graph build date, and a route reports `observed_at:
-null` because a route is computed, never observed.
+The § 10 budget is a refresh policy: it says "fetch again" when exceeded, which
+is only coherent about a stale read. Re-fetching cannot make an old earthquake
+younger.
+
+USGS already published what was needed and the adapter was ignoring it:
+`metadata.generated` is the moment the provider built the feed. GDACS and EONET
+publish no feed generation time at all, so they now report the age of the read
+and say plainly that the provider's own publication lag is not visible to us —
+rather than implying it is zero, or substituting the event's age for it. For
+GDACS, a record the provider has not revised in over a day while still marking
+the event current gets its own `STALE` flag: that is a different question from
+the freshness of the read and is reported as a different thing.
+
+Event age was never lost — `effective_at` carries it, and the freshness note
+now points there.
+
+**Verified after the fix:** 273 events, all FRESH, `freshness_seconds` 34
+against a feed generated 34 seconds earlier.
+
+The part worth remembering: the whole suite passed while this was broken.
+Nothing asserted what the field *meant*, only that it was populated. The ten
+regression tests in `tests/unit/test_disaster_freshness.py` assert the meaning,
+and nine of them fail against the previous code — checked by stashing the fix
+and re-running, not assumed.
 
 ## 10. Verification evidence
 
@@ -367,7 +385,7 @@ plausible-looking forecast with no error raised:
 7. **`Retry-After` HTTP-date form is not parsed**, only delta-seconds.
 8. **`quality.status` is computed at normalization, not on cache read.** Safe only because the 15-minute forecast TTL sits inside the 60-minute freshness window — revisit if either number changes.
 9. **`exposure` and `risk_level` are null/UNKNOWN on every route.** A routing provider has no view on hazards, and the contract marks `exposure` required. See § 9.4 — this needs a decision, not a workaround.
-10. **A disaster record's `quality.status` is `STALE` on effectively every event.** Found while auditing on 2026-09-20 and not yet fixed; see § 9.5. It is a real defect, and it is in already-merged Phase 3 code rather than in this branch.
+10. ~~**A disaster record's `quality.status` is `STALE` on effectively every event.**~~ Fixed in PR #19; see § 9.5 for what it was and how it was found. Two related limits remain: the 600-second budget is still hard-coded in the adapters although § 10 requires it to be configurable, and GDACS/EONET publish no feed generation time so their provider-side lag stays unmeasurable.
 11. **`/places/nearby` searches a circle around one point.** A route corridor needs many such calls; batching belongs with the Phase 6 fan-out.
 12. **Emergency POI data is community-maintained OpenStreetMap.** Not an official directory. Records carry the flags and the response carries an explicit caveat string, but a UI that renders only the pins will still mislead.
 
