@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "RouteCandidate",
-  "description": "One way of making the journey, with the hazard exposure measured along its corridor rather than at the endpoints. A route whose corridor carries an official closure must have exposure.closed = true and can never be labelled RECOMMENDED.",
+  "description": "One way of making the journey, with the hazard exposure measured along its corridor rather than at the endpoints. A route whose corridor carries an official closure must have exposure.closed = true and can never be labelled RECOMMENDED. A raw route straight from a routing provider carries exposure: null and risk_level: UNKNOWN until modules 05/06 evaluate it; the two are bound together so an unevaluated route cannot be mistaken for a safe one.",
   "type": "object",
   "required": [
     "route_id",
@@ -17,7 +17,8 @@
   ],
   "properties": {
     "route_id": {
-      "$ref": "primitives.schema.json#/$defs/Uuid"
+      "description": "Reproducible on purpose: asking for the same route twice must yield the same value, so a route served from cache and one fetched fresh are recognisably the same route rather than two. A provider adapter derives it from the provider key and a fingerprint of the question (waypoints, mode, preference). Same reasoning as source_id and event_id.",
+      "$ref": "primitives.schema.json#/$defs/RecordId"
     },
     "provider_route_id": {
       "description": "Opaque provider handle, kept so the same route can be re-fetched or audited.",
@@ -59,7 +60,15 @@
       "minimum": 0
     },
     "exposure": {
-      "$ref": "#/$defs/RouteExposure"
+      "description": "Null until a route has been evaluated against hazards and weather. A routing provider knows road geometry and travel time and has no view on danger, so module 04 emits null here and modules 05/06 fill it in. Null does NOT mean 'no exposure': an unevaluated route must never be rendered as safe, which is why the schema requires risk_level to be UNKNOWN whenever this is null.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/RouteExposure"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "risk_level": {
       "$ref": "enums.schema.json#/$defs/RiskLevel"
@@ -68,10 +77,12 @@
       "$ref": "data-quality.schema.json"
     },
     "sources": {
+      "description": "Plural, unlike the singular `source` on records that come from exactly one provider. A route survives stitching: module 05 joins legs from different providers into one itinerary, and each leg's provenance has to survive that join. A single-provider route sends a one-element array.",
       "type": "array",
       "items": {
         "$ref": "source-provenance.schema.json"
-      }
+      },
+      "minItems": 1
     }
   },
   "$defs": {
@@ -86,7 +97,8 @@
       ],
       "properties": {
         "segment_id": {
-          "$ref": "primitives.schema.json#/$defs/Uuid"
+          "description": "Reproducible within its route, for the same reason as route_id.",
+          "$ref": "primitives.schema.json#/$defs/RecordId"
         },
         "mode": {
           "$ref": "enums.schema.json#/$defs/TravelMode"
@@ -180,5 +192,29 @@
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "title": "UnevaluatedRoutesAreUnknownRisk",
+      "description": "A route whose exposure has not been measured cannot carry a risk level that implies it has been. Without this, a producer could emit exposure: null beside risk_level: LOW and a consumer would read the pair as 'checked, and fine'.",
+      "if": {
+        "type": "object",
+        "properties": {
+          "exposure": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "exposure"
+        ]
+      },
+      "then": {
+        "properties": {
+          "risk_level": {
+            "const": "UNKNOWN"
+          }
+        }
+      }
+    }
+  ]
 }

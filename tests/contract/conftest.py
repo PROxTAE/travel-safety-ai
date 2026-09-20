@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
 
@@ -89,6 +89,12 @@ def validator_for(schema_name: str, pointer: str | None = None) -> Draft202012Va
     `pointer` is a slash-separated path such as `$defs/WeatherForecastPoint`. Resolving it here
     rather than by `$ref` keeps the error paths rooted at the payload, so a failure names the field
     that is wrong instead of the indirection that found it.
+
+    **`format` is checked.** By default jsonschema treats `format` as an annotation and validates
+    nothing, which is why `route_id: {format: uuid}` accepted `openrouteservice:3ca4459b` in every
+    test here while failing against a producer that checks it. Module 04 found that by running
+    their own validator with a `FormatChecker`; ours now does the same, so the next disagreement of
+    that shape fails in CI instead of at integration.
     """
     schema = _load_json(COMMON_SCHEMAS / schema_name)
     if pointer:
@@ -97,4 +103,6 @@ def validator_for(schema_name: str, pointer: str | None = None) -> Draft202012Va
         # A fragment lifted out of its file needs the dialect restated, and keeps resolving its own
         # relative `$ref`s against the registry.
         schema = {"$schema": "https://json-schema.org/draft/2020-12/schema", **schema}
-    return Draft202012Validator(schema, registry=_common_registry())
+    return Draft202012Validator(
+        schema, registry=_common_registry(), format_checker=FormatChecker()
+    )

@@ -846,16 +846,21 @@ export interface components {
          */
         EmergencyPoi: {
             address?: string | null;
-            distance_m: number;
+            /** @description Straight-line metres from the query point, not travel distance — there may be no road. Null when the provider did not give one, rather than zero, which would read as 'you are here'. */
+            distance_m: number | null;
             location: components["schemas"]["Point"];
-            name: string;
+            /** @description Null when the provider has no name for the place. OpenStreetMap leaves roughly one emergency POI in ten untagged, including real hospitals; the shared context calls this data 'frequently stale or missing'. The two alternatives were both worse: dropping the record hides the nearest hospital from somebody who needs it, and synthesising 'Unnamed hospital' puts words in the provider's mouth inside a data field. A consumer renders the type and the distance, and says the name is unknown. */
+            name: string | null;
             /** @description Null unless the provider supplies opening hours; unknown is not open. */
             open_now?: boolean | null;
             /** @description As published by the places provider. Never presented as an official emergency number. */
             phone?: string | null;
             poi_id: components["schemas"]["RecordId"];
-            /** @enum {string} */
-            poi_type: "HOSPITAL" | "CLINIC" | "PHARMACY" | "POLICE" | "FIRE_STATION" | "EMBASSY" | "CONSULATE" | "SHELTER";
+            /**
+             * @description OTHER is the required escape hatch: a provider category this contract does not model is mapped to OTHER and kept, never discarded and never guessed into a neighbouring type. provider_category, where a producer supplies it, records what the provider actually said.
+             * @enum {string}
+             */
+            poi_type: "HOSPITAL" | "CLINIC" | "DOCTOR" | "PHARMACY" | "POLICE" | "FIRE_STATION" | "EMBASSY" | "CONSULATE" | "TOWNHALL" | "SHELTER" | "OTHER";
             quality: components["schemas"]["DataQuality"];
             source: components["schemas"]["SourceProvenance"];
         };
@@ -1229,12 +1234,13 @@ export interface components {
         RiskReasonCode: "SEVERE_WEATHER_CORRIDOR" | "HEAVY_PRECIPITATION" | "HIGH_WIND" | "LOW_VISIBILITY" | "SNOW_OR_ICE" | "EXTREME_TEMPERATURE" | "ACTIVE_DISASTER_ON_CORRIDOR" | "RECENT_EARTHQUAKE" | "FLOOD_RISK" | "WILDFIRE_SMOKE" | "OFFICIAL_CLOSURE" | "OFFICIAL_WARNING_ACTIVE" | "TRANSPORT_DISRUPTION" | "TRANSPORT_CANCELLED" | "NIGHT_TRAVEL" | "LONG_EXPOSURE_WINDOW" | "SPARSE_DATA_COVERAGE" | "STALE_EVIDENCE" | "CONFLICTING_EVIDENCE";
         /**
          * RouteCandidate
-         * @description One way of making the journey, with the hazard exposure measured along its corridor rather than at the endpoints. A route whose corridor carries an official closure must have exposure.closed = true and can never be labelled RECOMMENDED.
+         * @description One way of making the journey, with the hazard exposure measured along its corridor rather than at the endpoints. A route whose corridor carries an official closure must have exposure.closed = true and can never be labelled RECOMMENDED. A raw route straight from a routing provider carries exposure: null and risk_level: UNKNOWN until modules 05/06 evaluate it; the two are bound together so an unevaluated route cannot be mistaken for a safe one.
          */
         RouteCandidate: {
             distance_m: number;
             duration_seconds: number;
-            exposure: components["schemas"]["RouteExposure"];
+            /** @description Null until a route has been evaluated against hazards and weather. A routing provider knows road geometry and travel time and has no view on danger, so module 04 emits null here and modules 05/06 fill it in. Null does NOT mean 'no exposure': an unevaluated route must never be rendered as safe, which is why the schema requires risk_level to be UNKNOWN whenever this is null. */
+            exposure: components["schemas"]["RouteExposure"] | null;
             geometry: components["schemas"]["LineString"];
             label: components["schemas"]["RouteLabel"];
             mode: components["schemas"]["TravelMode"];
@@ -1242,12 +1248,14 @@ export interface components {
             provider_route_id?: string | null;
             quality: components["schemas"]["DataQuality"];
             risk_level: components["schemas"]["RiskLevel"];
-            route_id: components["schemas"]["Uuid"];
+            /** @description Reproducible on purpose: asking for the same route twice must yield the same value, so a route served from cache and one fetched fresh are recognisably the same route rather than two. A provider adapter derives it from the provider key and a fingerprint of the question (waypoints, mode, preference). Same reasoning as source_id and event_id. */
+            route_id: components["schemas"]["RecordId"];
             /** @default [] */
             segments?: components["schemas"]["RouteSegment"][];
+            /** @description Plural, unlike the singular `source` on records that come from exactly one provider. A route survives stitching: module 05 joins legs from different providers into one itinerary, and each leg's provenance has to survive that join. A single-provider route sends a one-element array. */
             sources: components["schemas"]["SourceProvenance"][];
             transfers?: number | null;
-        };
+        } & unknown;
         /**
          * RouteExposure
          * @description What this route is exposed to along its corridor within the travel window.
@@ -1277,7 +1285,8 @@ export interface components {
             from_name?: string | null;
             geometry?: components["schemas"]["LineString"] | null;
             mode: components["schemas"]["TravelMode"];
-            segment_id: components["schemas"]["Uuid"];
+            /** @description Reproducible within its route, for the same reason as route_id. */
+            segment_id: components["schemas"]["RecordId"];
             to_name?: string | null;
             transport_status_id?: components["schemas"]["Uuid"] | null;
         };
@@ -1513,12 +1522,13 @@ export interface components {
             latest_request_id?: components["schemas"]["Uuid"] | null;
             origin: components["schemas"]["LocationRef"];
             preferences?: components["schemas"]["TravelPreference"];
-            previous_selected_route_id?: components["schemas"]["Uuid"] | null;
+            /** @description The route this trip had applied before the current one, kept so a reassessment can say what changed. Same type as selected_route_id for the same reason. */
+            previous_selected_route_id?: components["schemas"]["RecordId"] | null;
             return_time?: components["schemas"]["NullableTimestamp"];
             /** @description Monotonic revision counter, also served as the ETag. */
             revision: number;
-            /** @description Route the traveller applied. Set only by apply-route, never by the client directly. */
-            selected_route_id?: components["schemas"]["Uuid"] | null;
+            /** @description Route the traveller applied. Set only by apply-route, never by the client directly. A RecordId rather than a Uuid because it holds a RouteCandidate.route_id, and those are producer-minted and reproducible (`openrouteservice:3ca4459b8d41b503`) so that the same route asked for twice is recognisably the same route. */
+            selected_route_id?: components["schemas"]["RecordId"] | null;
             status: components["schemas"]["TripStatus"];
             timezone: components["schemas"]["Timezone"];
             title?: string | null;

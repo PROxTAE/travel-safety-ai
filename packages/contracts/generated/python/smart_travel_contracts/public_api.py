@@ -88,14 +88,21 @@ class ReviewStatus(Enum):
 
 
 class PoiType(Enum):
+    """
+    OTHER is the required escape hatch: a provider category this contract does not model is mapped to OTHER and kept, never discarded and never guessed into a neighbouring type. provider_category, where a producer supplies it, records what the provider actually said.
+    """
+
     HOSPITAL = 'HOSPITAL'
     CLINIC = 'CLINIC'
+    DOCTOR = 'DOCTOR'
     PHARMACY = 'PHARMACY'
     POLICE = 'POLICE'
     FIRE_STATION = 'FIRE_STATION'
     EMBASSY = 'EMBASSY'
     CONSULATE = 'CONSULATE'
+    TOWNHALL = 'TOWNHALL'
     SHELTER = 'SHELTER'
+    OTHER = 'OTHER'
 
 
 class Note(RootModel[str]):
@@ -330,6 +337,19 @@ class TravelMode(Enum):
     MULTIMODAL = 'MULTIMODAL'
 
 
+class RecordId(RootModel[str]):
+    root: str = Field(
+        ...,
+        max_length=256,
+        min_length=1,
+        pattern='^[A-Za-z0-9][A-Za-z0-9._:,+@/=-]*$',
+        title='RecordId',
+    )
+    """
+    Identifier of a record as the producer mints it. Stable and reproducible: fetching the same fact twice must yield the same RecordId, because that is what lets module 05 deduplicate across sources and what lets an operator trace one fact back through a log. A provider adapter therefore derives it from the provider key and the provider's own record id (for example `usgs:us7000abcd`), never from a random UUID, which would differ on every fetch and defeat both. A service that mints a record with no upstream identity may use a UUID here; the format is deliberately wide enough for both.
+    """
+
+
 class DeletionStatus(Enum):
     """
     Reported by soft-delete endpoints; purge happens asynchronously across owned schemas.
@@ -400,19 +420,6 @@ class DisasterEventType(Enum):
     HEALTH = 'HEALTH'
     TRANSPORT_CLOSURE = 'TRANSPORT_CLOSURE'
     OTHER = 'OTHER'
-
-
-class RecordId(RootModel[str]):
-    root: str = Field(
-        ...,
-        max_length=256,
-        min_length=1,
-        pattern='^[A-Za-z0-9][A-Za-z0-9._:,+@/=-]*$',
-        title='RecordId',
-    )
-    """
-    Identifier of a record as the producer mints it. Stable and reproducible: fetching the same fact twice must yield the same RecordId, because that is what lets module 05 deduplicate across sources and what lets an operator trace one fact back through a log. A provider adapter therefore derives it from the provider key and the provider's own record id (for example `usgs:us7000abcd`), never from a random UUID, which would differ on every fetch and defeat both. A service that mints a record with no upstream identity may use a UUID here; the format is deliberately wide enough for both.
-    """
 
 
 class HttpsUrl(RootModel[AnyUrl]):
@@ -523,7 +530,10 @@ class RouteLabel(Enum):
 
 
 class RouteSegment(BaseModel):
-    segment_id: Uuid
+    segment_id: RecordId
+    """
+    Reproducible within its route, for the same reason as route_id.
+    """
     mode: TravelMode
     from_name: str | None = Field(None, max_length=256)
     to_name: str | None = Field(None, max_length=256)
@@ -858,11 +868,14 @@ class Trip(BaseModel):
     timezone: Timezone
     travel_modes: list[TravelMode] = Field(..., max_length=7, min_length=1)
     preferences: TravelPreference | None = None
-    selected_route_id: Uuid | None = None
+    selected_route_id: RecordId | None = None
     """
-    Route the traveller applied. Set only by apply-route, never by the client directly.
+    Route the traveller applied. Set only by apply-route, never by the client directly. A RecordId rather than a Uuid because it holds a RouteCandidate.route_id, and those are producer-minted and reproducible (`openrouteservice:3ca4459b8d41b503`) so that the same route asked for twice is recognisably the same route.
     """
-    previous_selected_route_id: Uuid | None = None
+    previous_selected_route_id: RecordId | None = None
+    """
+    The route this trip had applied before the current one, kept so a reassessment can say what changed. Same type as selected_route_id for the same reason.
+    """
     latest_request_id: Uuid | None = None
     """
     Most recent assessment started for this trip revision.
@@ -1087,10 +1100,13 @@ class SourceProvenance(BaseModel):
 
 class RouteCandidate(BaseModel):
     """
-    One way of making the journey, with the hazard exposure measured along its corridor rather than at the endpoints. A route whose corridor carries an official closure must have exposure.closed = true and can never be labelled RECOMMENDED.
+    One way of making the journey, with the hazard exposure measured along its corridor rather than at the endpoints. A route whose corridor carries an official closure must have exposure.closed = true and can never be labelled RECOMMENDED. A raw route straight from a routing provider carries exposure: null and risk_level: UNKNOWN until modules 05/06 evaluate it; the two are bound together so an unevaluated route cannot be mistaken for a safe one.
     """
 
-    route_id: Uuid
+    route_id: RecordId
+    """
+    Reproducible on purpose: asking for the same route twice must yield the same value, so a route served from cache and one fetched fresh are recognisably the same route rather than two. A provider adapter derives it from the provider key and a fingerprint of the question (waypoints, mode, preference). Same reasoning as source_id and event_id.
+    """
     provider_route_id: str | None = Field(None, max_length=256)
     """
     Opaque provider handle, kept so the same route can be re-fetched or audited.
@@ -1102,10 +1118,16 @@ class RouteCandidate(BaseModel):
     distance_m: float = Field(..., ge=0.0)
     duration_seconds: float = Field(..., ge=0.0)
     transfers: int | None = Field(None, ge=0)
-    exposure: RouteExposure
+    exposure: RouteExposure | None = None
+    """
+    Null until a route has been evaluated against hazards and weather. A routing provider knows road geometry and travel time and has no view on danger, so module 04 emits null here and modules 05/06 fill it in. Null does NOT mean 'no exposure': an unevaluated route must never be rendered as safe, which is why the schema requires risk_level to be UNKNOWN whenever this is null.
+    """
     risk_level: RiskLevel
     quality: DataQuality
-    sources: list[SourceProvenance]
+    sources: list[SourceProvenance] = Field(..., min_length=1)
+    """
+    Plural, unlike the singular `source` on records that come from exactly one provider. A route survives stitching: module 05 joins legs from different providers into one itinerary, and each leg's provenance has to survive that join. A single-provider route sends a one-element array.
+    """
 
 
 class DisasterEvent(BaseModel):
@@ -1508,14 +1530,23 @@ class EmergencyPoi(BaseModel):
 
     poi_id: RecordId
     poi_type: PoiType
-    name: str = Field(..., max_length=512)
+    """
+    OTHER is the required escape hatch: a provider category this contract does not model is mapped to OTHER and kept, never discarded and never guessed into a neighbouring type. provider_category, where a producer supplies it, records what the provider actually said.
+    """
+    name: str | None = Field(..., max_length=512)
+    """
+    Null when the provider has no name for the place. OpenStreetMap leaves roughly one emergency POI in ten untagged, including real hospitals; the shared context calls this data 'frequently stale or missing'. The two alternatives were both worse: dropping the record hides the nearest hospital from somebody who needs it, and synthesising 'Unnamed hospital' puts words in the provider's mouth inside a data field. A consumer renders the type and the distance, and says the name is unknown.
+    """
     location: Point
     address: str | None = Field(None, max_length=512)
     phone: str | None = Field(None, max_length=32)
     """
     As published by the places provider. Never presented as an official emergency number.
     """
-    distance_m: float = Field(..., ge=0.0)
+    distance_m: float | None = Field(..., ge=0.0)
+    """
+    Straight-line metres from the query point, not travel distance — there may be no road. Null when the provider did not give one, rather than zero, which would read as 'you are here'.
+    """
     open_now: bool | None = None
     """
     Null unless the provider supplies opening hours; unknown is not open.
