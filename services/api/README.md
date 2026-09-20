@@ -11,7 +11,7 @@ Contract: [`packages/contracts/openapi/public-api.yaml`](../../packages/contract
 
 ## What exists today
 
-Phases 1, 2 and 3 of the plan.
+Phases 1, 2, 3 and 4 of the plan.
 
 | Area | State |
 | --- | --- |
@@ -29,7 +29,12 @@ Phases 1, 2 and 3 of the plan.
 | `GET`/`PUT`/`DELETE /api/v1/me/emergency-profile`, envelope-encrypted | Done |
 | Audit trail that records actions but never their content | Done |
 | Export and deletion worker with tracked status | Skeleton — `identity` only, see below |
-| Trips, assessments, SSE, the rest of `/api/v1/**` | Phases 4–6 — **not implemented** |
+| `POST`/`GET /api/v1/trips`, `GET`/`PATCH`/`DELETE /api/v1/trips/{id}` | Done |
+| Trip revision / ETag / `If-Match` optimistic concurrency | Done |
+| Keyset pagination over the trip list | Done |
+| Idempotent trip creation (`Idempotency-Key`) | Done |
+| `GET /api/v1/locations/search` — proxied to module 04 | Done |
+| Assessments, runs, SSE, recommendations, the rest of `/api/v1/**` | Phases 5–6 — **not implemented** |
 | Rate limiting | Phase 7 — **not implemented** |
 
 ## Run it
@@ -189,6 +194,75 @@ docker compose run --rm api python -m app.cli.generate_key
 Dropping a key while rows still reference it makes them unreadable, and the service says so loudly
 rather than reporting the profile as missing.
 
+## Trips
+
+A trip is a saved journey. Five routes, and three rules that hold across all of them.
+
+**Ownership is a query, not a check.** Every repository function takes the owner resolved from the
+token and filters on it; there is no `get(trip_id)` without one. A trip belonging to somebody else
+is reported as 404, identically to one that does not exist, so ids cannot be probed by watching the
+status change.
+
+**A mutation is guarded by a revision.** `GET` returns `ETag: W/"3"`; `PATCH` requires that value
+back in `If-Match`. The comparison happens *inside* the UPDATE statement, not before it:
+
+```sql
+UPDATE travel.trips SET revision = revision + 1, ...
+ WHERE id = :id AND user_id = :owner AND deleted_at IS NULL AND revision = :expected
+```
+
+Two tabs editing the same trip are therefore resolved by PostgreSQL. One gets revision 4, the other
+gets 412 and has to reload. A read-then-write implementation passes a sequential test and loses an
+edit in production, which is why `tests/test_trip_concurrency.py` runs real concurrent transactions.
+
+Missing `If-Match` is 428, not a silent unconditional write. `If-Match: *` is refused too — it means
+"whatever is current", which is exactly the overwrite the header exists to prevent.
+
+**Changing the journey invalidates its assessment.** Moving the origin, destination, departure,
+return, time zone or travel modes clears `latest_request_id` and `selected_route_id`. Keeping them
+would let the UI go on showing a verdict reached for a different journey, and a stale safety answer
+is indistinguishable from a current one. Renaming a trip or changing preferences does not.
+
+### Creating a trip
+
+Both endpoints must be `confirmed_by_user`. The coordinates decide which weather, closures and
+alerts get fetched, and geocoding "Springfield" returns a list whose first entry is a guess; a pin
+nobody looked at would send every hazard lookup somewhere the traveller never chose.
+
+`Idempotency-Key` makes a retry safe. The same key with the same body returns the original trip; the
+same key with a different body is 409 `IDEMPOTENCY_CONFLICT`. Neither the key nor the body is
+stored — both are reduced to a SHA-256 digest, because the key is a bearer value and the body holds
+the coordinates of somebody's journey. Two concurrent retries race on a unique constraint inside a
+savepoint, so the loser rolls back its own trip rather than leaving an orphan.
+
+### Listing
+
+Keyset pagination on `(departure_time, id)`, newest departure first. Not OFFSET: a trip created
+while somebody is paging would shift every later page by one and hide a row. The id breaks ties
+between two trips leaving at the same moment. Cursors are opaque and must not be constructed by a
+client. Soft-deleted trips are excluded unless `status=DELETED` is asked for explicitly.
+
+### Deleting
+
+A soft delete. The response reports `IN_PROGRESS`, never `COMPLETED`: the trip stops being visible
+at once, but assessments and recommendations made for it live in other services' schemas and are
+removed by the retention worker. Claiming completion before that has happened would be a
+reassurance this service cannot honestly give.
+
+## Place search
+
+`GET /api/v1/locations/search` proxies to module 04's `/internal/v1/geocode/search`. This service
+never talks to a geocoding provider, holds no provider key, and never takes a URL from a caller —
+the base URL is configuration and the path is a constant. Anything else would make the public API,
+which sits on the internal network holding a service credential, an SSRF proxy for everything
+behind the firewall.
+
+An empty list means the provider matched nothing. A provider that is down is 503, and a slow one is
+504. The two are never collapsed: a traveller told "no results for Chiang Mai" concludes something
+very different from one told "search is unavailable". Results are returned with
+`confirmed_by_user: false` whatever module 04 said — confirmation is a person looking at a map, and
+no upstream service may assert it on their behalf.
+
 ## The audit trail
 
 `identity.audit_log` records that something happened and never what it said. A profile write is
@@ -227,8 +301,10 @@ first time somebody scales it.
 app/
 ├─ main.py            app factory and lifespan; middleware order is documented there
 ├─ settings.py        every environment value, validated at startup
-├─ api/               routers: health, and /api/v1/me
+├─ api/               routers: health, /api/v1/me, /api/v1/trips, /api/v1/locations
 ├─ auth/              JWKS cache, token verification, principal, dependencies
+├─ clients/           calls to internal services; base URLs come from settings, never a request
+├─ domain/            trip rules — no FastAPI, no SQLAlchemy, testable on their own
 ├─ security/          envelope encryption for the emergency profile
 ├─ services/          wiring that is neither a route nor a query
 ├─ cli/               retention worker and key generation
@@ -250,7 +326,7 @@ public API, never through the tables.
 | Schema | Holds |
 | --- | --- |
 | `identity` | `user_profiles`, `consents`, `emergency_profiles`, `audit_log`, `data_subject_requests` |
-| `travel` | Trips, assessment requests, idempotency records |
+| `travel` | `trips`, `idempotency_keys` (assessment requests arrive in phase 5) |
 | `api` | This service's Alembic version table only — no user data |
 
 The version table is deliberately in a third schema. In `public` it would be shared with the six
@@ -294,6 +370,13 @@ the ones that are easy to get wrong:
   service. Trusting the header by default would let any client choose its own rate-limit bucket.
 - `OTEL_EXPORTER_OTLP_ENDPOINT` — unset means spans are created and dropped. Traces still appear in
   the logs via `trace_id`, and local development needs no collector.
+- `API_TRIP_SUPPORTED_TRAVEL_MODES` — the modes this deployment has a real data source for. A mode
+  outside the list is refused with `UNSUPPORTED_COVERAGE` rather than accepted and then silently not
+  assessed. `FLIGHT` is absent by default because the contract's flight provider is Amadeus
+  production and the shared context rules its test environment out as acceptance data.
+- `INTERNAL_SERVICE_TOKEN` — the shared secret presented to internal services. Blank counts as
+  unset, and place search then reports itself unavailable rather than sending an empty bearer token
+  and having module 04 look broken.
 
 In production, plain-HTTP CORS origins and a plain-HTTP OIDC issuer are rejected at startup.
 
@@ -303,7 +386,17 @@ In production, plain-HTTP CORS origins and a plain-HTTP OIDC issuer are rejected
   not reach, and the public `DELETE /api/v1/me` endpoint the contract document implies is not in the
   frozen OpenAPI yet — it needs a contract change, so the worker is driven by CLI for now.
 - Key rotation re-wraps one row at a time through the repository; there is no bulk rotation command.
-- Trips, assessments and the rest of `/api/v1/**` do not exist. Phases 4–6.
+- Travel-mode coverage is a flat configured list, not per region. The contract's 422 anticipates
+  "no coverage *in that region*", which needs module 04's provider registry; that lands with the
+  assessment flow in phase 5. Today a mode is either supported everywhere or nowhere.
+- `GET /api/v1/locations/search` needs module 04 running and `INTERNAL_SERVICE_TOKEN` set. Without
+  either it returns 503 `DEPENDENCY_UNAVAILABLE` — never an empty result list, because "nothing
+  matched" and "search is down" lead a traveller to do different things.
+- Assessments, runs, SSE and recommendations do not exist. Phases 5–6. `latest_request_id` and
+  `selected_route_id` are already cleared whenever the journey changes, so phase 5 inherits a trip
+  that cannot be showing a verdict for a route it no longer describes.
+- Idempotency is implemented for trip creation. The assessment-run idempotency the plan puts in
+  phase 5 shares the same table and will reuse `app/repositories/idempotency.py`.
 - No rate limiting yet, although Redis is already required and probed. Phase 7.
 - A token stays valid until it expires. Disabling an account takes effect immediately because the
   local row is checked on every request, but there is no token introspection or revocation list.
