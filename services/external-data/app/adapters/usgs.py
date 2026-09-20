@@ -22,11 +22,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 from urllib.parse import urlsplit, urlunsplit
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.adapters.base import CoverageDecision, ProviderAdapter, ProviderRequest
 from app.domain.canonical import DataQuality
-from app.domain.enums import DataStatus, EventType, QualityFlag
+from app.domain.enums import EventType, QualityFlag
 from app.domain.errors import ProviderError, ProviderErrorCode
 from app.domain.queries import DisasterQuery
 from app.domain.records import DisasterEvent, GeoPoint
@@ -86,10 +86,21 @@ class UsgsFeature(BaseModel):
     geometry: UsgsGeometry | None = None
 
 
+class UsgsMetadata(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    # Epoch **milliseconds**, like every other USGS timestamp: the moment the
+    # provider built this feed. This is the only honest answer to "how old is
+    # our copy of the data", which is what DataQuality.status is asking.
+    generated: int | None = None
+    count: int | None = None
+
+
 class UsgsFeed(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     features: list[UsgsFeature] = []
+    metadata: UsgsMetadata = Field(default_factory=UsgsMetadata)
 
 
 class UsgsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
@@ -161,6 +172,11 @@ class UsgsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
         self, model: UsgsFeed, response: ProviderResponse, query: DisasterQuery
     ) -> list[DisasterEvent]:
         fetched_at = datetime.fromtimestamp(response.fetched_at, tz=UTC)
+        feed_generated_at = (
+            _from_epoch_ms(model.metadata.generated)
+            if model.metadata.generated is not None
+            else None
+        )
         window = _feed_window(query.start)
         events: list[DisasterEvent] = []
         dropped = 0
@@ -213,6 +229,7 @@ class UsgsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                     quality=_quality(
                         feature=feature,
                         occurred_at=occurred_at,
+                        feed_generated_at=feed_generated_at,
                         fetched_at=fetched_at,
                         window=window,
                         client_side_filtered=query.bbox is not None
@@ -331,11 +348,23 @@ def _quality(
     *,
     feature: UsgsFeature,
     occurred_at: datetime,
+    feed_generated_at: datetime | None,
     fetched_at: datetime,
     window: str,
     client_side_filtered: bool,
 ) -> DataQuality:
-    age_seconds = max(0, int((fetched_at - occurred_at).total_seconds()))
+    # How old our copy of the data is - NOT how long ago the earthquake
+    # happened. Shared context section 10 gives disaster events a ten-minute
+    # freshness budget and says "fetch again" when it is exceeded, which is only
+    # a coherent instruction about a stale read: re-fetching cannot make an old
+    # earthquake younger.
+    #
+    # Measuring event age here marked every quake older than ten minutes STALE.
+    # A live query returned 268 events, 268 of them STALE and none FRESH,
+    # including every quake of magnitude 5.0 and above - and a field with one
+    # value on every record tells a consumer nothing, while one filtering on it
+    # as the contract suggests receives nothing at all.
+    age_seconds = max(0, int((fetched_at - (feed_generated_at or fetched_at)).total_seconds()))
     flags: list[QualityFlag] = []
     notes = [f"from the USGS {window} summary feed"]
 
@@ -365,10 +394,22 @@ def _quality(
         flags=flags,
         notes=notes,
     )
-    # An event from a 30-day feed is old by definition; that is history, not a
-    # stale read of the present.
-    if quality.status is DataStatus.STALE and window in {"week", "month"}:
+    if feed_generated_at is None:
+        # Nothing to measure against, so say so rather than reporting the age of
+        # a fetch that may have been served from cache.
         quality.notes.append(
-            "age reflects when the earthquake happened, not when the feed was read"
+            "the feed carried no generation time, so the age of this data could "
+            "not be measured"
+        )
+    else:
+        quality.notes.append(
+            f"freshness is the age of the feed itself (generated "
+            f"{feed_generated_at:%Y-%m-%dT%H:%M:%SZ}); how long ago the "
+            f"earthquake happened is effective_at"
+        )
+    if window in {"week", "month"}:
+        quality.notes.append(
+            f"read from the {window} feed, so it may contain events that are "
+            "days or weeks old - that is history, not a stale read"
         )
     return quality
