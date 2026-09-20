@@ -283,13 +283,20 @@ class OpenRouteServiceAdapter(ProviderAdapter[RouteQuery, RouteCandidate]):
                 # A LineString needs two positions; one is not a route.
                 continue
 
-            provider_route_id = str(index)
+            # The provider gives its routes no id of their own, only a position
+            # in the response. Using that bare index as the provenance record id
+            # makes `source_id` "openrouteservice:0" for the first route of
+            # every query ever made - so two unrelated routes would claim to be
+            # the same source record. The request fingerprint keeps it unique
+            # and still deterministic.
+            fingerprint = _route_fingerprint(query, index)
+            provider_route_id = f"{index}@{fingerprint}"
             summary = feature.properties.summary
             geometry = GeoLineString(coordinates=coordinates)
 
             routes.append(
                 RouteCandidate(
-                    route_id=f"{self.provider_id}:{_route_fingerprint(query, index)}",
+                    route_id=f"{self.provider_id}:{fingerprint}",
                     provider_route_id=provider_route_id,
                     # The provider ranks its own output: index 0 is the route it
                     # considers best for the requested profile. Calling that

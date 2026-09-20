@@ -322,3 +322,32 @@ def test_provenance_carries_the_licence_and_a_content_hash() -> None:
     assert route.source.license
     assert route.source.content_hash is not None
     assert route.source.provider == "openrouteservice"
+
+
+def test_source_id_does_not_collide_between_unrelated_queries() -> None:
+    """The provider gives its routes no id, only a position in the response.
+
+    Using that bare index made `source_id` "openrouteservice:0" for the first
+    route of every query ever made, so two unrelated routes claimed to be the
+    same source record - and provenance that does not identify one record is
+    not provenance.
+    """
+    bangkok_to_ayutthaya = [route.source.source_id for route in _routes()]
+    bangkok_to_chiang_mai = [
+        route.source.source_id for route in _routes(waypoints=[BANGKOK, (98.98, 18.78)])
+    ]
+    assert not set(bangkok_to_ayutthaya) & set(bangkok_to_chiang_mai)
+
+
+def test_source_id_is_stable_for_the_same_query() -> None:
+    """Unique is only half of it; it must also survive a re-fetch, or a cached
+    record and a fresh one look like two different sources."""
+    first = [route.source.source_id for route in _routes()]
+    second = [route.source.source_id for route in _routes()]
+    assert first == second
+
+
+def test_each_route_in_one_response_has_its_own_source_id() -> None:
+    routes = _routes(alternatives=2)
+    ids = [route.source.source_id for route in routes]
+    assert len(set(ids)) == len(ids)
