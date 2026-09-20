@@ -7,17 +7,17 @@ explicitly excluded.
 
 ## 1. Metadata
 
-| Field                                          | Value                                                                                                                                                    |
-| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Module/owner                                   | 01 — Web application                                                                                                                                     |
-| Issue/PR                                       | Not yet opened; proposed title: `[M01] Add responsive web shell and Phase 1 foundation`                                                                  |
-| Branch                                         | `feat/01-web-shell`                                                                                                                                      |
-| Base/final commit SHA                          | Rebased onto `origin/main` `d17aae1152dff29d60f7dc7fbd8514c7b255bade`; implementation head before this report `cf664200ac85b8fdb13613c5b609da692d25789c` |
-| Date/time/timezone                             | 2026-09-21, Asia/Bangkok (UTC+07:00)                                                                                                                     |
-| Reviewers                                      | Team Lead; M02 public API owner for the Phase 0 contract inventory                                                                                       |
-| Contract version                               | Public API v1 baseline; unchanged by this branch                                                                                                         |
-| Docker image digest/tag                        | `smart-travel-web:phase1-pr`; local digest `sha256:75205f3fbce2fdb5c534ae88119028dd4c23f01fab9de586403eba97ef5d8257`; 91,716,649 bytes                   |
-| Related model/policy/prompt/collection version | N/A — no model, prompt, policy, or collection is used in Phases 0–1                                                                                      |
+| Field                                          | Value                                                                                                                                               |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Module/owner                                   | 01 — Web application                                                                                                                                |
+| Issue/PR                                       | Not yet opened; proposed title: `[M01] Add responsive web shell and Phase 1 foundation`                                                             |
+| Branch                                         | `feat/01-web-shell`                                                                                                                                 |
+| Base/final commit SHA                          | Rebased onto `origin/main` `3353f158787f2d7df6b997ab8ff0aa209615e01c`; pre-revalidation branch head `80d7dafa61e99c4d2ce3a22377ff017a3107c952`      |
+| Date/time/timezone                             | 2026-09-21, Asia/Bangkok (UTC+07:00)                                                                                                                |
+| Reviewers                                      | Team Lead; M02 public API owner for the Phase 0 contract inventory                                                                                  |
+| Contract version                               | Public API v1 as present at `3353f15`; shared source/generated artifacts unchanged by this branch                                                   |
+| Docker image digest/tag                        | `smart-travel-web:phase1-contract-rebase`; local digest `sha256:031821102a7013ea054c2a0b4adc22100d9c1b92ee64733426f94bab0815649b`; 91,716,820 bytes |
+| Related model/policy/prompt/collection version | N/A — no model, prompt, policy, or collection is used in Phases 0–1                                                                                 |
 
 ## 2. Executive summary
 
@@ -27,10 +27,13 @@ Phase 1 supplies a strict TypeScript Next.js 16 application, responsive desktop
 and mobile shell, visual tokens, empty route boundaries, explicit unavailable
 states, environment parsing, unit/E2E configuration, and a standalone non-root
 Docker runtime. The browser does not call an API, provider, or mock service in
-this slice. All lint, type, unit/component, production-build, health, and shell
-E2E checks passed inside Docker. This slice is ready to merge, but the web
-application is not ready to release until Phase 2 and later slices add real
-authentication, API/SSE integration, live data, and feature flows.
+this slice. After rebasing onto the updated shared contract, the official
+OpenAPI/schema/example checks, generated TypeScript parity check, M01 consumer
+typecheck, lint, format, web typecheck, unit/component, production-build,
+Compose, health, and shell E2E checks all passed inside Docker. This slice is
+ready to merge, but the web application is not ready to release until Phase 2
+and later slices add real authentication, API/SSE integration, live data, and
+feature flows.
 
 ## 3. Original responsibility and acceptance criteria
 
@@ -40,6 +43,7 @@ authentication, API/SSE integration, live data, and feature flows.
 - [x] Recorded visible elements, interactions, states, route ownership, and delivery phases — route inventory in the same document.
 - [x] Recorded generated-client/auth/SSE decisions — generated contract is available; Auth.js callback and browser SSE authentication are explicitly deferred to Phase 2.
 - [x] Checked `RecommendationResponse` fields — action, risk, routes, sources, freshness, limitations, and degraded services are present; no Phase 1 contract change was needed.
+- [x] Rechecked the updated route/place contract — an unevaluated route has `exposure: null` and cannot be presented as open, while an emergency POI may have `name: null` and must remain renderable by type/distance. The M01 TypeScript consumer assertions compile without a web change.
 - [x] Checked asset dimensions/alpha/font/licensing posture — source screen dimensions and RGBA assets recorded; no bundled font or explicit asset licence was found. Next Image negotiates AVIF/WebP while the supplied PNGs remain preserved.
 
 ### Phase 1 — scaffold and design system
@@ -137,8 +141,9 @@ performance and full visual/accessibility baselines are Phase 8 work.
 | -------- | ----------------- | -------------- | -------------------------------- | ------------------- | ---------------------------- |
 | Web      | `GET /api/health` | None           | `{status: "ok", service: "web"}` | Docker/orchestrator | New web-local liveness route |
 
-- Generated client command/result: N/A — Phase 0 inspected the existing generated TypeScript contract; Phase 2 will integrate it.
-- Contract lint/breaking check result: N/A — `packages/contracts/**` is unchanged.
+- Generated client command/result: Dockerized `npm run bundle` plus `npm run generate:ts` produced a 2,829-line TypeScript declaration and matched the committed bundled OpenAPI and TypeScript outputs byte-for-byte (`generated-contract-artifacts-clean`). Phase 2 will integrate the client at runtime.
+- Contract lint/consumer result: `npm run check` passed in Docker — OpenAPI valid with 2 intentional ignores, 31 schemas compiled, 6 examples validated, and the M01 consumer TypeScript check compiled with no errors.
+- Compatibility finding: the current shell does not consume contract payloads at runtime, and its Phase 0 assumptions remain valid. Later UI work must preserve `RouteCandidate.exposure: null` as unevaluated/unknown and render `EmergencyPoi.name: null` without dropping the place.
 - Deprecation/migration plan: N/A.
 - Sanitized request/response example: the health response is shown in §10; it contains no user/provider data.
 
@@ -171,20 +176,42 @@ No external provider or real-data endpoint is called in Phases 0–1.
 ### Exact run and verification commands
 
 ```bash
-docker build --target development --tag smart-travel-web:pr-check apps/web
-docker run --rm smart-travel-web:pr-check pnpm lint
-docker run --rm smart-travel-web:pr-check pnpm typecheck
-docker run --rm smart-travel-web:pr-check pnpm test
+docker run --rm -v "$PWD/packages/contracts:/src:ro" -w /work \
+  node:22.23.2-alpine3.24 sh -lc \
+  'cp /src/package.json /src/package-lock.json /src/redocly.yaml \
+   /src/.redocly.lint-ignore.yaml /src/tsconfig.json /work/ && \
+   cp -a /src/openapi /src/jsonschema /src/examples /src/generated \
+   /src/consumer-checks /src/scripts /work/ && npm ci && npm run check'
 
-docker build --target runtime --tag smart-travel-web:phase1-pr apps/web
-docker run --rm -d --name smart-travel-web-phase1-pr-check \
-  -p 127.0.0.1:33000:3000 smart-travel-web:phase1-pr
-docker exec smart-travel-web-phase1-pr-check id
+docker run --rm -v "$PWD/packages/contracts:/src:ro" -w /work \
+  node:22.23.2-alpine3.24 sh -lc \
+  'cp /src/package.json /src/package-lock.json /src/redocly.yaml \
+   /src/tsconfig.json /work/ && cp -a /src/openapi /src/jsonschema \
+   /src/generated /src/scripts /work/ && \
+   cp /work/generated/openapi/public-api.bundled.yaml /tmp/bundled.yaml && \
+   cp /work/generated/typescript/public-api.d.ts /tmp/public-api.d.ts && \
+   npm ci >/dev/null && npm run bundle && npm run generate:ts && \
+   cmp /tmp/bundled.yaml /work/generated/openapi/public-api.bundled.yaml && \
+   cmp /tmp/public-api.d.ts /work/generated/typescript/public-api.d.ts'
+
+docker build --target development \
+  --tag smart-travel-web:pr-check-contract-rebase apps/web
+docker run --rm smart-travel-web:pr-check-contract-rebase pnpm lint
+docker run --rm smart-travel-web:pr-check-contract-rebase pnpm format
+docker run --rm smart-travel-web:pr-check-contract-rebase pnpm typecheck
+docker run --rm smart-travel-web:pr-check-contract-rebase pnpm test
+docker compose -f compose.yaml -f compose.dev.yaml config --quiet
+
+docker build --target runtime \
+  --tag smart-travel-web:phase1-contract-rebase apps/web
+docker run --rm -d --name smart-travel-web-contract-rebase-check \
+  -p 127.0.0.1:33000:3000 smart-travel-web:phase1-contract-rebase
+docker exec smart-travel-web-contract-rebase-check id
 curl --fail --silent --show-error http://127.0.0.1:33000/api/health
-docker inspect smart-travel-web-phase1-pr-check \
+docker inspect smart-travel-web-contract-rebase-check \
   --format '{{.State.Status}} health={{.State.Health.Status}}'
 
-docker run --rm --network container:smart-travel-web-phase1-pr-check \
+docker run --rm --network container:smart-travel-web-contract-rebase-check \
   -v "$PWD/apps/web:/src:ro" -w /work \
   -e CI=1 -e PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 \
   mcr.microsoft.com/playwright:v1.55.0-noble bash -lc \
@@ -192,35 +219,38 @@ docker run --rm --network container:smart-travel-web-phase1-pr-check \
    cp -a /src/tests/e2e /work/tests/e2e && npm init -y >/dev/null && \
    npm install --no-save @playwright/test@1.55.0 >/dev/null && \
    npx playwright test --reporter=line'
-docker stop smart-travel-web-phase1-pr-check
+docker stop smart-travel-web-contract-rebase-check
 ```
 
 - Container user: `uid=100(app) gid=101(app)`.
 - Port: runtime exposes 3000; verification published it only on `127.0.0.1:33000`.
 - Network/volumes: no runtime volume; E2E mounts source read-only and copies only test/config files into an ephemeral runner.
 - Health/readiness: Docker reported `running health=healthy`; `/api/health` returned HTTP 200. This is liveness, not downstream API readiness.
-- CPU/RAM/disk measured: not profiled; local image size is 91,716,649 bytes.
-- Runtime image/tag/digest: `smart-travel-web:phase1-pr`, `sha256:75205f3fbce2fdb5c534ae88119028dd4c23f01fab9de586403eba97ef5d8257`.
+- CPU/RAM/disk measured: not profiled; local image size is 91,716,820 bytes.
+- Runtime image/tag/digest: `smart-travel-web:phase1-contract-rebase`, `sha256:031821102a7013ea054c2a0b4adc22100d9c1b92ee64733426f94bab0815649b`.
 - Base image: `node:22.23.2-alpine3.24@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85`.
 - Docker client/server: 27.2.0 / 27.2.0.
 
 ## 10. Tests and verification
 
-| Test type             | Command                                                                   |            Passed | Failed | Skipped | Evidence                                                        |
-| --------------------- | ------------------------------------------------------------------------- | ----------------: | -----: | ------: | --------------------------------------------------------------- |
-| Lint                  | `docker run --rm smart-travel-web:pr-check pnpm lint`                     |         1 command |      0 |       0 | Exit 0, no ESLint findings                                      |
-| Type                  | `docker run --rm smart-travel-web:pr-check pnpm typecheck`                |         1 command |      0 |       0 | Exit 0, no TypeScript findings                                  |
-| Unit/component        | `docker run --rm smart-travel-web:pr-check pnpm test`                     | 4 tests / 2 files |      0 |       0 | Vitest completed in 22.26 s                                     |
-| Production build      | `docker build --target runtime --tag smart-travel-web:phase1-pr apps/web` |           1 build |      0 |       0 | Next 16.3.5 compiled, typechecked, and generated 9 static pages |
-| E2E                   | Dockerized Playwright command in §9                                       |           3 tests |      0 |       0 | Chromium: 3 passed in 26.7 s                                    |
-| Health/runtime user   | `curl`, `docker inspect`, `docker exec ... id`                            |          3 checks |      0 |       0 | HTTP 200, healthy, non-root uid 100                             |
-| Contract/integration  | N/A                                                                       |                 0 |      0 |       0 | No Phase 0–1 contract or backend integration                    |
-| Security/privacy scan | Not run                                                                   |                 0 |      0 |       0 | Required CI scan still pending                                  |
-| Axe/visual/load       | Not run                                                                   |                 0 |      0 |       0 | Full suites belong to Phase 8; keyboard/tap E2E did run         |
+| Test type             | Command                                        |                                         Passed | Failed | Skipped | Evidence                                                        |
+| --------------------- | ---------------------------------------------- | ---------------------------------------------: | -----: | ------: | --------------------------------------------------------------- |
+| Contract package      | Dockerized `npm run check`                     | 31 schemas / 6 examples / 1 consumer typecheck |      0 |       0 | OpenAPI valid; M01 TypeScript consumer compiled                 |
+| Generated TS parity   | Dockerized bundle/generate/`cmp`               |                                    2 artifacts |      0 |       0 | Bundled OpenAPI and 2,829-line TypeScript output unchanged      |
+| Lint                  | `docker run --rm ... pnpm lint`                |                                      1 command |      0 |       0 | Exit 0, no ESLint findings                                      |
+| Format                | `docker run --rm ... pnpm format`              |                                      1 command |      0 |       0 | All matched files use Prettier code style                       |
+| Type                  | `docker run --rm ... pnpm typecheck`           |                                      1 command |      0 |       0 | Exit 0, no TypeScript findings                                  |
+| Unit/component        | `docker run --rm ... pnpm test`                |                              4 tests / 2 files |      0 |       0 | Vitest completed in 53.22 s                                     |
+| Compose               | `docker compose ... config --quiet`            |                                        1 check |      0 |       0 | Rebased combined configuration valid                            |
+| Production build      | `docker build --target runtime ...`            |                                        1 build |      0 |       0 | Next 16.3.5 compiled, typechecked, and generated 9 static pages |
+| E2E                   | Dockerized Playwright command in §9            |                                        3 tests |      0 |       0 | Chromium: 3 passed in 46.0 s                                    |
+| Health/runtime user   | `curl`, `docker inspect`, `docker exec ... id` |                                       3 checks |      0 |       0 | HTTP 200, healthy, non-root uid 100                             |
+| Security/privacy scan | Not run                                        |                                              0 |      0 |       0 | Required CI scan still pending                                  |
+| Axe/visual/load       | Not run                                        |                                              0 |      0 |       0 | Full suites belong to Phase 8; keyboard/tap E2E did run         |
 
 ### Scenarios verified
 
-- Success: every route compiled; desktop and mobile navigation reached target routes; liveness returned 200.
+- Success: updated contract consumer compiled; generated TypeScript stayed clean; every route compiled; desktop/mobile navigation reached target routes; liveness returned 200.
 - Invalid input: missing API URL and invalid map URL throw schema errors.
 - Keyboard/touch: mobile disclosure opens/closes, 44 px navigation target is tappable, Enter activates links.
 - Timeout/429/5xx, stale/partial/conflicting data, cancellation/idempotency/concurrency: N/A because Phase 2/API behavior is not implemented.
@@ -255,13 +285,14 @@ is blocked by intentionally absent later-phase controls.
 
 ## 13. Problems encountered and resolutions
 
-| Problem                                                              | Root cause                                                                     | Evidence                                             | Resolution/workaround                                                    | Remaining risk                                                     |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| Branch was behind main                                               | `origin/main` advanced from `3238478` to `d17aae1`                             | Fetch output and merge base                          | Stashed local edits, rebased 8 commits cleanly, restored edits           | None; verify again immediately before push                         |
-| `next-env.d.ts` pointed at dev-only generated types                  | `next dev` rewrites the generated reference                                    | Pre-commit diff showed `.next/dev/types/routes.d.ts` | Restored stable `.next/types/routes.d.ts` reference                      | Next may rewrite it during local dev; review before future commits |
-| First E2E container could not initialize beside a read-only lockfile | pnpm creates a temporary file in its working directory                         | `EROFS ... /work/_tmp_*`                             | Copied only test/config files into disposable writable container storage | None                                                               |
-| Two E2E setup retries found no tests                                 | One command forwarded a literal `--`; one copy flattened the `e2e` directory   | Playwright `No tests found` before any test ran      | Used direct `npx playwright test` and preserved `/work/tests/e2e`        | None; final suite passed 3/3                                       |
-| Docker development image export was slow                             | 1.4 GB dependency-heavy check image on the local Docker Desktop storage driver | Export 309.4 s, unpack 121.2 s                       | Reused the tagged image for all static/unit checks                       | CI time may benefit from cache/export tuning                       |
+| Problem                                                              | Root cause                                                                                                | Evidence                                                                                         | Resolution/workaround                                                                                                       | Remaining risk                                                     |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Branch was behind main                                               | `origin/main` advanced through shared contract/API work to `b13c1be`, then docs-only records to `3353f15` | Current merge base equals `origin/main`; final delta touched only `docs/handoffs/m04-records/**` | Rebased branch and reran all checks affected by the contract/API changes; the final docs-only delta did not invalidate them | None; verify again immediately before push                         |
+| `next-env.d.ts` pointed at dev-only generated types                  | `next dev` rewrites the generated reference                                                               | Pre-commit diff showed `.next/dev/types/routes.d.ts`                                             | Restored stable `.next/types/routes.d.ts` reference                                                                         | Next may rewrite it during local dev; review before future commits |
+| First E2E container could not initialize beside a read-only lockfile | pnpm creates a temporary file in its working directory                                                    | `EROFS ... /work/_tmp_*`                                                                         | Copied only test/config files into disposable writable container storage                                                    | None                                                               |
+| Two E2E setup retries found no tests                                 | One command forwarded a literal `--`; one copy flattened the `e2e` directory                              | Playwright `No tests found` before any test ran                                                  | Used direct `npx playwright test` and preserved `/work/tests/e2e`                                                           | None; final suite passed 3/3                                       |
+| Docker development image export was slow                             | 1.4 GB dependency-heavy check image on the local Docker Desktop storage driver                            | Export 309.4 s, unpack 121.2 s                                                                   | Reused the tagged image for all static/unit checks                                                                          | CI time may benefit from cache/export tuning                       |
+| `pnpm format` rejected the generated lockfile                        | Prettier was checking pnpm's canonical lockfile output                                                    | `pnpm-lock.yaml` was the only reported file                                                      | Added the generated lockfile to `.prettierignore`; rerun passed                                                             | None                                                               |
 
 ## 14. Performance and operational behavior
 
@@ -269,8 +300,8 @@ is blocked by intentionally absent later-phase controls.
 | -------------------- | ------------------------------ | ----------------------------------- | ----------------------------- | ---- |
 | Runtime image user   | Non-root                       | uid 100 `app`                       | Local production container    | Yes  |
 | Runtime image health | Healthy                        | Docker `healthy`; endpoint HTTP 200 | Local production container    | Yes  |
-| Runtime image size   | No Phase 1 budget defined      | 91,716,649 bytes                    | Local arm64/desktop build     | N/A  |
-| E2E shell suite      | All committed shell cases pass | 3/3 in 26.7 s                       | Chromium in Playwright Docker | Yes  |
+| Runtime image size   | No Phase 1 budget defined      | 91,716,820 bytes                    | Local arm64/desktop build     | N/A  |
+| E2E shell suite      | All committed shell cases pass | 3/3 in 46.0 s                       | Chromium in Playwright Docker | Yes  |
 
 No metrics, dashboards, alerts, circuit breakers, rate limits, provider caches,
 or performance budgets are added in this slice. Disable/rollback by deploying the
@@ -289,11 +320,11 @@ previous image/commit; there is no state cleanup.
 
 ## 16. Handoff to other members
 
-| Recipient/module | What is ready                                               | What they must change/do                                                                | Contract/config                                | Blocking?                                             |
-| ---------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------- |
-| M01 Phase 2      | Route/layout boundaries, env schema, test/Docker foundation | Add OIDC, generated client, query/SSE and shared live-data states without runtime mocks | Public API v1; three `NEXT_PUBLIC_*` variables | No                                                    |
-| M02 public API   | UI-to-contract inventory                                    | Review browser auth/SSE handoff decisions before Phase 2                                | `apps/web/docs/screen-inventory.md`            | Review needed for Phase 2                             |
-| Team Lead/CI     | Reproducible Docker commands and image                      | Run required dependency/image/secret scans and attach local screenshots                 | Docker 27.2.0 evidence                         | Blocks merge only if repository requires those checks |
+| Recipient/module | What is ready                                               | What they must change/do                                                                                                                         | Contract/config                                             | Blocking?                                             |
+| ---------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- | ----------------------------------------------------- |
+| M01 Phase 2      | Route/layout boundaries, env schema, test/Docker foundation | Add OIDC, generated client, query/SSE and shared live-data states without runtime mocks; preserve nullable route exposure and POI name semantics | Public API v1 at `3353f15`; three `NEXT_PUBLIC_*` variables | No                                                    |
+| M02 public API   | UI-to-contract inventory                                    | Review browser auth/SSE handoff decisions before Phase 2                                                                                         | `apps/web/docs/screen-inventory.md`                         | Review needed for Phase 2                             |
+| Team Lead/CI     | Reproducible Docker commands and image                      | Run required dependency/image/secret scans and attach local screenshots                                                                          | Docker 27.2.0 evidence                                      | Blocks merge only if repository requires those checks |
 
 Exact handoff branch: `feat/01-web-shell`; report:
 `docs/handoffs/M01-web-shell.md`; PR draft:
@@ -302,26 +333,27 @@ Exact handoff branch: `feat/01-web-shell`; report:
 ## 17. Commit and PR inventory
 
 ```text
-5e19c63 docs(web): add screen and contract inventory
-14a5f38 chore(web): scaffold Next.js application
-4d4f613 feat(web): add travel design tokens and assets
-7c3ebf4 feat(web): add responsive application shell
-c23c273 style(web): format screen inventory
-27fad87 infra(web): add Docker Compose service
-fc12a24 feat(web): align phase 1 shell with approved visuals
-8a63fe1 fix(web): restore mobile shell interactions
-cf66420 chore(web): refresh phase 1 runtime toolchain
+22370bd docs(web): add screen and contract inventory
+e4ba291 chore(web): scaffold Next.js application
+6a42736 feat(web): add travel design tokens and assets
+4aff7ec feat(web): add responsive application shell
+71c8310 style(web): format screen inventory
+30eb354 infra(web): add Docker Compose service
+cbc80ae feat(web): align phase 1 shell with approved visuals
+5418c18 fix(web): restore mobile shell interactions
+c884b1c chore(web): refresh phase 1 runtime toolchain
+80d7daf docs(web): add phase 1 completion evidence
 ```
 
 - PR review comments resolved: N/A — PR not opened.
 - Required checks status: local requested checks pass; GitHub checks not yet run.
-- Rebased on main SHA: `d17aae1152dff29d60f7dc7fbd8514c7b255bade`.
+- Rebased on main SHA: `3353f158787f2d7df6b997ab8ff0aa209615e01c`.
 - Squash title proposed: `[M01] Add responsive web shell and Phase 1 foundation`.
 
 ## 18. Rollback and recovery
 
 1. Feature flag/provider disable: N/A; no provider or feature flag exists.
-2. Application rollback: deploy the prior web image/commit; local verification tag is `smart-travel-web:phase1-pr`.
+2. Application rollback: deploy the prior web image/commit; local verification tag is `smart-travel-web:phase1-contract-rebase`.
 3. Migration downgrade/forward-fix: N/A; no database change.
 4. Model/policy/prompt/knowledge rollback: N/A.
 5. Data/cache cleanup: N/A; no persisted or cached user/provider data.
