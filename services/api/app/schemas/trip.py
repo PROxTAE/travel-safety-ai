@@ -19,6 +19,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.location import LocationRef
 
+#: Mirrors `primitives.schema.json#/$defs/RecordId`: an identifier as its producer mints it, stable
+#: across fetches. Wide enough for both a provider composite (`openrouteservice:3ca4459b`) and a
+#: bare UUID, which is what a service minting a record with no upstream identity uses.
+RecordId = Annotated[
+    str,
+    Field(min_length=1, max_length=256, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:,+@/=-]*$"),
+]
+
 TravelMode = Literal["FLIGHT", "TRAIN", "BUS", "CAR", "WALK", "BICYCLE", "MULTIMODAL"]
 TripStatus = Literal["DRAFT", "PLANNED", "ACTIVE", "COMPLETED", "CANCELLED", "DELETED"]
 ClientTripStatus = Literal["DRAFT", "PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"]
@@ -81,8 +89,11 @@ class TripModel(BaseModel):
     timezone: str
     travel_modes: Annotated[list[TravelMode], Field(min_length=1, max_length=7)]
     preferences: TravelPreference
-    selected_route_id: UUID | None = None
-    previous_selected_route_id: UUID | None = None
+    # RecordId, not UUID: these hold a RouteCandidate.route_id, and a routing provider mints those
+    # reproducibly (`openrouteservice:3ca4459b8d41b503`) so the same question yields the same route
+    # rather than two. Module 04 raised the mismatch; the contract now types all three the same way.
+    selected_route_id: RecordId | None = None
+    previous_selected_route_id: RecordId | None = None
     latest_request_id: UUID | None = None
     status: TripStatus
     created_at: datetime

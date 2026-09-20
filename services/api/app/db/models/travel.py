@@ -114,14 +114,17 @@ class Trip(Base):
         JSONB, nullable=False, server_default=text("'{}'::jsonb")
     )
 
-    selected_route_id: Mapped[uuid.UUID | None] = mapped_column(
-        PostgresUuid(as_uuid=True),
+    selected_route_id: Mapped[str | None] = mapped_column(
+        String(256),
         nullable=True,
-        comment="Set only by apply-route, after the server has checked the route is not closed.",
+        comment=(
+            "RouteCandidate.route_id of the applied route. A string, not a UUID: a routing "
+            "provider mints these reproducibly (openrouteservice:3ca4459b8d41b503) so the same "
+            "question yields the same route. Set only by apply-route, after the server has "
+            "checked the route is not closed."
+        ),
     )
-    previous_selected_route_id: Mapped[uuid.UUID | None] = mapped_column(
-        PostgresUuid(as_uuid=True), nullable=True
-    )
+    previous_selected_route_id: Mapped[str | None] = mapped_column(String(256), nullable=True)
     latest_request_id: Mapped[uuid.UUID | None] = mapped_column(
         PostgresUuid(as_uuid=True),
         nullable=True,
