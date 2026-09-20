@@ -213,3 +213,151 @@ def test_the_public_contract_declares_every_trip_route_this_service_serves() -> 
     assert set(spec["paths"]["/api/v1/trips"]) >= {"get", "post"}
     assert set(spec["paths"]["/api/v1/trips/{trip_id}"]) >= {"get", "patch", "delete"}
     assert "get" in spec["paths"]["/api/v1/locations/search"]
+
+
+# --- phase 5: assessment runs ---------------------------------------------------------------------
+
+
+def test_run_statuses_match_the_contract() -> None:
+    """A status the state machine knows but the contract does not name is one no client handles."""
+    from typing import get_args
+
+    from app.domain.run import RunStatus
+
+    contract = set(_schema("enums.schema.json")["$defs"]["RunStatus"]["enum"])
+
+    assert set(get_args(RunStatus)) == contract
+
+
+def test_run_stages_match_the_contract() -> None:
+    from typing import get_args
+
+    from app.domain.run import RunStage
+
+    contract = set(_schema("enums.schema.json")["$defs"]["RunStage"]["enum"])
+
+    assert set(get_args(RunStage)) == contract
+
+
+def test_run_ref_fields_match_the_contract() -> None:
+    from app.schemas.run import RunRefModel
+
+    contract = set(_schema("run-ref.schema.json")["properties"])
+
+    assert set(RunRefModel.model_fields) == contract
+
+
+def test_run_ref_requires_what_the_contract_requires() -> None:
+    from app.schemas.run import RunRefModel
+
+    required = set(_schema("run-ref.schema.json")["required"])
+    non_optional = {name for name, field in RunRefModel.model_fields.items() if field.is_required()}
+
+    missing = required - non_optional
+    assert not missing, f"optional here but required by the contract: {sorted(missing)}"
+
+
+def test_run_state_fields_match_the_contract() -> None:
+    from app.schemas.run import RunStateModel
+
+    contract = set(_schema("run-state.schema.json")["properties"])
+
+    assert set(RunStateModel.model_fields) == contract
+
+
+def test_run_state_requires_what_the_contract_requires() -> None:
+    from app.schemas.run import RunStateModel
+
+    required = set(_schema("run-state.schema.json")["required"])
+    non_optional = {
+        name for name, field in RunStateModel.model_fields.items() if field.is_required()
+    }
+
+    missing = required - non_optional
+    assert not missing, f"optional here but required by the contract: {sorted(missing)}"
+
+
+def test_every_sse_event_in_the_contract_has_a_model() -> None:
+    """An event with no model is an event the bridge would drop, silently, at runtime."""
+    import re
+
+    from app.schemas.run import SSE_PAYLOAD_MODELS
+
+    defs = _schema("sse-events.schema.json")["$defs"]
+
+    def wire_name(schema_name: str) -> str:
+        """`RunNeedsInput` in the schema is `run.needs_input` on the wire."""
+        if schema_name == "Heartbeat":
+            return "heartbeat"
+        rest = schema_name.removeprefix("Run")
+        return "run." + re.sub(r"(?<!^)(?=[A-Z])", "_", rest).lower()
+
+    expected = {wire_name(name) for name in defs}
+
+    assert set(SSE_PAYLOAD_MODELS) == expected
+
+
+@pytest.mark.parametrize(
+    ("event_name", "model_name"),
+    [
+        ("run.accepted", "RunAccepted"),
+        ("run.progress", "RunProgress"),
+        ("run.needs_input", "RunNeedsInput"),
+        ("run.degraded", "RunDegraded"),
+        ("run.completed", "RunCompleted"),
+        ("run.failed", "RunFailed"),
+        ("heartbeat", "Heartbeat"),
+    ],
+)
+def test_sse_payload_fields_match_the_contract(event_name: str, model_name: str) -> None:
+    from app.schemas.run import SSE_PAYLOAD_MODELS
+
+    contract = set(_schema("sse-events.schema.json")["$defs"][model_name]["properties"])
+    model = SSE_PAYLOAD_MODELS[event_name]
+
+    assert set(model.model_fields) == contract
+
+
+def test_recommendation_response_fields_match_the_contract() -> None:
+    """What this service revalidates must be the whole object, not a convenient subset."""
+    from app.schemas.recommendation import RecommendationResponseModel
+
+    contract = set(_schema("recommendation-response.schema.json")["properties"])
+
+    assert set(RecommendationResponseModel.model_fields) == contract
+
+
+def test_recommendation_response_requires_what_the_contract_requires() -> None:
+    from app.schemas.recommendation import RecommendationResponseModel
+
+    required = set(_schema("recommendation-response.schema.json")["required"])
+    non_optional = {
+        name
+        for name, field in RecommendationResponseModel.model_fields.items()
+        if field.is_required()
+    }
+
+    missing = required - non_optional
+    assert not missing, f"optional here but required by the contract: {sorted(missing)}"
+
+
+def test_action_codes_and_risk_levels_match_the_contract() -> None:
+    from typing import get_args
+
+    from app.schemas.recommendation import ActionCode, RiskLevel
+
+    enums = _schema("enums.schema.json")["$defs"]
+
+    assert set(get_args(ActionCode)) == set(enums["ActionCode"]["enum"])
+    assert set(get_args(RiskLevel)) == set(enums["RiskLevel"]["enum"])
+
+
+def test_the_public_contract_declares_every_run_route_this_service_serves() -> None:
+    """The endpoints phase 5 implements must be the ones the frozen contract promised."""
+    import yaml
+
+    spec = yaml.safe_load((CONTRACTS / "openapi" / "public-api.yaml").read_text(encoding="utf-8"))
+
+    assert "post" in spec["paths"]["/api/v1/trips/{trip_id}/assessments"]
+    assert set(spec["paths"]["/api/v1/runs/{request_id}"]) >= {"get", "delete"}
+    assert "get" in spec["paths"]["/api/v1/runs/{request_id}/events"]

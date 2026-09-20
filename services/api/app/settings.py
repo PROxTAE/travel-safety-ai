@@ -255,6 +255,84 @@ class Settings(BaseSettings):
         default=10.0, alias="API_DOWNSTREAM_READ_TIMEOUT_SECONDS", gt=0, le=120
     )
 
+    # --- Assessment runs ------------------------------------------------------------------------
+
+    agent_accept_timeout_seconds: float = Field(
+        default=5.0,
+        alias="API_AGENT_ACCEPT_TIMEOUT_SECONDS",
+        gt=0,
+        le=30,
+        description=(
+            "Budget for the agent to accept a run, not to perform it. The call returns 202 and "
+            "the work is followed over status and SSE, so a long assessment must never hold the "
+            "HTTP request that started it."
+        ),
+    )
+    agent_cancel_timeout_seconds: float = Field(
+        default=3.0,
+        alias="API_AGENT_CANCEL_TIMEOUT_SECONDS",
+        gt=0,
+        le=30,
+        description=(
+            "Budget for propagating a cancellation. Short because the caller is already leaving, "
+            "and the run is marked cancelled here whether or not the agent answers."
+        ),
+    )
+    run_status_cache_seconds: int = Field(
+        default=2,
+        alias="API_RUN_STATUS_CACHE_SECONDS",
+        ge=0,
+        le=60,
+        description=(
+            "How long a browser may reuse a run's polled state. Always `private`: the state "
+            "belongs to one person's journey. Small, because the point of polling is freshness."
+        ),
+    )
+    sse_heartbeat_seconds: float = Field(
+        default=15.0,
+        alias="API_SSE_HEARTBEAT_SECONDS",
+        gt=0,
+        le=120,
+        description="Idle gap after which a heartbeat is sent so intermediaries do not close it.",
+    )
+    sse_max_duration_seconds: float = Field(
+        default=900.0,
+        alias="API_SSE_MAX_DURATION_SECONDS",
+        gt=0,
+        le=3600,
+        description=(
+            "Hard cap on one stream. A client that needs longer reconnects with Last-Event-ID, "
+            "which costs it nothing and stops an abandoned tab holding a worker for ever."
+        ),
+    )
+    sse_max_streams_per_user: int = Field(
+        default=4,
+        alias="API_SSE_MAX_STREAMS_PER_USER",
+        ge=1,
+        le=64,
+        description=(
+            "Concurrent streams one person may hold. The contract requires a cap; without one a "
+            "single client can exhaust the connection pool for everybody."
+        ),
+    )
+    run_event_stream_ttl_seconds: int = Field(
+        default=3600,
+        alias="API_RUN_EVENT_STREAM_TTL_SECONDS",
+        ge=60,
+        le=86_400,
+        description=(
+            "How long a run's event stream is kept in Redis after its last write. Long enough "
+            "for a client to reconnect and catch up; the key conventions forbid a permanent key."
+        ),
+    )
+    run_event_stream_max_length: int = Field(
+        default=1000,
+        alias="API_RUN_EVENT_STREAM_MAX_LENGTH",
+        ge=10,
+        le=100_000,
+        description="Bounded buffer per run, so one talkative agent cannot fill Redis.",
+    )
+
     # --- HTTP surface ----------------------------------------------------------------------------
 
     # NoDecode stops pydantic-settings from trying to JSON-decode the environment value first.
