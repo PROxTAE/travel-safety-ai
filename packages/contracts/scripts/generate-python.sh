@@ -16,6 +16,14 @@ set -euo pipefail
 CODEGEN_VERSION="0.28.5"
 PYTHON_VERSION="3.12"
 
+# Force UTF-8 for the generator and for the rewrite below. Without it, Python on Windows writes the
+# file in the system code page, so a non-ASCII character in any schema description — an em-dash is
+# enough — lands as a byte that is not valid UTF-8. CI runs on Linux and would never see it; the
+# committed file would simply be undecodable for everyone else.
+export PYTHONUTF8=1
+export PYTHONIOENCODING=utf-8
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(dirname "$here")"
 cd "$root"
