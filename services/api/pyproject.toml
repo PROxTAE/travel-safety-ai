@@ -85,6 +85,15 @@ warn_unreachable = true
 disallow_any_generics = true
 files = ["app"]
 
+# Without these the pydantic plugin types every synthesised `__init__` argument as `Any`, so
+# `strict = true` checks nothing at the point where a model is built — which is exactly where a
+# response is assembled. Review found a `str` being passed where the contract allows five literal
+# values, and mypy had been silent about it. With `init_typed` it is an error.
+[tool.pydantic-mypy]
+init_typed = true
+init_forbid_extra = true
+warn_untyped_fields = true
+
 [[tool.mypy.overrides]]
 module = ["testcontainers.*"]
 ignore_missing_imports = true

@@ -107,8 +107,11 @@ async def record_consent(
     return data_response(
         request,
         ConsentRecordModel(
+            # `body.type` rather than `consent.type`: the column is a plain string, so reading it
+            # back widens the type and loses the contract's five permitted values. This is the
+            # value that was just written, already validated against that list on the way in.
             consent_id=consent.id,
-            type=consent.type,
+            type=body.type,
             granted=consent.granted,
             policy_version=consent.policy_version,
             granted_at=consent.granted_at,
