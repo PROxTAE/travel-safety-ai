@@ -35,6 +35,7 @@ from redis.asyncio import Redis
 from app.api import health as health_routes
 from app.api.v1 import consents as consent_routes
 from app.api.v1 import me as me_routes
+from app.api.v1 import trips as trip_routes
 from app.auth.jwks import JwksCache
 from app.db.engine import create_engine, create_session_factory, dispose_engine
 from app.errors.handlers import register_exception_handlers
@@ -209,6 +210,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_routes.router)
     app.include_router(me_routes.router)
     app.include_router(consent_routes.router)
+    app.include_router(trip_routes.router)
 
     instrument_app(app)
     return app

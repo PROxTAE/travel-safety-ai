@@ -174,6 +174,48 @@ class Settings(BaseSettings):
         ),
     )
 
+    # --- Trip domain -----------------------------------------------------------------------------
+    #
+    # Business limits, not constants: the delivery rules require them tunable without a code change.
+
+    trip_max_backdate_seconds: int = Field(
+        default=3600,
+        alias="API_TRIP_MAX_BACKDATE_SECONDS",
+        ge=0,
+        le=604_800,
+        description=(
+            "How far in the past a departure may be set. Not zero: a traveller already on the "
+            "road still needs to save the trip they are taking. Historical analysis is a separate "
+            "endpoint and is not reachable from here."
+        ),
+    )
+    trip_max_future_days: int = Field(
+        default=365,
+        alias="API_TRIP_MAX_FUTURE_DAYS",
+        ge=1,
+        le=3650,
+        description=(
+            "Upper bound on a departure date. No provider forecasts that far ahead, so a trip "
+            "beyond it can be saved but never usefully assessed; the bound keeps a typo in the "
+            "year field from becoming a row nothing will ever answer for."
+        ),
+    )
+    trip_supported_travel_modes: Annotated[tuple[str, ...], NoDecode] = Field(
+        default=("TRAIN", "BUS", "CAR", "WALK", "BICYCLE", "MULTIMODAL"),
+        alias="API_TRIP_SUPPORTED_TRAVEL_MODES",
+        description=(
+            "Travel modes this deployment has a real data source for. FLIGHT is absent by "
+            "default: the contract's flight provider is Amadeus production, the shared context "
+            "rules its test environment out as acceptance data, and claiming coverage we cannot "
+            "back is the failure this project exists to avoid. A mode outside this list is "
+            "refused with UNSUPPORTED_COVERAGE rather than accepted and silently not assessed. "
+            "Region-aware coverage needs module 04's provider registry and is not this check."
+        ),
+    )
+    trip_list_default_limit: int = Field(
+        default=20, alias="API_TRIP_LIST_DEFAULT_LIMIT", ge=1, le=100
+    )
+
     # --- Internal services ----------------------------------------------------------------------
     #
     # Base URLs come from configuration and are never taken from a request. Anything else would
@@ -185,6 +227,25 @@ class Settings(BaseSettings):
     )
     recommendation_service_url: str = Field(
         default="http://recommendation:8006", alias="RECOMMENDATION_SERVICE_URL"
+    )
+    internal_service_token: SecretStr | None = Field(
+        default=None,
+        alias="INTERNAL_SERVICE_TOKEN",
+        description=(
+            "Shared secret presented to internal services. Absent means calls that need it "
+            "report the capability unavailable rather than being attempted unauthenticated."
+        ),
+    )
+
+    location_search_cache_seconds: int = Field(
+        default=300,
+        alias="API_LOCATION_SEARCH_CACHE_SECONDS",
+        ge=0,
+        le=86_400,
+        description=(
+            "How long a browser may reuse a geocoding result. Always `private`: the query text "
+            "is something a person typed, and a shared cache would serve it to somebody else."
+        ),
     )
 
     downstream_connect_timeout_seconds: float = Field(
@@ -246,7 +307,12 @@ class Settings(BaseSettings):
         ),
     )
 
-    @field_validator("cors_allowed_origins", "oidc_allowed_algorithms", mode="before")
+    @field_validator(
+        "cors_allowed_origins",
+        "oidc_allowed_algorithms",
+        "trip_supported_travel_modes",
+        mode="before",
+    )
     @classmethod
     def _split_csv(cls, value: object) -> object:
         """Accept a comma-separated string, which is what an env var can carry."""
@@ -273,6 +339,36 @@ class Settings(BaseSettings):
             raise ValueError(
                 "OIDC algorithms must be asymmetric (RS*, PS*, ES*, EdDSA) and non-empty; "
                 f"rejected: {rejected or ['<empty>']}"
+            )
+        return value
+
+    @field_validator("internal_service_token", mode="before")
+    @classmethod
+    def _blank_token_is_unset(cls, value: object) -> object:
+        """Treat an empty value as absent.
+
+        `.env.example` ships `INTERNAL_SERVICE_TOKEN=` for an operator to fill in. Copied verbatim
+        that is an empty string, and sending `Authorization: Bearer ` would earn a 401 from the
+        internal service — reported here as that service being broken, which sends whoever is on
+        call to look at the wrong thing. Unset is the honest reading, and it fails closed.
+        """
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+    @field_validator("trip_supported_travel_modes")
+    @classmethod
+    def _modes_are_in_the_contract(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        """Every configured mode must be a `TravelMode` the contract defines.
+
+        A typo here would otherwise be indistinguishable from a deliberate restriction, and would
+        silently refuse a mode the deployment meant to support.
+        """
+        known = {"FLIGHT", "TRAIN", "BUS", "CAR", "WALK", "BICYCLE", "MULTIMODAL"}
+        unknown = sorted(set(value) - known)
+        if unknown or not value:
+            raise ValueError(
+                f"unknown travel modes: {unknown or ['<empty>']}; allowed: {sorted(known)}"
             )
         return value
 

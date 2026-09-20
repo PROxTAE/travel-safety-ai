@@ -31,6 +31,12 @@ class AppError(Exception):
     code: ErrorCode = ErrorCode.INTERNAL_ERROR
     default_message = "The request could not be completed."
 
+    #: Set only where one contract error code legitimately maps to more than one HTTP status.
+    #: `CONFLICT` covers 409, 412 and 428, and a client needs to tell them apart: 409 means the
+    #: request clashed with existing state, 412 means the precondition was stale, 428 means it was
+    #: missing. Everything else takes the status from `STATUS_BY_CODE`.
+    status_override: int | None = None
+
     def __init__(
         self,
         message: str | None = None,
@@ -76,6 +82,29 @@ class NotFound(AppError):
 class Conflict(AppError):
     code = ErrorCode.CONFLICT
     default_message = "The resource changed since you last read it."
+
+
+class PreconditionRequired(AppError):
+    """A mutation that needs `If-Match` arrived without it.
+
+    428 rather than 400 so the client knows the request would be accepted with the header, and
+    rather than proceeding without a check, which is how a second tab silently overwrites a change
+    it never saw. There is no "force" variant: `If-Match: *` is refused for the same reason.
+    """
+
+    code = ErrorCode.CONFLICT
+    status_override = 428
+    default_message = "Send If-Match with the revision you last read."
+
+
+class PreconditionFailed(AppError):
+    """The `If-Match` revision is not the current one."""
+
+    code = ErrorCode.CONFLICT
+    status_override = 412
+    default_message = (
+        "This trip changed since you last read it. Reload it and apply your change again."
+    )
 
 
 class IdempotencyConflict(AppError):

@@ -57,9 +57,11 @@ _STATUS_TO_CODE: dict[int, ErrorCode] = {
     404: ErrorCode.NOT_FOUND,
     405: ErrorCode.VALIDATION_ERROR,
     409: ErrorCode.CONFLICT,
+    412: ErrorCode.CONFLICT,
     413: ErrorCode.VALIDATION_ERROR,
     415: ErrorCode.VALIDATION_ERROR,
     422: ErrorCode.VALIDATION_ERROR,
+    428: ErrorCode.CONFLICT,
     429: ErrorCode.RATE_LIMITED,
     500: ErrorCode.INTERNAL_ERROR,
     502: ErrorCode.DEPENDENCY_UNAVAILABLE,
@@ -176,6 +178,7 @@ def register_exception_handlers(app: FastAPI, settings: Settings) -> None:
                 for item in exc.field_errors
             ],
             retry_after_seconds=exc.retry_after_seconds,
+            status_override=exc.status_override,
         )
 
     @app.exception_handler(RequestValidationError)
