@@ -1,0 +1,104 @@
+name: contracts
+
+# Gate on packages/contracts. Eight modules generate their clients from this folder, so a schema
+# that only lints on one laptop, or generated output that no longer matches its source, breaks
+# everyone at once rather than the person who changed it.
+#
+# Runs on any PR into main and on any push to a branch that touches the contract surface.
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - 'feat/**'
+      - 'fix/**'
+      - 'test/**'
+      - 'docs/**'
+      - 'refactor/**'
+      - 'chore/**'
+      - 'contract/**'
+      - 'infra/**'
+
+jobs:
+  contracts:
+    name: contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: ดึงโค้ดออกมา
+        uses: actions/checkout@v4
+
+      - name: ข้ามงานถ้า PR นี้ไม่ได้แตะ contract surface
+        id: changed
+        run: |
+          if [ ! -d packages/contracts/jsonschema ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "ยังไม่มี contract source ในสาขานี้ ข้าม"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: ติดตั้ง Node
+        if: steps.changed.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: packages/contracts/package-lock.json
+
+      - name: ติดตั้ง uv (ใช้ generate Python models และรัน contract tests)
+        if: steps.changed.outputs.run == 'true'
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: ติดตั้ง dependency ของ contracts
+        if: steps.changed.outputs.run == 'true'
+        working-directory: packages/contracts
+        run: npm ci
+
+      - name: lint OpenAPI
+        if: steps.changed.outputs.run == 'true'
+        working-directory: packages/contracts
+        run: npm run lint
+
+      - name: validate JSON Schema ทุกไฟล์
+        if: steps.changed.outputs.run == 'true'
+        working-directory: packages/contracts
+        run: npm run validate:schemas
+
+      - name: validate example ทุกไฟล์
+        if: steps.changed.outputs.run == 'true'
+        working-directory: packages/contracts
+        run: npm run validate:examples
+
+      - name: typecheck consumer ที่คอมไพล์กับ generated types
+        if: steps.changed.outputs.run == 'true'
+        working-directory: packages/contracts
+        run: npm run typecheck
+
+      # ต้องมาหลัง lint/validate: ถ้า schema พัง generated code จะ "ดูถูก" แต่ผิด
+      # `bash <script>` rather than `./<script>`: the executable bit cannot survive a Windows
+      # checkout (core.fileMode=false), so depending on it alone makes CI break again the next time
+      # this file is edited from Windows. The bit is set in the index too, for humans.
+      - name: regenerate แล้วตรวจว่า working tree ไม่เปลี่ยน
+        if: steps.changed.outputs.run == 'true'
+        working-directory: packages/contracts
+        run: bash ./scripts/check-generated-clean.sh
+
+      - name: contract tests (producer + consumer)
+        if: steps.changed.outputs.run == 'true'
+        run: uv run --project tests/contract pytest tests/contract
+
+      - name: กัน generated code ถูกแก้มือ
+        if: steps.changed.outputs.run == 'true'
+        run: |
+          missing=$(grep -L "DO NOT EDIT" \
+            packages/contracts/generated/typescript/public-api.d.ts \
+            packages/contracts/generated/python/smart_travel_contracts/public_api.py \
+            packages/contracts/generated/openapi/public-api.bundled.yaml || true)
+          if [ -n "$missing" ]; then
+            echo "::error::ไฟล์ generated ขาดหัวข้อ DO NOT EDIT: $missing"
+            exit 1
+          fi
+          echo "ไฟล์ generated มีหัวข้อกำกับครบ"

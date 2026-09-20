@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SourceProvenance",
+  "description": "Every fact that can influence a decision must resolve back to one of these. When a provider publishes no observation time, observed_at is null and the record carries a quality flag; fetched_at is never presented as an observation time.",
+  "type": "object",
+  "required": [
+    "source_id",
+    "provider",
+    "authority",
+    "source_url",
+    "fetched_at",
+    "content_hash",
+    "schema_version"
+  ],
+  "properties": {
+    "source_id": {
+      "description": "Stable identifier for this source record. Reproducible on purpose: fetching the same fact twice must produce the same value, because deduplication in module 05 and tracing one fact through a log both depend on it. A random UUID per fetch would defeat both.",
+      "$ref": "primitives.schema.json#/$defs/RecordId"
+    },
+    "provider": {
+      "description": "Stable provider key from the provider catalogue, for example open_meteo, usgs, gdacs, openrouteservice.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,63}$"
+    },
+    "provider_record_id": {
+      "description": "Provider-scoped identifier for the record, for example a USGS event id.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 256
+    },
+    "authority": {
+      "$ref": "enums.schema.json#/$defs/SourceAuthority"
+    },
+    "source_url": {
+      "description": "Canonical URL for the record, or the request URL the adapter used. Null only when the provider publishes neither — a bulk feed with no per-record address, for example.",
+      "oneOf": [
+        {
+          "$ref": "primitives.schema.json#/$defs/HttpsUrl"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "license": {
+      "description": "Licence or terms identifier the provider publishes under.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 256
+    },
+    "attribution": {
+      "description": "Attribution text that must be displayed wherever this source is shown.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "observed_at": {
+      "$ref": "primitives.schema.json#/$defs/NullableTimestamp"
+    },
+    "published_at": {
+      "$ref": "primitives.schema.json#/$defs/NullableTimestamp"
+    },
+    "fetched_at": {
+      "$ref": "primitives.schema.json#/$defs/Timestamp"
+    },
+    "expires_at": {
+      "$ref": "primitives.schema.json#/$defs/NullableTimestamp"
+    },
+    "content_hash": {
+      "description": "Digest of the upstream payload this record was derived from, so provider schema drift is detectable rather than silent. Null when the adapter had no raw payload to hash, which is the case for a record assembled from several responses.",
+      "oneOf": [
+        {
+          "$ref": "primitives.schema.json#/$defs/ContentHash"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema_version": {
+      "$ref": "primitives.schema.json#/$defs/SemVer"
+    }
+  }
+}

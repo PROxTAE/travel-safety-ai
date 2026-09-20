@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Trip",
+  "description": "A traveller's saved journey. revision backs optimistic concurrency: every mutation increments it and PATCH requires a matching If-Match header, so two tabs cannot silently overwrite each other.",
+  "type": "object",
+  "required": [
+    "trip_id",
+    "revision",
+    "origin",
+    "destination",
+    "departure_time",
+    "timezone",
+    "travel_modes",
+    "status",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "trip_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "revision": {
+      "description": "Monotonic revision counter, also served as the ETag.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": { "type": ["string", "null"], "maxLength": 256 },
+    "origin": { "$ref": "location-ref.schema.json" },
+    "destination": { "$ref": "location-ref.schema.json" },
+    "departure_time": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+    "return_time": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "timezone": { "$ref": "primitives.schema.json#/$defs/Timezone" },
+    "travel_modes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 7,
+      "uniqueItems": true,
+      "items": { "$ref": "enums.schema.json#/$defs/TravelMode" }
+    },
+    "preferences": { "$ref": "travel-preference.schema.json" },
+    "selected_route_id": {
+      "description": "Route the traveller applied. Set only by apply-route, never by the client directly.",
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    },
+    "previous_selected_route_id": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    },
+    "latest_request_id": {
+      "description": "Most recent assessment started for this trip revision.",
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    },
+    "status": { "$ref": "enums.schema.json#/$defs/TripStatus" },
+    "created_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+    "updated_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+    "deleted_at": {
+      "description": "Set by soft delete. Purge of the underlying rows happens asynchronously under the retention policy.",
+      "$ref": "primitives.schema.json#/$defs/NullableTimestamp"
+    }
+  }
+}

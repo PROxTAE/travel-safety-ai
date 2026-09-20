@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DataQuality",
+  "description": "Quality envelope attached to every canonical record. The score never replaces the flags: a consumer that reads score alone and ignores flags is non-conforming. score is nullable, and a null score is not a quality problem — it means no agreed formula has been applied yet. A producer must leave it null rather than invent a number, because a fabricated score is indistinguishable from a measured one once it is downstream.",
+  "type": "object",
+  "required": [
+    "status",
+    "score",
+    "score_version",
+    "flags"
+  ],
+  "properties": {
+    "status": {
+      "$ref": "enums.schema.json#/$defs/DataStatus"
+    },
+    "score": {
+      "description": "Weighted quality score. Null until a producer applies an agreed formula; never a placeholder.",
+      "oneOf": [
+        {
+          "$ref": "primitives.schema.json#/$defs/UnitInterval"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "$ref": "enums.schema.json#/$defs/QualityFlag"
+      },
+      "default": []
+    },
+    "coverage": {
+      "description": "Share of the requested area and time window the source actually covers.",
+      "oneOf": [
+        {
+          "$ref": "primitives.schema.json#/$defs/UnitInterval"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "completeness": {
+      "description": "Share of required fields the provider supplied.",
+      "oneOf": [
+        {
+          "$ref": "primitives.schema.json#/$defs/UnitInterval"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "freshness_seconds": {
+      "description": "Age of the underlying observation at generation time. Null when the source publishes no observation time.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "conflicts": {
+      "description": "Conflicting values seen for the same fact across sources.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/QualityConflict"
+      },
+      "default": []
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 512
+      },
+      "default": []
+    },
+    "score_version": {
+      "description": "Version of the scoring formula and weights that produced `score` — not a revision counter for the value itself. Required whenever `score` is non-null, and null alongside a null score: a number that cannot be attributed to a formula cannot be compared across time.",
+      "oneOf": [
+        {
+          "$ref": "primitives.schema.json#/$defs/SemVer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "QualityConflict": {
+      "title": "QualityConflict",
+      "type": "object",
+      "required": [
+        "field_path",
+        "source_ids"
+      ],
+      "properties": {
+        "field_path": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "source_ids": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "primitives.schema.json#/$defs/RecordId"
+          }
+        },
+        "resolution": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "HIGHEST_AUTHORITY",
+            "MOST_RECENT",
+            "MOST_CONSERVATIVE",
+            "UNRESOLVED",
+            null
+          ]
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "title": "ScoreRequiresItsFormulaVersion",
+      "if": {
+        "properties": {
+          "score": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "score"
+        ]
+      },
+      "then": {
+        "properties": {
+          "score_version": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

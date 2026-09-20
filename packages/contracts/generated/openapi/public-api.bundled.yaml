@@ -1,0 +1,3966 @@
+# GENERATED FILE - DO NOT EDIT.
+#
+# Source:     packages/contracts/openapi/public-api.yaml
+# Regenerate: cd packages/contracts && npm run generate
+#
+# This is the self-contained form of the public contract. Both the TypeScript and the Python
+# clients are generated from this file, so they cannot drift apart.
+
+openapi: 3.1.0
+info:
+  title: Smart Travel Assistant — Public API
+  version: 1.0.0
+  summary: The only HTTP surface a browser is allowed to talk to.
+  description: |
+    Public trust boundary for the Smart Travel Assistant (module 02). The browser reaches
+    `web` and `api` and nothing else: internal services are not routable from outside the
+    Docker network, so every capability a user has is expressed here.
+
+    Rules that hold for every operation in this document:
+
+    - Authentication is an OIDC access token issued by Keycloak, verified against JWKS
+      (issuer, audience, signature, expiry, not-before). `/health/*` is the only exception.
+    - Ownership is resolved from the token, never from a body field. A request that names
+      another user's resource gets 404, not 403, so that ids cannot be probed.
+    - Times are ISO-8601 with an explicit offset. Coordinates are GeoJSON `[longitude, latitude]`.
+    - Every mutating request accepts `Idempotency-Key`. Replaying a key with the same payload
+      returns the original result; replaying it with a different payload is `IDEMPOTENCY_CONFLICT`.
+    - Every response carries `meta.request_id`, `meta.contract_version` and `meta.generated_at`,
+      and lists any dependency that degraded while producing it.
+    - Anything safety-relevant carries its source, freshness and quality. When a provider or
+      credential is missing the response says so explicitly; it never substitutes a plausible value.
+    - Error bodies are stable, user-safe and free of stack traces, SQL and provider credentials.
+
+    Entity schemas live in `packages/contracts/jsonschema/common/` and are referenced from here,
+    so producer and consumers generate from one source. Response objects stay open to additive
+    change; request bodies are closed and reject unknown fields.
+  contact:
+    name: Module 02 — API and backend
+    url: https://github.com/PROxTAE/travel-safety-ai/blob/main/IMPLEMENTATION_PLANS/02_API_BACKEND_IMPLEMENTATION.md
+  license:
+    name: Proprietary — internal project
+servers:
+  - url: http://localhost:8000
+    description: Local development (compose.dev.yaml host port)
+  - url: http://api:8000
+    description: Internal Docker network name
+security:
+  - bearerAuth: []
+tags:
+  - name: health
+    description: Liveness and readiness. Unauthenticated, never cached.
+  - name: identity
+    description: The caller's own profile, consent and emergency profile.
+  - name: locations
+    description: Geocoding proxied to the external-data service.
+  - name: trips
+    description: Trip lifecycle with optimistic concurrency.
+  - name: assessments
+    description: Starting assessment runs and following their progress.
+  - name: recommendations
+    description: Finished assessment results and route application.
+  - name: safety
+    description: Map-oriented hazard queries.
+  - name: conversations
+    description: Assistant threads and follow-up questions.
+  - name: emergency
+    description: Verified emergency contacts and nearby facilities.
+  - name: feedback
+    description: Explicit feedback and alert subscriptions.
+paths:
+  /health/live:
+    get:
+      tags:
+        - health
+      operationId: healthLive
+      summary: Process liveness
+      description: |
+        True whenever the process itself is running. It deliberately touches no dependency:
+        a database outage must not restart a healthy container.
+      security: []
+      responses:
+        "200":
+          description: Process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthLiveResponse"
+  /health/ready:
+    get:
+      tags:
+        - health
+      operationId: healthReady
+      summary: Dependency readiness
+      description: |
+        Checks the dependencies this service cannot serve traffic without — PostgreSQL, Redis and
+        the OIDC discovery document — each under a short bounded timeout. Returns 503 when any
+        required dependency is down, so the container is taken out of rotation instead of
+        answering requests it cannot honour. Optional dependencies are reported but do not fail
+        readiness.
+      security: []
+      responses:
+        "200":
+          description: All required dependencies are reachable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthReadyResponse"
+        "503":
+          description: At least one required dependency is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthReadyResponse"
+  /api/v1/me:
+    get:
+      tags:
+        - identity
+      operationId: getMe
+      summary: Get the caller's profile and consent summary
+      description: |
+        Resolves the OIDC subject to an internal user, creating the profile on first sight.
+        The emergency profile is not included here: it is fetched separately so that the
+        common path never decrypts medical data.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+      responses:
+        "200":
+          description: The caller's profile.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: Always `private, no-store`. This response is never shared across users.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileResponse"
+              examples:
+                profile:
+                  $ref: "#/components/examples/UserProfileExample"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+    patch:
+      tags:
+        - identity
+      operationId: updateMe
+      summary: Update locale, timezone or home country
+      description: |
+        Changes presentation preferences only. Identity itself lives in Keycloak and is not
+        editable here, and consent is recorded through `/api/v1/consents` so that each decision
+        keeps its own policy version.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Updated profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfileResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/IdempotencyConflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/me/emergency-profile:
+    get:
+      tags:
+        - identity
+      operationId: getEmergencyProfile
+      summary: Read the caller's emergency profile
+      description: |
+        Decrypts and returns the profile to its owner only. Requires an active
+        `EMERGENCY_PROFILE` consent; if that consent was revoked the stored payload is
+        retained under the retention policy but is not returned.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+      responses:
+        "200":
+          description: The decrypted profile.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: Always `private, no-store`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmergencyProfileResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags:
+        - identity
+      operationId: putEmergencyProfile
+      summary: Create or replace the caller's emergency profile
+      description: |
+        Replaces the whole profile. The payload is sealed with the current application key
+        version before it reaches the database, and never appears in logs, metrics or traces.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmergencyProfileUpsertRequest"
+      responses:
+        "200":
+          description: Stored profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmergencyProfileResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: |
+            `EMERGENCY_PROFILE` consent has not been granted. The profile is not stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/IdempotencyConflict"
+  /api/v1/consents:
+    post:
+      tags:
+        - identity
+      operationId: recordConsent
+      summary: Grant or revoke a consent
+      description: |
+        Appends a consent decision against a specific policy version. Revoking writes a new
+        record rather than deleting the old one, so what was agreed and when stays auditable.
+        Revoking `LOCATION_LIVE` also cancels any subscription that depends on it.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsentRequest"
+      responses:
+        "201":
+          description: Consent recorded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsentResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/IdempotencyConflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/locations/search:
+    get:
+      tags:
+        - locations
+      operationId: searchLocations
+      summary: Search places with a real geocoding provider
+      description: |
+        Proxies to the external-data service, which calls the configured geocoding provider.
+        The API never talks to a provider directly and never accepts a provider URL from the
+        client. Results carry the provider that produced them; the user must still confirm the
+        pin before the location can be used in an assessment.
+
+        When no geocoding provider is configured or reachable, this returns 503 with
+        `DEPENDENCY_UNAVAILABLE` rather than an empty list, so the UI can distinguish
+        "nothing matched" from "search is down".
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - name: q
+          in: query
+          required: true
+          description: Free-text place query.
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 200
+        - name: locale
+          in: query
+          required: false
+          description: Preferred result language. Defaults to the caller's profile locale.
+          schema:
+            $ref: "#/components/schemas/Locale"
+        - name: country_code
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/CountryCode"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+      responses:
+        "200":
+          description: Matching places, best first. An empty list means the provider matched nothing.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocationSearchResponse"
+              examples:
+                matches:
+                  $ref: "#/components/examples/LocationSearchExample"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+        "504":
+          $ref: "#/components/responses/DependencyTimeout"
+  /api/v1/trips:
+    get:
+      tags:
+        - trips
+      operationId: listTrips
+      summary: List the caller's trips
+      description: |
+        Every query is filtered by the owner resolved from the token, at the repository layer
+        rather than in the handler, so an ownership check can never be forgotten. Soft-deleted
+        trips are excluded unless `status=DELETED` is requested explicitly.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/TripStatus"
+      responses:
+        "200":
+          description: Trips owned by the caller, newest departure first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripListResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags:
+        - trips
+      operationId: createTrip
+      summary: Create a trip
+      description: |
+        Both endpoints must be confirmed locations. Departure time is validated against the
+        configured backdating allowance and the travel modes against provider coverage for the
+        region: a mode with no real data source is rejected here rather than silently assessed.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTripRequest"
+            examples:
+              trip:
+                $ref: "#/components/examples/CreateTripExample"
+      responses:
+        "201":
+          description: Trip created at revision 1.
+          headers:
+            ETag:
+              schema:
+                type: string
+              description: Weak ETag carrying the trip revision, e.g. `W/"1"`.
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/IdempotencyConflict"
+        "422":
+          description: |
+            The request is well-formed but cannot be served: for example a travel mode with no
+            provider coverage in that region (`UNSUPPORTED_COVERAGE`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/trips/{trip_id}:
+    parameters:
+      - $ref: "#/components/parameters/TripId"
+    get:
+      tags:
+        - trips
+      operationId: getTrip
+      summary: Get one trip
+      description: |
+        Returns the trip with an `ETag` carrying its revision. Clients send that value back in
+        `If-Match` when updating.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+      responses:
+        "200":
+          description: The trip.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags:
+        - trips
+      operationId: updateTrip
+      summary: Update a trip
+      description: |
+        Requires `If-Match` with the revision the client last read. A stale revision is rejected
+        with 412 so that a second tab cannot overwrite a change it never saw. Changing anything
+        that affects the journey invalidates the current assessment: the client must start a new
+        one rather than keep showing the old result.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTripRequest"
+      responses:
+        "200":
+          description: Updated trip at the next revision.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TripResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "412":
+          $ref: "#/components/responses/PreconditionFailed"
+        "428":
+          $ref: "#/components/responses/PreconditionRequired"
+    delete:
+      tags:
+        - trips
+      operationId: deleteTrip
+      summary: Soft-delete a trip
+      description: |
+        Marks the trip deleted immediately and schedules the purge of its child data. The
+        response reports the deletion status so the UI can tell the user that removal is in
+        progress rather than implying it already finished everywhere.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+      responses:
+        "200":
+          description: Deletion accepted, with its current status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeletionStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/trips/{trip_id}/assessments:
+    parameters:
+      - $ref: "#/components/parameters/TripId"
+    post:
+      tags:
+        - assessments
+      operationId: createAssessment
+      summary: Start a safety assessment for this trip
+      description: |
+        Accepts the work and returns immediately: the assessment itself runs asynchronously and
+        is followed over SSE or by polling. The request row is committed before the agent is
+        called, so a run is never lost because a downstream call failed.
+
+        `Idempotency-Key` is strongly recommended. The same key with the same payload returns the
+        original run; the same key with a different payload is `IDEMPOTENCY_CONFLICT`.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAssessmentRequest"
+      responses:
+        "202":
+          description: Run accepted.
+          headers:
+            Location:
+              schema:
+                type: string
+              description: Polling URL for the run.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunRefResponse"
+              examples:
+                accepted:
+                  $ref: "#/components/examples/RunRefExample"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/IdempotencyConflict"
+        "422":
+          description: |
+            The trip cannot be assessed as it stands — for example an endpoint the user never
+            confirmed, or a mode without coverage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /api/v1/runs/{request_id}:
+    parameters:
+      - $ref: "#/components/parameters/RequestIdPath"
+    get:
+      tags:
+        - assessments
+      operationId: getRun
+      summary: Poll an assessment run
+      description: The fallback for clients that cannot hold an SSE connection open.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+      responses:
+        "200":
+          description: Current run state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunStateResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags:
+        - assessments
+      operationId: cancelRun
+      summary: Cancel an assessment run
+      description: |
+        Propagates cancellation to the agent and downstream services. The audit trail of what
+        already ran is kept; only the work still outstanding is abandoned.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+      responses:
+        "200":
+          description: Cancellation recorded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunStateResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: The run already reached a terminal state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/runs/{request_id}/events:
+    parameters:
+      - $ref: "#/components/parameters/RequestIdPath"
+    get:
+      tags:
+        - assessments
+      operationId: streamRunEvents
+      summary: Follow an assessment run over SSE
+      description: |
+        Server-sent events for one run. Ownership is checked before the stream opens.
+
+        Each event has a monotonic `id`; a client that reconnects with `Last-Event-ID` resumes
+        after the last event it saw, so a dropped connection never loses the terminal event.
+        `heartbeat` keeps intermediaries from closing an idle stream. The server closes the
+        stream after `run.completed`, `run.failed` or cancellation.
+
+        Event names and payloads:
+
+        | event | payload |
+        | --- | --- |
+        | `run.accepted` | `SseRunAccepted` |
+        | `run.progress` | `SseRunProgress` |
+        | `run.needs_input` | `SseRunNeedsInput` |
+        | `run.degraded` | `SseRunDegraded` |
+        | `run.completed` | `SseRunCompleted` |
+        | `run.failed` | `SseRunFailed` |
+        | `heartbeat` | `SseHeartbeat` |
+
+        No event carries a raw provider body, a prompt, chain-of-thought, an access token or
+        personal data. The number of concurrent streams per user and per IP is capped.
+      parameters:
+        - $ref: "#/components/parameters/ContractVersion"
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: Resume point from a previous connection.
+          schema:
+            type: string
+            maxLength: 64
+      responses:
+        "200":
+          description: |
+            An open `text/event-stream`. Sent with `Cache-Control: no-cache` and
+            `X-Accel-Buffering: no` so no proxy buffers the progress events.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            X-Accel-Buffering:
+              schema:
+                type: string
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE frames; see the payload schemas listed above.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          description: Too many concurrent streams for this user or IP.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/recommendations/{recommendation_id}:
+    parameters:
+      - name: recommendation_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Uuid"
+    get:
+      tags:
+        - recommendations
+      operationId: getRecommendation
+      summary: Get a finished assessment result
+      description: |
+        The API revalidates the stored response against the contract schema before returning it.
+        A result that no longer validates is reported as an error rather than rendered, because a
+        malformed safety answer is worse than a missing one.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+      responses:
+        "200":
+          description: The recommendation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationResponseEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "502":
+          description: The stored response failed contract validation and was withheld.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/trips/{trip_id}/apply-route:
+    parameters:
+      - $ref: "#/components/parameters/TripId"
+    post:
+      tags:
+        - recommendations
+      operationId: applyRoute
+      summary: Apply a route to the trip
+      description: |
+        Records the chosen route on a new trip revision, keeps the previous selection for audit,
+        and starts a fresh assessment — the old score is never carried over to a changed journey.
+
+        A route the server knows to be closed is refused even when the client sends an
+        acknowledgement: accepting a risky-but-open route is the user's call, entering a closed
+        one is not.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplyRouteRequest"
+      responses:
+        "202":
+          description: Route applied; a new assessment was started for the new revision.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApplyRouteResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/IdempotencyConflict"
+        "412":
+          $ref: "#/components/responses/PreconditionFailed"
+        "422":
+          description: |
+            The route is closed by an official source, or the acknowledgement required for a
+            MEDIUM/HIGH route is missing (`POLICY_VALIDATION_FAILED`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/v1/safety/events:
+    get:
+      tags:
+        - safety
+      operationId: listSafetyEvents
+      summary: Hazards inside a viewport for the safety map
+      description: |
+        Serves the map layers. The bounding box and time window are bounded server-side so a
+        client cannot ask for the whole planet; oversized requests are rejected rather than
+        truncated silently.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - name: bbox
+          in: query
+          required: true
+          description: "`west,south,east,north` in degrees. Maximum span is configured server-side."
+          schema:
+            type: string
+            pattern: ^-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?$
+        - name: at
+          in: query
+          required: false
+          description: |
+            Instant to evaluate, defaulting to now. Drives the Now / +6h / +12h switch.
+          schema:
+            $ref: "#/components/schemas/Timestamp"
+        - name: layers
+          in: query
+          required: false
+          description: Layers to include. All layers when omitted.
+          schema:
+            type: array
+            maxItems: 4
+            uniqueItems: true
+            items:
+              $ref: "#/components/schemas/SafetyLayer"
+          style: form
+          explode: false
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Hazards intersecting the viewport and instant.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SafetyEventListResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /api/v1/conversations:
+    get:
+      tags:
+        - conversations
+      operationId: listConversations
+      summary: List the caller's recent assistant threads
+      description: |
+        Powers the recent-chats panel. Summaries only: message bodies are fetched per thread, so
+        the list view never carries the full transcript.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Conversations, most recently updated first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /api/v1/conversations/{conversation_id}/messages:
+    parameters:
+      - name: conversation_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Uuid"
+    post:
+      tags:
+        - conversations
+      operationId: postConversationMessage
+      summary: Ask a follow-up question
+      description: |
+        Continues an existing thread and starts a new run. The thread keeps its id, but evidence
+        is not reused past its freshness window: a question about current conditions triggers a
+        fresh fetch. The question text is untrusted input and is never treated as an instruction.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationMessageRequest"
+      responses:
+        "202":
+          description: Follow-up accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunRefResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/IdempotencyConflict"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/feedback:
+    post:
+      tags:
+        - feedback
+      operationId: createFeedback
+      summary: Submit explicit feedback on a recommendation
+      description: |
+        Explicit feedback is stored apart from behavioural telemetry. `UNSAFE` opens a safety
+        review record. Nothing here changes a model or a threshold at runtime.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackRequest"
+      responses:
+        "201":
+          description: Feedback stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedbackResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/IdempotencyConflict"
+  /api/v1/alert-subscriptions:
+    post:
+      tags:
+        - feedback
+      operationId: createAlertSubscription
+      summary: Opt in to live alerts for a trip
+      description: |
+        Requires an active `ALERT_NOTIFICATION` consent, whose id is recorded on the
+        subscription; revoking that consent cancels it.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAlertSubscriptionRequest"
+      responses:
+        "201":
+          description: Subscription created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertSubscriptionResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: The required consent is missing or revoked.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/IdempotencyConflict"
+  /api/v1/alert-subscriptions/{subscription_id}:
+    parameters:
+      - name: subscription_id
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/Uuid"
+    delete:
+      tags:
+        - feedback
+      operationId: deleteAlertSubscription
+      summary: Opt out of live alerts
+      description: |
+        Cancels the subscription and stops delivery immediately. The delivery log is retained for
+        audit; only future notifications are affected.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+      responses:
+        "204":
+          description: Subscription cancelled. Delivery stops immediately.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/emergency/contacts:
+    get:
+      tags:
+        - emergency
+      operationId: getEmergencyContacts
+      summary: Verified emergency numbers for a location
+      description: |
+        Returns reviewed, dated numbers for the country or subdivision containing the point.
+        Numbers are never inferred from a neighbouring country and never produced by a language
+        model. When the directory has no current entry for that country the response is an empty
+        list with an explicit limitation, so the UI shows "not available" instead of a number
+        that might not answer.
+
+        Coordinates are rounded to the configured precision before use and are not written to
+        access logs.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - $ref: "#/components/parameters/Latitude"
+        - $ref: "#/components/parameters/Longitude"
+        - name: locale
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/Locale"
+      responses:
+        "200":
+          description: |
+            Verified contacts. An empty list means the directory has no current entry for that
+            country, which the client must show as unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OfficialContactListResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /api/v1/emergency/nearby:
+    get:
+      tags:
+        - emergency
+      operationId: getEmergencyNearby
+      summary: Nearby hospitals, police stations or embassies
+      description: |
+        Looks up facilities through the configured places provider. Requires an active location
+        consent (`LOCATION_ONCE` or `LOCATION_LIVE`); without one the request is refused rather
+        than served from a cached position.
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/ContractVersion"
+        - $ref: "#/components/parameters/Latitude"
+        - $ref: "#/components/parameters/Longitude"
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - HOSPITAL
+              - CLINIC
+              - PHARMACY
+              - POLICE
+              - FIRE_STATION
+              - EMBASSY
+              - CONSULATE
+              - SHELTER
+        - name: radius_m
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 100
+            maximum: 50000
+            default: 5000
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Facilities found, nearest first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmergencyPoiListResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: No active location consent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        OIDC access token issued by the project's Keycloak realm. Verified against the realm's
+        JWKS: issuer, audience, signature, expiry and not-before are all checked, and an
+        unverifiable token is rejected with 401 — never decoded unsigned as a fallback.
+  parameters:
+    RequestId:
+      name: X-Request-ID
+      in: header
+      required: false
+      description: |
+        Client-supplied correlation handle. The server generates one when absent and always
+        echoes the value it used in `meta.request_id`.
+      schema:
+        $ref: "#/components/schemas/Uuid"
+    ContractVersion:
+      name: X-Contract-Version
+      in: header
+      required: false
+      description: Major contract version the client was built against. Currently `1`.
+      schema:
+        type: string
+        pattern: ^[0-9]+$
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: |
+        Client-generated key that makes a retry safe. The same key with the same payload returns
+        the original result; the same key with a different payload is rejected with
+        `IDEMPOTENCY_CONFLICT`. Keys expire after the configured retention window.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: The ETag (trip revision) the client last read.
+      schema:
+        type: string
+        maxLength: 64
+    TripId:
+      name: trip_id
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Uuid"
+    RequestIdPath:
+      name: request_id
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/Uuid"
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor from a previous page. Not to be constructed by the client.
+      schema:
+        type: string
+        maxLength: 512
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Latitude:
+      name: lat
+      in: query
+      required: true
+      schema:
+        type: number
+        minimum: -90
+        maximum: 90
+    Longitude:
+      name: lon
+      in: query
+      required: true
+      schema:
+        type: number
+        minimum: -180
+        maximum: 180
+  schemas:
+    ResponseMeta:
+      title: ResponseMeta
+      type: object
+      required:
+        - request_id
+        - contract_version
+        - generated_at
+      properties:
+        request_id:
+          $ref: "#/components/schemas/Uuid"
+        correlation_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        contract_version:
+          $ref: "#/components/schemas/SemVer"
+        generated_at:
+          $ref: "#/components/schemas/Timestamp"
+        degraded_services:
+          description: Dependencies that answered late, partially or not at all while producing this response.
+          type: array
+          items:
+            $ref: "#/components/schemas/DegradedService"
+          default: []
+    PageMeta:
+      title: PageMeta
+      description: Opaque cursor pagination. Cursors are server-generated and must not be parsed by clients.
+      type: object
+      required:
+        - cursor
+        - next_cursor
+        - has_more
+      properties:
+        cursor:
+          type:
+            - string
+            - "null"
+          maxLength: 512
+        next_cursor:
+          type:
+            - string
+            - "null"
+          maxLength: 512
+        has_more:
+          type: boolean
+    ErrorResponse:
+      title: ErrorResponse
+      type: object
+      required:
+        - error
+        - meta
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    UserProfile:
+      title: UserProfile
+      description: The caller's own profile. user_id is an internal UUID; the OIDC subject is never
+        exposed to the browser and email is never a primary key.
+      type: object
+      required:
+        - user_id
+        - locale
+        - timezone
+        - created_at
+        - updated_at
+        - consents
+      properties:
+        user_id:
+          $ref: "#/components/schemas/Uuid"
+        display_name:
+          description: Name taken from the identity provider, shown only back to the owner.
+          type:
+            - string
+            - "null"
+          maxLength: 256
+        locale:
+          $ref: "#/components/schemas/Locale"
+        timezone:
+          $ref: "#/components/schemas/Timezone"
+        home_country_code:
+          oneOf:
+            - $ref: "#/components/schemas/CountryCode"
+            - type: "null"
+        consents:
+          description: Current effective consent state, one entry per ConsentType the user has ever acted on.
+          type: array
+          items:
+            $ref: "#/components/schemas/ConsentRecord"
+        has_emergency_profile:
+          description: Whether an encrypted emergency profile exists. The profile content itself is never
+            included here.
+          type: boolean
+          default: false
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+        updated_at:
+          $ref: "#/components/schemas/Timestamp"
+        deleted_at:
+          $ref: "#/components/schemas/NullableTimestamp"
+    ConsentRecord:
+      title: ConsentRecord
+      description: "One versioned consent decision. Consent is append-only: revoking writes revoked_at
+        rather than deleting the row, so that what the user agreed to and when stays auditable."
+      type: object
+      required:
+        - consent_id
+        - type
+        - granted
+        - policy_version
+        - granted_at
+      properties:
+        consent_id:
+          $ref: "#/components/schemas/Uuid"
+        type:
+          $ref: "#/components/schemas/ConsentType"
+        granted:
+          type: boolean
+        policy_version:
+          description: Version of the consent text the user was shown.
+          $ref: "#/components/schemas/SemVer"
+        granted_at:
+          $ref: "#/components/schemas/Timestamp"
+        revoked_at:
+          $ref: "#/components/schemas/NullableTimestamp"
+        expires_at:
+          description: Set for scoped grants such as LOCATION_ONCE and for live-location sessions.
+          $ref: "#/components/schemas/NullableTimestamp"
+    EmergencyProfile:
+      title: EmergencyProfile
+      description: Medical and next-of-kin details the traveller chooses to store for an emergency. Stored
+        encrypted at the application layer under a key that does not live in the same database;
+        returned only to its owner, never logged, never traced, never sent to an LLM.
+      type: object
+      required:
+        - updated_at
+      properties:
+        blood_type:
+          type:
+            - string
+            - "null"
+          enum:
+            - A+
+            - A-
+            - B+
+            - B-
+            - AB+
+            - AB-
+            - O+
+            - O-
+            - UNKNOWN
+            - null
+        allergies:
+          type: array
+          maxItems: 32
+          items:
+            type: string
+            maxLength: 128
+          default: []
+        medical_notes:
+          description: Free text. Redacted from every log, metric and trace.
+          type:
+            - string
+            - "null"
+          maxLength: 2000
+        medications:
+          type: array
+          maxItems: 32
+          items:
+            type: string
+            maxLength: 128
+          default: []
+        contacts:
+          type: array
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/EmergencyContactPerson"
+          default: []
+        insurance:
+          oneOf:
+            - $ref: "#/components/schemas/InsuranceRef"
+            - type: "null"
+        updated_at:
+          $ref: "#/components/schemas/Timestamp"
+        key_version:
+          description: Encryption key version the stored payload was sealed with. Echoed so that key rotation
+            is auditable; the key itself is never exposed.
+          type:
+            - string
+            - "null"
+          maxLength: 32
+    LocationRef:
+      title: LocationRef
+      description: "A place resolved by a real geocoding provider. An assessment may only be started when
+        both origin and destination have confirmed_by_user = true. Exact coordinates are personal
+        data: keep them only as long as the trip and consent require, and never write them to logs
+        or traces."
+      type: object
+      required:
+        - display_name
+        - coordinates
+        - provider
+        - confirmed_by_user
+      properties:
+        place_id:
+          description: Provider-scoped place identifier. Null when the user dropped a pin instead of choosing
+            a suggestion.
+          type:
+            - string
+            - "null"
+          maxLength: 256
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 512
+        coordinates:
+          $ref: "#/components/schemas/Point"
+        country_code:
+          oneOf:
+            - $ref: "#/components/schemas/CountryCode"
+            - type: "null"
+        admin1:
+          description: First-level administrative area as the provider names it.
+          type:
+            - string
+            - "null"
+          maxLength: 256
+        timezone:
+          oneOf:
+            - $ref: "#/components/schemas/Timezone"
+            - type: "null"
+        provider:
+          description: Geocoding provider key, or user_pin when the coordinates came from the map rather than
+            a provider.
+          type: string
+          pattern: ^[a-z][a-z0-9_]{1,63}$
+        confirmed_by_user:
+          description: True once the user has seen the pin on the map and accepted it.
+          type: boolean
+    TravelPreference:
+      title: TravelPreference
+      description: "User routing preferences. Preferences never weaken a safety decision: they rank
+        acceptable options, they do not make an unacceptable option acceptable."
+      type: object
+      properties:
+        prefer_safer_route:
+          type: boolean
+          default: true
+        prefer_lower_cost:
+          type: boolean
+          default: false
+        prefer_lower_emissions:
+          type: boolean
+          default: false
+        max_extra_duration_minutes:
+          description: How much extra travel time the user will accept for a safer route.
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 1440
+          default: 90
+        avoid_tolls:
+          type: boolean
+          default: false
+        accessibility:
+          type: array
+          maxItems: 16
+          items:
+            type: string
+            enum:
+              - STEP_FREE
+              - WHEELCHAIR
+              - LOW_FLOOR_VEHICLE
+              - AVOID_STAIRS
+              - ASSISTANCE_REQUIRED
+              - VISUAL_IMPAIRMENT
+              - HEARING_IMPAIRMENT
+          default: []
+    Trip:
+      title: Trip
+      description: "A traveller's saved journey. revision backs optimistic concurrency: every mutation
+        increments it and PATCH requires a matching If-Match header, so two tabs cannot silently
+        overwrite each other."
+      type: object
+      required:
+        - trip_id
+        - revision
+        - origin
+        - destination
+        - departure_time
+        - timezone
+        - travel_modes
+        - status
+        - created_at
+        - updated_at
+      properties:
+        trip_id:
+          $ref: "#/components/schemas/Uuid"
+        revision:
+          description: Monotonic revision counter, also served as the ETag.
+          type: integer
+          minimum: 1
+        title:
+          type:
+            - string
+            - "null"
+          maxLength: 256
+        origin:
+          $ref: "#/components/schemas/LocationRef"
+        destination:
+          $ref: "#/components/schemas/LocationRef"
+        departure_time:
+          $ref: "#/components/schemas/Timestamp"
+        return_time:
+          $ref: "#/components/schemas/NullableTimestamp"
+        timezone:
+          $ref: "#/components/schemas/Timezone"
+        travel_modes:
+          type: array
+          minItems: 1
+          maxItems: 7
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/TravelMode"
+        preferences:
+          $ref: "#/components/schemas/TravelPreference"
+        selected_route_id:
+          description: Route the traveller applied. Set only by apply-route, never by the client directly.
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        previous_selected_route_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        latest_request_id:
+          description: Most recent assessment started for this trip revision.
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        status:
+          $ref: "#/components/schemas/TripStatus"
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+        updated_at:
+          $ref: "#/components/schemas/Timestamp"
+        deleted_at:
+          description: Set by soft delete. Purge of the underlying rows happens asynchronously under the
+            retention policy.
+          $ref: "#/components/schemas/NullableTimestamp"
+    RunRef:
+      title: RunRef
+      description: Returned by every endpoint that starts asynchronous work. The caller follows the run
+        over SSE and falls back to polling; the assessment itself never blocks the HTTP request that
+        started it.
+      type: object
+      required:
+        - request_id
+        - status
+        - events_url
+        - poll_url
+        - submitted_at
+      properties:
+        request_id:
+          $ref: "#/components/schemas/Uuid"
+        trip_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        conversation_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        status:
+          $ref: "#/components/schemas/RunStatus"
+        events_url:
+          description: Relative URL of the SSE stream for this run.
+          type: string
+          maxLength: 512
+        poll_url:
+          description: Relative URL of the polling endpoint for this run.
+          type: string
+          maxLength: 512
+        submitted_at:
+          $ref: "#/components/schemas/Timestamp"
+    RunState:
+      title: RunState
+      description: Pollable state of an assessment run. It reports progress and where the result will
+        appear; it never exposes the agent's reasoning, prompts or raw provider payloads.
+      type: object
+      required:
+        - request_id
+        - status
+        - submitted_at
+        - updated_at
+      properties:
+        request_id:
+          $ref: "#/components/schemas/Uuid"
+        trip_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        conversation_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        status:
+          $ref: "#/components/schemas/RunStatus"
+        stage:
+          oneOf:
+            - $ref: "#/components/schemas/RunStage"
+            - type: "null"
+        percent:
+          description: Null whenever the remaining work cannot be estimated honestly.
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 100
+        message_key:
+          oneOf:
+            - $ref: "#/components/schemas/MessageKey"
+            - type: "null"
+        missing_fields:
+          description: Populated when status is NEEDS_INPUT. The system asks rather than guessing.
+          type: array
+          items:
+            type: string
+            maxLength: 128
+          default: []
+        recommendation_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        result_url:
+          type:
+            - string
+            - "null"
+          maxLength: 512
+        error:
+          oneOf:
+            - $ref: "#/components/schemas/ErrorBody"
+            - type: "null"
+        degraded_services:
+          type: array
+          items:
+            $ref: "#/components/schemas/DegradedService"
+          default: []
+        submitted_at:
+          $ref: "#/components/schemas/Timestamp"
+        updated_at:
+          $ref: "#/components/schemas/Timestamp"
+        completed_at:
+          $ref: "#/components/schemas/NullableTimestamp"
+    RecommendationResponse:
+      title: RecommendationResponse
+      description: The object the web app renders. Every displayed fact carries its source and freshness;
+        when a dependency could not be reached the response says so in degraded_services and
+        limitations rather than filling the gap. The public API revalidates this against the schema
+        before it reaches the browser.
+      type: object
+      required:
+        - recommendation_id
+        - request_id
+        - trip_id
+        - status
+        - action_code
+        - risk_level
+        - confidence
+        - short_summary
+        - reasons
+        - sources
+        - freshness
+        - limitations
+        - degraded_services
+        - versions
+        - created_at
+      properties:
+        recommendation_id:
+          $ref: "#/components/schemas/Uuid"
+        request_id:
+          $ref: "#/components/schemas/Uuid"
+        trip_id:
+          $ref: "#/components/schemas/Uuid"
+        conversation_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        decision_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        snapshot_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        status:
+          description: COMPLETED or PARTIAL. A PARTIAL result is still safe to show but must be labelled as
+            incomplete in the UI.
+          $ref: "#/components/schemas/RunStatus"
+        action_code:
+          $ref: "#/components/schemas/ActionCode"
+        risk_level:
+          $ref: "#/components/schemas/RiskLevel"
+        confidence:
+          $ref: "#/components/schemas/UnitInterval"
+        short_summary:
+          type: string
+          maxLength: 1000
+        immediate_actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImmediateAction"
+          default: []
+        reasons:
+          type: array
+          items:
+            $ref: "#/components/schemas/DecisionReason"
+        primary_route:
+          oneOf:
+            - $ref: "#/components/schemas/RouteCandidate"
+            - type: "null"
+        alternatives:
+          type: array
+          items:
+            $ref: "#/components/schemas/RouteCandidate"
+          default: []
+        alerts:
+          description: Hazards and official alerts that intersect this journey.
+          type: array
+          items:
+            $ref: "#/components/schemas/DisasterEvent"
+          default: []
+        emergency_instructions:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmergencyInstruction"
+          default: []
+        official_contacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/OfficialContact"
+          default: []
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceProvenance"
+        freshness:
+          $ref: "#/components/schemas/Freshness"
+        limitations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Limitation"
+        degraded_services:
+          type: array
+          items:
+            $ref: "#/components/schemas/DegradedService"
+        versions:
+          $ref: "#/components/schemas/ResponseVersions"
+        expires_at:
+          description: After this instant the result must be re-assessed before being presented as current.
+          $ref: "#/components/schemas/NullableTimestamp"
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+    SafetyEvent:
+      title: SafetyEvent
+      description: "Map-sized summary of one hazard for the safety map. It is a projection of a canonical
+        DisasterEvent or weather window: enough to draw a marker and open a detail panel, with the
+        freshness the UI is required to show, and never a substitute for the full record."
+      type: object
+      required:
+        - event_id
+        - layer
+        - event_type
+        - title
+        - severity
+        - geometry
+        - official
+        - valid_from
+        - valid_to
+        - quality
+        - source
+      properties:
+        event_id:
+          $ref: "#/components/schemas/RecordId"
+        layer:
+          $ref: "#/components/schemas/SafetyLayer"
+        event_type:
+          $ref: "#/components/schemas/DisasterEventType"
+        title:
+          type: string
+          maxLength: 512
+        severity:
+          $ref: "#/components/schemas/Severity"
+        geometry:
+          $ref: "#/components/schemas/Geometry"
+        official:
+          type: boolean
+        valid_from:
+          $ref: "#/components/schemas/NullableTimestamp"
+        valid_to:
+          $ref: "#/components/schemas/NullableTimestamp"
+        detail_url:
+          description: Relative public API path for the full canonical record.
+          type:
+            - string
+            - "null"
+          maxLength: 512
+        quality:
+          $ref: "#/components/schemas/DataQuality"
+        source:
+          $ref: "#/components/schemas/SourceProvenance"
+    Conversation:
+      title: Conversation
+      description: "A thread of assistant turns about a trip. Continuing a conversation reuses its id but
+        never reuses stale evidence: a follow-up that asks about current conditions triggers a fresh
+        assessment when the previous one is past its freshness window."
+      type: object
+      required:
+        - conversation_id
+        - created_at
+        - updated_at
+        - message_count
+      properties:
+        conversation_id:
+          $ref: "#/components/schemas/Uuid"
+        trip_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        title:
+          description: Short label derived from the first question, for the recent-chats list.
+          type:
+            - string
+            - "null"
+          maxLength: 256
+        last_message_preview:
+          type:
+            - string
+            - "null"
+          maxLength: 512
+        last_recommendation_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        message_count:
+          type: integer
+          minimum: 0
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+        updated_at:
+          $ref: "#/components/schemas/Timestamp"
+    FeedbackEvent:
+      title: FeedbackEvent
+      description: Explicit feedback on a recommendation, kept separate from behavioural telemetry. UNSAFE
+        feedback opens a safety review record; nothing here retrains a model automatically.
+      type: object
+      required:
+        - feedback_id
+        - recommendation_id
+        - category
+        - created_at
+        - review_status
+      properties:
+        feedback_id:
+          $ref: "#/components/schemas/Uuid"
+        recommendation_id:
+          $ref: "#/components/schemas/Uuid"
+        category:
+          $ref: "#/components/schemas/FeedbackCategory"
+        text_redacted:
+          description: Free text after redaction of phone numbers, e-mail addresses and precise coordinates.
+          type:
+            - string
+            - "null"
+          maxLength: 2000
+        review_status:
+          type: string
+          enum:
+            - NEW
+            - TRIAGED
+            - IN_REVIEW
+            - RESOLVED
+            - DISMISSED
+        safety_review_id:
+          description: Set when the category is UNSAFE and a safety review record was created.
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+    AlertSubscription:
+      title: AlertSubscription
+      description: An opt-in to be told when a trip's situation materially changes. Every subscription
+        points at the consent that authorises it; revoking that consent cancels the subscription. A
+        cooldown suppresses repeat notifications, but a higher severity always breaks through.
+      type: object
+      required:
+        - subscription_id
+        - trip_id
+        - channel
+        - consent_id
+        - status
+        - created_at
+      properties:
+        subscription_id:
+          $ref: "#/components/schemas/Uuid"
+        trip_id:
+          $ref: "#/components/schemas/Uuid"
+        channel:
+          $ref: "#/components/schemas/DeliveryChannel"
+        consent_id:
+          $ref: "#/components/schemas/Uuid"
+        status:
+          $ref: "#/components/schemas/SubscriptionStatus"
+        min_severity:
+          description: Lowest severity that may notify this subscriber.
+          $ref: "#/components/schemas/Severity"
+        cooldown_until:
+          $ref: "#/components/schemas/NullableTimestamp"
+        expires_at:
+          $ref: "#/components/schemas/NullableTimestamp"
+        created_at:
+          $ref: "#/components/schemas/Timestamp"
+        cancelled_at:
+          $ref: "#/components/schemas/NullableTimestamp"
+    OfficialContact:
+      title: OfficialContact
+      description: A verified emergency number for a specific country or subdivision. Numbers come from a
+        reviewed directory with an effective and verified date, never from a language model and
+        never from a neighbouring country as a fallback. A contact past its review date is withheld
+        and the caller shows an unavailable state.
+      type: object
+      required:
+        - contact_id
+        - country_code
+        - service_type
+        - label
+        - phone
+        - source_url
+        - authority
+        - effective_at
+        - verified_at
+      properties:
+        contact_id:
+          $ref: "#/components/schemas/Uuid"
+        country_code:
+          $ref: "#/components/schemas/CountryCode"
+        subdivision:
+          description: ISO-3166-2 subdivision code when the number is regional rather than national.
+          type:
+            - string
+            - "null"
+          maxLength: 16
+        service_type:
+          $ref: "#/components/schemas/EmergencyServiceType"
+        label:
+          description: Display name in the requested locale, for example Tourist Police.
+          type: string
+          maxLength: 256
+        phone:
+          description: Dialable string as published by the authority, including short codes.
+          type: string
+          minLength: 2
+          maxLength: 32
+        languages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Locale"
+          default: []
+        source_url:
+          $ref: "#/components/schemas/HttpsUrl"
+        authority:
+          $ref: "#/components/schemas/SourceAuthority"
+        effective_at:
+          $ref: "#/components/schemas/Timestamp"
+        verified_at:
+          $ref: "#/components/schemas/Timestamp"
+        review_due_at:
+          $ref: "#/components/schemas/NullableTimestamp"
+    EmergencyPoi:
+      title: EmergencyPoi
+      description: "A nearby hospital, police station or embassy returned by a licensed places provider. A
+        POI is a navigation aid, not a verified phone directory: any number shown here is the
+        provider's and is labelled as such, while dialable emergency numbers come from
+        OfficialContact."
+      type: object
+      required:
+        - poi_id
+        - poi_type
+        - name
+        - location
+        - distance_m
+        - quality
+        - source
+      properties:
+        poi_id:
+          $ref: "#/components/schemas/RecordId"
+        poi_type:
+          type: string
+          enum:
+            - HOSPITAL
+            - CLINIC
+            - PHARMACY
+            - POLICE
+            - FIRE_STATION
+            - EMBASSY
+            - CONSULATE
+            - SHELTER
+        name:
+          type: string
+          maxLength: 512
+        location:
+          $ref: "#/components/schemas/Point"
+        address:
+          type:
+            - string
+            - "null"
+          maxLength: 512
+        phone:
+          description: As published by the places provider. Never presented as an official emergency number.
+          type:
+            - string
+            - "null"
+          maxLength: 32
+        distance_m:
+          type: number
+          minimum: 0
+        open_now:
+          description: Null unless the provider supplies opening hours; unknown is not open.
+          type:
+            - boolean
+            - "null"
+        quality:
+          $ref: "#/components/schemas/DataQuality"
+        source:
+          $ref: "#/components/schemas/SourceProvenance"
+    DataQuality:
+      title: DataQuality
+      description: "Quality envelope attached to every canonical record. The score never replaces the
+        flags: a consumer that reads score alone and ignores flags is non-conforming. score is
+        nullable, and a null score is not a quality problem — it means no agreed formula has been
+        applied yet. A producer must leave it null rather than invent a number, because a fabricated
+        score is indistinguishable from a measured one once it is downstream."
+      type: object
+      required:
+        - status
+        - score
+        - score_version
+        - flags
+      properties:
+        status:
+          $ref: "#/components/schemas/DataStatus"
+        score:
+          description: Weighted quality score. Null until a producer applies an agreed formula; never a
+            placeholder.
+          oneOf:
+            - $ref: "#/components/schemas/UnitInterval"
+            - type: "null"
+        flags:
+          type: array
+          items:
+            $ref: "#/components/schemas/QualityFlag"
+          default: []
+        coverage:
+          description: Share of the requested area and time window the source actually covers.
+          oneOf:
+            - $ref: "#/components/schemas/UnitInterval"
+            - type: "null"
+        completeness:
+          description: Share of required fields the provider supplied.
+          oneOf:
+            - $ref: "#/components/schemas/UnitInterval"
+            - type: "null"
+        freshness_seconds:
+          description: Age of the underlying observation at generation time. Null when the source publishes no
+            observation time.
+          type:
+            - integer
+            - "null"
+          minimum: 0
+        conflicts:
+          description: Conflicting values seen for the same fact across sources.
+          type: array
+          items:
+            $ref: "#/components/schemas/QualityConflict"
+          default: []
+        notes:
+          type: array
+          items:
+            type: string
+            maxLength: 512
+          default: []
+        score_version:
+          description: "Version of the scoring formula and weights that produced `score` — not a revision
+            counter for the value itself. Required whenever `score` is non-null, and null alongside
+            a null score: a number that cannot be attributed to a formula cannot be compared across
+            time."
+          oneOf:
+            - $ref: "#/components/schemas/SemVer"
+            - type: "null"
+      allOf:
+        - title: ScoreRequiresItsFormulaVersion
+          if:
+            properties:
+              score:
+                type: number
+            required:
+              - score
+          then:
+            properties:
+              score_version:
+                type: string
+    SourceProvenance:
+      title: SourceProvenance
+      description: Every fact that can influence a decision must resolve back to one of these. When a
+        provider publishes no observation time, observed_at is null and the record carries a quality
+        flag; fetched_at is never presented as an observation time.
+      type: object
+      required:
+        - source_id
+        - provider
+        - authority
+        - source_url
+        - fetched_at
+        - content_hash
+        - schema_version
+      properties:
+        source_id:
+          description: "Stable identifier for this source record. Reproducible on purpose: fetching the same
+            fact twice must produce the same value, because deduplication in module 05 and tracing
+            one fact through a log both depend on it. A random UUID per fetch would defeat both."
+          $ref: "#/components/schemas/RecordId"
+        provider:
+          description: Stable provider key from the provider catalogue, for example open_meteo, usgs, gdacs,
+            openrouteservice.
+          type: string
+          pattern: ^[a-z][a-z0-9_]{1,63}$
+        provider_record_id:
+          description: Provider-scoped identifier for the record, for example a USGS event id.
+          type:
+            - string
+            - "null"
+          maxLength: 256
+        authority:
+          $ref: "#/components/schemas/SourceAuthority"
+        source_url:
+          description: Canonical URL for the record, or the request URL the adapter used. Null only when the
+            provider publishes neither — a bulk feed with no per-record address, for example.
+          oneOf:
+            - $ref: "#/components/schemas/HttpsUrl"
+            - type: "null"
+        license:
+          description: Licence or terms identifier the provider publishes under.
+          type:
+            - string
+            - "null"
+          maxLength: 256
+        attribution:
+          description: Attribution text that must be displayed wherever this source is shown.
+          type:
+            - string
+            - "null"
+          maxLength: 512
+        observed_at:
+          $ref: "#/components/schemas/NullableTimestamp"
+        published_at:
+          $ref: "#/components/schemas/NullableTimestamp"
+        fetched_at:
+          $ref: "#/components/schemas/Timestamp"
+        expires_at:
+          $ref: "#/components/schemas/NullableTimestamp"
+        content_hash:
+          description: Digest of the upstream payload this record was derived from, so provider schema drift
+            is detectable rather than silent. Null when the adapter had no raw payload to hash,
+            which is the case for a record assembled from several responses.
+          oneOf:
+            - $ref: "#/components/schemas/ContentHash"
+            - type: "null"
+        schema_version:
+          $ref: "#/components/schemas/SemVer"
+    RouteCandidate:
+      title: RouteCandidate
+      description: One way of making the journey, with the hazard exposure measured along its corridor
+        rather than at the endpoints. A route whose corridor carries an official closure must have
+        exposure.closed = true and can never be labelled RECOMMENDED.
+      type: object
+      required:
+        - route_id
+        - label
+        - mode
+        - geometry
+        - distance_m
+        - duration_seconds
+        - exposure
+        - risk_level
+        - quality
+        - sources
+      properties:
+        route_id:
+          $ref: "#/components/schemas/Uuid"
+        provider_route_id:
+          description: Opaque provider handle, kept so the same route can be re-fetched or audited.
+          type:
+            - string
+            - "null"
+          maxLength: 256
+        label:
+          $ref: "#/components/schemas/RouteLabel"
+        mode:
+          $ref: "#/components/schemas/TravelMode"
+        geometry:
+          $ref: "#/components/schemas/LineString"
+        segments:
+          type: array
+          items:
+            $ref: "#/components/schemas/RouteSegment"
+          default: []
+        distance_m:
+          type: number
+          minimum: 0
+        duration_seconds:
+          type: number
+          minimum: 0
+        transfers:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+        exposure:
+          $ref: "#/components/schemas/RouteExposure"
+        risk_level:
+          $ref: "#/components/schemas/RiskLevel"
+        quality:
+          $ref: "#/components/schemas/DataQuality"
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceProvenance"
+    DisasterEvent:
+      title: DisasterEvent
+      description: A hazard published by a real feed. An OfficialAlert is the same shape with official =
+        true and an authority of OFFICIAL or INTERGOVERNMENTAL; an active official alert is never
+        dropped because a different provider stopped answering.
+      type: object
+      required:
+        - event_id
+        - event_type
+        - title
+        - description
+        - severity
+        - geometry
+        - effective_at
+        - ends_at
+        - instruction
+        - official
+        - quality
+        - source
+      properties:
+        event_id:
+          $ref: "#/components/schemas/RecordId"
+        event_type:
+          $ref: "#/components/schemas/DisasterEventType"
+        title:
+          type: string
+          maxLength: 512
+        description:
+          description: "Provider text. Untrusted: sanitised before display and never treated as an instruction
+            to the system."
+          type:
+            - string
+            - "null"
+          maxLength: 8000
+        severity:
+          $ref: "#/components/schemas/Severity"
+        geometry:
+          $ref: "#/components/schemas/Geometry"
+        effective_at:
+          $ref: "#/components/schemas/NullableTimestamp"
+        ends_at:
+          $ref: "#/components/schemas/NullableTimestamp"
+        instruction:
+          description: Protective action text as published by the issuing authority, verbatim.
+          type:
+            - string
+            - "null"
+          maxLength: 4000
+        official:
+          description: True when the issuing body is a government or intergovernmental authority.
+          type: boolean
+        closes_transport:
+          description: True when the alert itself declares a route, airport or corridor closed.
+          type: boolean
+          default: false
+        magnitude:
+          description: "Provider's own magnitude number, carried through rather than interpreted. Meaningless
+            on its own: it must be read together with magnitude_unit, because 5.8 Mw and 5.8 mb are
+            different measurements of different things."
+          type:
+            - number
+            - "null"
+        magnitude_unit:
+          description: "Scale the magnitude is expressed on, as the provider names it — Mw, mb, Ms, ml for
+            earthquakes, or a provider-specific scale for other hazards. Required whenever magnitude
+            is non-null: a bare number invites a consumer to compare two scales as though they were
+            one, and for a hazard that is a safety error, not a rounding one."
+          type:
+            - string
+            - "null"
+          maxLength: 32
+        depth_km:
+          description: Hypocentre depth in kilometres, where the hazard type has one. A shallow earthquake and
+            a deep one of equal magnitude do very different things at the surface, so the depth is
+            part of the evidence rather than a detail.
+          type:
+            - number
+            - "null"
+          minimum: 0
+        quality:
+          $ref: "#/components/schemas/DataQuality"
+        source:
+          $ref: "#/components/schemas/SourceProvenance"
+      allOf:
+        - title: MagnitudeRequiresItsUnit
+          if:
+            properties:
+              magnitude:
+                type: number
+            required:
+              - magnitude
+          then:
+            properties:
+              magnitude_unit:
+                type: string
+    SseRunAccepted:
+      $ref: "#/components/schemas/RunAccepted"
+    SseRunProgress:
+      $ref: "#/components/schemas/RunProgress"
+    SseRunNeedsInput:
+      $ref: "#/components/schemas/RunNeedsInput"
+    SseRunDegraded:
+      $ref: "#/components/schemas/RunDegraded"
+    SseRunCompleted:
+      $ref: "#/components/schemas/RunCompleted"
+    SseRunFailed:
+      $ref: "#/components/schemas/RunFailed"
+    SseHeartbeat:
+      $ref: "#/components/schemas/Heartbeat"
+    HealthLiveResponse:
+      type: object
+      required:
+        - status
+        - service
+        - version
+      properties:
+        status:
+          type: string
+          enum:
+            - alive
+        service:
+          type: string
+        version:
+          type: string
+    HealthReadyResponse:
+      type: object
+      required:
+        - status
+        - checks
+        - checked_at
+      properties:
+        status:
+          type: string
+          enum:
+            - ready
+            - not_ready
+        checks:
+          type: array
+          items:
+            type: object
+            required:
+              - name
+              - required
+              - status
+              - duration_ms
+            properties:
+              name:
+                type: string
+                description: Dependency key, for example postgres, redis, oidc, agent.
+              required:
+                type: boolean
+                description: Whether a failure here makes the service unready.
+              status:
+                type: string
+                enum:
+                  - up
+                  - down
+                  - degraded
+                  - skipped
+              duration_ms:
+                type: number
+              detail:
+                type:
+                  - string
+                  - "null"
+                description: Short, user-safe reason. Never a connection string or credential.
+        checked_at:
+          $ref: "#/components/schemas/Timestamp"
+    UserProfileResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: "#/components/schemas/UserProfile"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    UpdateProfileRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        locale:
+          $ref: "#/components/schemas/Locale"
+        timezone:
+          $ref: "#/components/schemas/Timezone"
+        home_country_code:
+          oneOf:
+            - $ref: "#/components/schemas/CountryCode"
+            - type: "null"
+    EmergencyProfileResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: "#/components/schemas/EmergencyProfile"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    EmergencyProfileUpsertRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        blood_type:
+          type:
+            - string
+            - "null"
+          enum:
+            - A+
+            - A-
+            - B+
+            - B-
+            - AB+
+            - AB-
+            - O+
+            - O-
+            - UNKNOWN
+            - null
+        allergies:
+          type: array
+          maxItems: 32
+          items:
+            type: string
+            maxLength: 128
+        medical_notes:
+          type:
+            - string
+            - "null"
+          maxLength: 2000
+        medications:
+          type: array
+          maxItems: 32
+          items:
+            type: string
+            maxLength: 128
+        contacts:
+          type: array
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/EmergencyContactPerson"
+        insurance:
+          oneOf:
+            - $ref: "#/components/schemas/InsuranceRef"
+            - type: "null"
+    ConsentRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - granted
+        - policy_version
+      properties:
+        type:
+          $ref: "#/components/schemas/ConsentType"
+        granted:
+          type: boolean
+        policy_version:
+          $ref: "#/components/schemas/SemVer"
+        expires_at:
+          description: |
+            Requested expiry for a scoped grant such as a live-location session. The server caps
+            it at the configured maximum.
+          $ref: "#/components/schemas/NullableTimestamp"
+    ConsentResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: "#/components/schemas/ConsentRecord"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    LocationSearchResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/LocationRef"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    CreateTripRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - origin
+        - destination
+        - departure_time
+        - timezone
+        - travel_modes
+      properties:
+        title:
+          type:
+            - string
+            - "null"
+          maxLength: 256
+        origin:
+          $ref: "#/components/schemas/LocationRef"
+        destination:
+          $ref: "#/components/schemas/LocationRef"
+        departure_time:
+          $ref: "#/components/schemas/Timestamp"
+        return_time:
+          $ref: "#/components/schemas/NullableTimestamp"
+        timezone:
+          $ref: "#/components/schemas/Timezone"
+        travel_modes:
+          type: array
+          minItems: 1
+          maxItems: 7
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/TravelMode"
+        preferences:
+          $ref: "#/components/schemas/TravelPreference"
+    UpdateTripRequest:
+      type: object
+      additionalProperties: false
+      description: Only the supplied fields change. Every change increments the trip revision.
+      properties:
+        title:
+          type:
+            - string
+            - "null"
+          maxLength: 256
+        origin:
+          $ref: "#/components/schemas/LocationRef"
+        destination:
+          $ref: "#/components/schemas/LocationRef"
+        departure_time:
+          $ref: "#/components/schemas/Timestamp"
+        return_time:
+          $ref: "#/components/schemas/NullableTimestamp"
+        timezone:
+          $ref: "#/components/schemas/Timezone"
+        travel_modes:
+          type: array
+          minItems: 1
+          maxItems: 7
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/TravelMode"
+        preferences:
+          $ref: "#/components/schemas/TravelPreference"
+        status:
+          $ref: "#/components/schemas/TripStatus"
+    TripResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: "#/components/schemas/Trip"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    TripListResponse:
+      type: object
+      required:
+        - data
+        - meta
+        - page
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Trip"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+        page:
+          $ref: "#/components/schemas/PageMeta"
+    DeletionStatusResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: object
+          required:
+            - resource_id
+            - status
+            - requested_at
+          properties:
+            resource_id:
+              $ref: "#/components/schemas/Uuid"
+            status:
+              $ref: "#/components/schemas/DeletionStatus"
+            requested_at:
+              $ref: "#/components/schemas/Timestamp"
+            completed_at:
+              $ref: "#/components/schemas/NullableTimestamp"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    CreateAssessmentRequest:
+      type: object
+      additionalProperties: false
+      description: |
+        Everything here is optional: the journey itself comes from the stored trip, so a client
+        cannot assess one trip while claiming another.
+      properties:
+        question:
+          type:
+            - string
+            - "null"
+          maxLength: 2000
+        conversation_id:
+          description: Continue an existing thread instead of starting a new one.
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        locale:
+          $ref: "#/components/schemas/Locale"
+        live_location_consent_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        avoid_areas:
+          description: |
+            Areas the traveller asked to avoid, drawn on the safety map. Advisory input to route
+            evaluation, not a way to hide an official warning.
+          type: array
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/Polygon"
+    RunRefResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: "#/components/schemas/RunRef"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    RunStateResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: "#/components/schemas/RunState"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    RecommendationResponseEnvelope:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: "#/components/schemas/RecommendationResponse"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApplyRouteRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - recommendation_id
+        - route_id
+      properties:
+        recommendation_id:
+          description: The recommendation the route was offered in, so the choice is auditable.
+          $ref: "#/components/schemas/Uuid"
+        route_id:
+          $ref: "#/components/schemas/Uuid"
+        risk_acknowledged:
+          description: |
+            Required when the chosen route is MEDIUM or HIGH. Records that the traveller was
+            shown the risk and accepted it. It never overrides a closure.
+          type: boolean
+          default: false
+    ApplyRouteResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: object
+          required:
+            - trip
+            - run
+          properties:
+            trip:
+              $ref: "#/components/schemas/Trip"
+            run:
+              $ref: "#/components/schemas/RunRef"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    SafetyEventListResponse:
+      type: object
+      required:
+        - data
+        - meta
+        - page
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/SafetyEvent"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+        page:
+          $ref: "#/components/schemas/PageMeta"
+    ConversationListResponse:
+      type: object
+      required:
+        - data
+        - meta
+        - page
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Conversation"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+        page:
+          $ref: "#/components/schemas/PageMeta"
+    ConversationMessageRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - question
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        trip_id:
+          description: Trip this question is about, when the thread is not already bound to one.
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+        locale:
+          $ref: "#/components/schemas/Locale"
+    FeedbackRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - recommendation_id
+        - category
+      properties:
+        recommendation_id:
+          $ref: "#/components/schemas/Uuid"
+        category:
+          $ref: "#/components/schemas/FeedbackCategory"
+        text:
+          description: |
+            Free text. Redacted for phone numbers, e-mail addresses and precise coordinates
+            before storage.
+          type:
+            - string
+            - "null"
+          maxLength: 2000
+    FeedbackResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: "#/components/schemas/FeedbackEvent"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    CreateAlertSubscriptionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - trip_id
+        - channel
+        - consent_id
+      properties:
+        trip_id:
+          $ref: "#/components/schemas/Uuid"
+        channel:
+          $ref: "#/components/schemas/DeliveryChannel"
+        consent_id:
+          $ref: "#/components/schemas/Uuid"
+        min_severity:
+          $ref: "#/components/schemas/Severity"
+    AlertSubscriptionResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: "#/components/schemas/AlertSubscription"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    OfficialContactListResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/OfficialContact"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    EmergencyPoiListResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmergencyPoi"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    Timestamp:
+      title: Timestamp
+      description: ISO-8601 instant with an explicit offset, e.g. 2026-09-17T08:30:00Z.
+      type: string
+      format: date-time
+    Uuid:
+      title: Uuid
+      description: "UUID, serialised in lowercase canonical form. Expressed as `format: uuid` alone rather
+        than as a pattern as well: generators map the format onto a real UUID type whose canonical
+        serialisation is already lowercase, whereas a pattern beside it forces the value back to a
+        bare string."
+      type: string
+      format: uuid
+    Locale:
+      title: Locale
+      description: BCP-47 language tag, e.g. th-TH or en-GB.
+      type: string
+      pattern: ^[a-zA-Z]{2,3}(-[a-zA-Z]{4})?(-([a-zA-Z]{2}|[0-9]{3}))?$
+      maxLength: 35
+    Timezone:
+      title: Timezone
+      description: IANA time zone identifier, e.g. Asia/Bangkok. Validated against the tz database at the
+        boundary, not by pattern alone.
+      type: string
+      minLength: 1
+      maxLength: 64
+      pattern: ^[A-Za-z0-9+_-]+(/[A-Za-z0-9+_.-]+)*$
+    CountryCode:
+      title: CountryCode
+      description: ISO-3166-1 alpha-2, uppercase.
+      type: string
+      pattern: ^[A-Z]{2}$
+    ConsentType:
+      title: ConsentType
+      type: string
+      enum:
+        - LOCATION_ONCE
+        - LOCATION_LIVE
+        - ALERT_NOTIFICATION
+        - ANALYTICS
+        - EMERGENCY_PROFILE
+    SemVer:
+      title: SemVer
+      type: string
+      pattern: ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$
+    NullableTimestamp:
+      title: NullableTimestamp
+      type:
+        - string
+        - "null"
+      format: date-time
+    DegradationReason:
+      title: DegradationReason
+      type: string
+      enum:
+        - TIMEOUT
+        - UNAVAILABLE
+        - RATE_LIMITED
+        - STALE_DATA
+        - PARTIAL_COVERAGE
+        - NOT_CONFIGURED
+        - SCHEMA_MISMATCH
+    DegradedService:
+      title: DegradedService
+      type: object
+      required:
+        - service
+        - reason
+      properties:
+        service:
+          type: string
+          maxLength: 64
+        reason:
+          $ref: "#/components/schemas/DegradationReason"
+        since:
+          $ref: "#/components/schemas/NullableTimestamp"
+        retrying:
+          type: boolean
+          default: false
+    ErrorCode:
+      title: ErrorCode
+      description: Stable error codes. Adding a member is a minor contract change; removing or renaming
+        one is breaking.
+      type: string
+      enum:
+        - VALIDATION_ERROR
+        - AUTHENTICATION_REQUIRED
+        - FORBIDDEN
+        - NOT_FOUND
+        - CONFLICT
+        - IDEMPOTENCY_CONFLICT
+        - RATE_LIMITED
+        - DEPENDENCY_TIMEOUT
+        - DEPENDENCY_UNAVAILABLE
+        - INSUFFICIENT_EVIDENCE
+        - UNSUPPORTED_COVERAGE
+        - POLICY_VALIDATION_FAILED
+        - INTERNAL_ERROR
+    FieldError:
+      title: FieldError
+      type: object
+      required:
+        - path
+        - code
+      properties:
+        path:
+          description: Dotted or indexed path into the rejected request, for example destination.coordinates.
+          type: string
+          maxLength: 256
+        code:
+          type: string
+          enum:
+            - REQUIRED
+            - INVALID_FORMAT
+            - OUT_OF_RANGE
+            - TOO_LONG
+            - TOO_SHORT
+            - UNKNOWN_FIELD
+            - UNSUPPORTED_VALUE
+            - NOT_CONFIRMED
+            - INCONSISTENT
+        message:
+          description: Optional user-safe detail. Never echoes a rejected value that is itself sensitive.
+          type:
+            - string
+            - "null"
+          maxLength: 512
+    ErrorBody:
+      title: ErrorBody
+      type: object
+      required:
+        - code
+        - message
+        - retryable
+      properties:
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        message:
+          description: Human-readable and safe to display. Never carries a stack trace, SQL, provider
+            credential or internal host name.
+          type: string
+          maxLength: 1024
+        field_errors:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldError"
+          default: []
+        retryable:
+          type: boolean
+        retry_after_seconds:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 86400
+    EmergencyContactPerson:
+      title: EmergencyContactPerson
+      type: object
+      required:
+        - name
+        - phone
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 256
+        relationship:
+          type:
+            - string
+            - "null"
+          maxLength: 64
+        phone:
+          description: E.164 where possible. Redacted from logs.
+          type: string
+          minLength: 3
+          maxLength: 32
+        locale:
+          oneOf:
+            - $ref: "#/components/schemas/Locale"
+            - type: "null"
+    InsuranceRef:
+      title: InsuranceRef
+      type: object
+      required:
+        - provider_name
+      properties:
+        provider_name:
+          type: string
+          maxLength: 256
+        policy_reference:
+          type:
+            - string
+            - "null"
+          maxLength: 128
+        emergency_phone:
+          type:
+            - string
+            - "null"
+          maxLength: 32
+    Position:
+      title: Position
+      description: "[longitude, latitude] in WGS84. RFC 7946 also permits an elevation element; this
+        contract does not carry one, because nothing in the system consumes altitude and an optional
+        third element would make every generated type ambiguous."
+      type: array
+      minItems: 2
+      maxItems: 2
+      prefixItems:
+        - type: number
+          minimum: -180
+          maximum: 180
+        - type: number
+          minimum: -90
+          maximum: 90
+      items: false
+    Point:
+      title: GeoJsonPoint
+      type: object
+      required:
+        - type
+        - coordinates
+      properties:
+        type:
+          const: Point
+        coordinates:
+          $ref: "#/components/schemas/Position"
+    TripStatus:
+      title: TripStatus
+      type: string
+      enum:
+        - DRAFT
+        - PLANNED
+        - ACTIVE
+        - COMPLETED
+        - CANCELLED
+        - DELETED
+    TravelMode:
+      title: TravelMode
+      type: string
+      enum:
+        - FLIGHT
+        - TRAIN
+        - BUS
+        - CAR
+        - WALK
+        - BICYCLE
+        - MULTIMODAL
+    DeletionStatus:
+      title: DeletionStatus
+      description: Reported by soft-delete endpoints; purge happens asynchronously across owned schemas.
+      type: string
+      enum:
+        - PENDING
+        - IN_PROGRESS
+        - COMPLETED
+        - FAILED
+    Polygon:
+      title: GeoJsonPolygon
+      type: object
+      required:
+        - type
+        - coordinates
+      properties:
+        type:
+          const: Polygon
+        coordinates:
+          type: array
+          minItems: 1
+          items:
+            type: array
+            minItems: 4
+            items:
+              $ref: "#/components/schemas/Position"
+    RunStatus:
+      title: RunStatus
+      type: string
+      enum:
+        - QUEUED
+        - RUNNING
+        - NEEDS_INPUT
+        - COMPLETED
+        - PARTIAL
+        - FAILED
+        - CANCELLED
+    RunStage:
+      title: RunStage
+      description: Controlled progress stages surfaced over SSE (00_API_AND_DATA_CONTRACTS.md section 6).
+      type: string
+      enum:
+        - VALIDATING
+        - FETCHING_EXTERNAL_DATA
+        - INTEGRATING_DATA
+        - ASSESSING_RISK
+        - RETRIEVING_GUIDANCE
+        - EVALUATING_ROUTES
+        - MAKING_DECISION
+        - EXPLAINING
+        - FORMATTING_RESPONSE
+    MessageKey:
+      title: MessageKey
+      description: i18n key the web app resolves. Servers never send pre-translated progress copy.
+      type: string
+      pattern: ^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$
+      maxLength: 128
+    DisasterEventType:
+      title: DisasterEventType
+      type: string
+      enum:
+        - EARTHQUAKE
+        - CYCLONE
+        - STORM
+        - FLOOD
+        - WILDFIRE
+        - VOLCANO
+        - LANDSLIDE
+        - EXTREME_TEMPERATURE
+        - HEALTH
+        - TRANSPORT_CLOSURE
+        - OTHER
+    RecordId:
+      title: RecordId
+      description: "Identifier of a record as the producer mints it. Stable and reproducible: fetching the
+        same fact twice must yield the same RecordId, because that is what lets module 05
+        deduplicate across sources and what lets an operator trace one fact back through a log. A
+        provider adapter therefore derives it from the provider key and the provider's own record id
+        (for example `usgs:us7000abcd`), never from a random UUID, which would differ on every fetch
+        and defeat both. A service that mints a record with no upstream identity may use a UUID
+        here; the format is deliberately wide enough for both."
+      type: string
+      minLength: 1
+      maxLength: 256
+      pattern: ^[A-Za-z0-9][A-Za-z0-9._:,+@/=-]*$
+    HttpsUrl:
+      title: HttpsUrl
+      type: string
+      format: uri
+      maxLength: 2048
+    SourceAuthority:
+      title: SourceAuthority
+      type: string
+      enum:
+        - OFFICIAL
+        - INTERGOVERNMENTAL
+        - LICENSED_PROVIDER
+        - COMMUNITY
+        - UNKNOWN
+    Citation:
+      title: Citation
+      description: Every factual claim in the summary must be covered by one of these. Citations are
+        produced from retrieved evidence and provenance records, never written by the language
+        model.
+      type: object
+      required:
+        - source_id
+        - title
+        - source_url
+      properties:
+        source_id:
+          $ref: "#/components/schemas/RecordId"
+        title:
+          type: string
+          maxLength: 512
+        source_url:
+          $ref: "#/components/schemas/HttpsUrl"
+        authority:
+          $ref: "#/components/schemas/SourceAuthority"
+        observed_at:
+          $ref: "#/components/schemas/NullableTimestamp"
+        evidence_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+    ActionCode:
+      title: ActionCode
+      description: The only four actions the product may recommend. Locked by the decision engine before
+        any LLM call.
+      type: string
+      enum:
+        - NORMAL
+        - CHANGE_ROUTE
+        - DELAY
+        - AVOID
+    RiskLevel:
+      title: RiskLevel
+      type: string
+      enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+        - UNKNOWN
+    UnitInterval:
+      title: UnitInterval
+      description: Normalised score in [0, 1].
+      type: number
+      minimum: 0
+      maximum: 1
+    ImmediateAction:
+      title: ImmediateAction
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          maxLength: 512
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 10
+          default: 5
+        evidence_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+    RiskReasonCode:
+      title: RiskReasonCode
+      type: string
+      enum:
+        - SEVERE_WEATHER_CORRIDOR
+        - HEAVY_PRECIPITATION
+        - HIGH_WIND
+        - LOW_VISIBILITY
+        - SNOW_OR_ICE
+        - EXTREME_TEMPERATURE
+        - ACTIVE_DISASTER_ON_CORRIDOR
+        - RECENT_EARTHQUAKE
+        - FLOOD_RISK
+        - WILDFIRE_SMOKE
+        - OFFICIAL_CLOSURE
+        - OFFICIAL_WARNING_ACTIVE
+        - TRANSPORT_DISRUPTION
+        - TRANSPORT_CANCELLED
+        - NIGHT_TRAVEL
+        - LONG_EXPOSURE_WINDOW
+        - SPARSE_DATA_COVERAGE
+        - STALE_EVIDENCE
+        - CONFLICTING_EVIDENCE
+    Severity:
+      title: Severity
+      type: string
+      enum:
+        - INFO
+        - MINOR
+        - MODERATE
+        - SEVERE
+        - EXTREME
+        - UNKNOWN
+    DecisionReason:
+      title: DecisionReason
+      type: object
+      required:
+        - code
+        - text
+      properties:
+        code:
+          $ref: "#/components/schemas/RiskReasonCode"
+        text:
+          type: string
+          maxLength: 1000
+        severity:
+          $ref: "#/components/schemas/Severity"
+        source_ids:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecordId"
+          default: []
+    LineString:
+      title: GeoJsonLineString
+      type: object
+      required:
+        - type
+        - coordinates
+      properties:
+        type:
+          const: LineString
+        coordinates:
+          type: array
+          minItems: 2
+          items:
+            $ref: "#/components/schemas/Position"
+    RouteLabel:
+      title: RouteLabel
+      type: string
+      enum:
+        - ORIGINAL
+        - RECOMMENDED
+        - FASTEST
+        - LOWEST_RISK
+        - ALTERNATIVE
+    RouteSegment:
+      title: RouteSegment
+      type: object
+      required:
+        - segment_id
+        - mode
+        - distance_m
+        - duration_seconds
+      properties:
+        segment_id:
+          $ref: "#/components/schemas/Uuid"
+        mode:
+          $ref: "#/components/schemas/TravelMode"
+        from_name:
+          type:
+            - string
+            - "null"
+          maxLength: 256
+        to_name:
+          type:
+            - string
+            - "null"
+          maxLength: 256
+        geometry:
+          oneOf:
+            - $ref: "#/components/schemas/LineString"
+            - type: "null"
+        distance_m:
+          type: number
+          minimum: 0
+        duration_seconds:
+          type: number
+          minimum: 0
+        departure_time:
+          $ref: "#/components/schemas/NullableTimestamp"
+        arrival_time:
+          $ref: "#/components/schemas/NullableTimestamp"
+        transport_status_id:
+          oneOf:
+            - $ref: "#/components/schemas/Uuid"
+            - type: "null"
+    RouteExposure:
+      title: RouteExposure
+      description: What this route is exposed to along its corridor within the travel window.
+      type: object
+      required:
+        - score
+        - closed
+      properties:
+        score:
+          $ref: "#/components/schemas/UnitInterval"
+        hazard_event_ids:
+          type: array
+          items:
+            $ref: "#/components/schemas/Uuid"
+          default: []
+        weather_window_ids:
+          type: array
+          items:
+            $ref: "#/components/schemas/Uuid"
+          default: []
+        closed:
+          description: True when an official closure covers part of this route.
+          type: boolean
+        closure_source_ids:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecordId"
+          default: []
+    DataStatus:
+      title: DataStatus
+      type: string
+      enum:
+        - FRESH
+        - STALE
+        - UNAVAILABLE
+        - CONFLICTING
+        - PARTIAL
+    QualityFlag:
+      title: QualityFlag
+      type: string
+      enum:
+        - MISSING
+        - STALE
+        - CONFLICTING
+        - INFERRED
+        - INCOMPLETE
+        - OUTSIDE_COVERAGE
+    QualityConflict:
+      title: QualityConflict
+      type: object
+      required:
+        - field_path
+        - source_ids
+      properties:
+        field_path:
+          type: string
+          maxLength: 256
+        source_ids:
+          type: array
+          minItems: 2
+          items:
+            $ref: "#/components/schemas/RecordId"
+        resolution:
+          type:
+            - string
+            - "null"
+          enum:
+            - HIGHEST_AUTHORITY
+            - MOST_RECENT
+            - MOST_CONSERVATIVE
+            - UNRESOLVED
+            - null
+    ContentHash:
+      title: ContentHash
+      description: "Digest of the payload a record was derived from, prefixed with the algorithm that
+        produced it. The prefix is the point: a bare hex string is ambiguous the moment a second
+        algorithm is introduced, and an unprefixed value silently compares unequal to a prefixed one
+        rather than failing. Used for deduplication and for detecting provider schema drift."
+      type: string
+      pattern: ^(sha256:[0-9a-f]{64}|sha512:[0-9a-f]{128})$
+    MultiPolygon:
+      title: GeoJsonMultiPolygon
+      type: object
+      required:
+        - type
+        - coordinates
+      properties:
+        type:
+          const: MultiPolygon
+        coordinates:
+          type: array
+          items:
+            type: array
+            minItems: 1
+            items:
+              type: array
+              minItems: 4
+              items:
+                $ref: "#/components/schemas/Position"
+    Geometry:
+      title: GeoJsonGeometry
+      description: Any geometry a hazard, corridor or route may carry.
+      oneOf:
+        - $ref: "#/components/schemas/Point"
+        - $ref: "#/components/schemas/LineString"
+        - $ref: "#/components/schemas/Polygon"
+        - $ref: "#/components/schemas/MultiPolygon"
+    EmergencyInstruction:
+      title: EmergencyInstruction
+      description: Protective guidance quoted from an approved document, with its citation. Never
+        generated free-hand.
+      type: object
+      required:
+        - text
+        - evidence_id
+      properties:
+        text:
+          type: string
+          maxLength: 2000
+        evidence_id:
+          $ref: "#/components/schemas/Uuid"
+        hazard_type:
+          oneOf:
+            - $ref: "#/components/schemas/DisasterEventType"
+            - type: "null"
+        citation:
+          $ref: "#/components/schemas/Citation"
+    EmergencyServiceType:
+      title: EmergencyServiceType
+      type: string
+      enum:
+        - GENERAL_EMERGENCY
+        - POLICE
+        - AMBULANCE
+        - FIRE
+        - TOURIST_POLICE
+        - COAST_GUARD
+        - POISON_CONTROL
+        - EMBASSY
+        - HOSPITAL
+        - DISASTER_HOTLINE
+    Freshness:
+      title: Freshness
+      type: object
+      required:
+        - fetched_at
+      properties:
+        observed_at:
+          description: Oldest observation time behind this answer, or null when no source publishes one.
+          $ref: "#/components/schemas/NullableTimestamp"
+        fetched_at:
+          $ref: "#/components/schemas/Timestamp"
+        expires_at:
+          $ref: "#/components/schemas/NullableTimestamp"
+    Limitation:
+      title: Limitation
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          enum:
+            - NO_RELIABLE_KNOWLEDGE_EVIDENCE
+            - PARTIAL_PROVIDER_COVERAGE
+            - STALE_EVIDENCE_USED
+            - NO_ROUTE_ALTERNATIVE_AVAILABLE
+            - MODE_NOT_SUPPORTED_IN_REGION
+            - FORECAST_HORIZON_EXCEEDED
+            - MODEL_UNAVAILABLE_CONSERVATIVE_RESULT
+            - EXPLANATION_FALLBACK_TEMPLATE
+            - CONFLICTING_SOURCES
+        text:
+          type:
+            - string
+            - "null"
+          maxLength: 512
+    ResponseVersions:
+      title: ResponseVersions
+      type: object
+      required:
+        - contract
+      properties:
+        contract:
+          $ref: "#/components/schemas/SemVer"
+        policy:
+          type:
+            - string
+            - "null"
+          maxLength: 64
+        prompt:
+          type:
+            - string
+            - "null"
+          maxLength: 64
+        llm_model:
+          type:
+            - string
+            - "null"
+          maxLength: 128
+        risk_model:
+          type:
+            - string
+            - "null"
+          maxLength: 128
+        knowledge_collection:
+          type:
+            - string
+            - "null"
+          maxLength: 64
+    SafetyLayer:
+      title: SafetyLayer
+      description: Layers requestable from the public safety map endpoint.
+      type: string
+      enum:
+        - WEATHER
+        - DISASTER
+        - TRANSPORT
+        - OFFICIAL_ALERT
+    FeedbackCategory:
+      title: FeedbackCategory
+      type: string
+      enum:
+        - HELPFUL
+        - INCORRECT
+        - STALE
+        - UNSAFE
+        - ROUTE_ISSUE
+        - SOURCE_ISSUE
+        - OTHER
+    DeliveryChannel:
+      title: DeliveryChannel
+      type: string
+      enum:
+        - IN_APP
+        - EMAIL
+        - SMS
+        - PUSH
+    SubscriptionStatus:
+      title: SubscriptionStatus
+      type: string
+      enum:
+        - ACTIVE
+        - PAUSED
+        - CANCELLED
+        - EXPIRED
+    RunAccepted:
+      title: RunAcceptedEvent
+      type: object
+      required:
+        - request_id
+        - status
+        - submitted_at
+      properties:
+        request_id:
+          $ref: "#/components/schemas/Uuid"
+        status:
+          $ref: "#/components/schemas/RunStatus"
+        submitted_at:
+          $ref: "#/components/schemas/Timestamp"
+    RunProgress:
+      title: RunProgressEvent
+      type: object
+      required:
+        - request_id
+        - stage
+        - message_key
+      properties:
+        request_id:
+          $ref: "#/components/schemas/Uuid"
+        stage:
+          $ref: "#/components/schemas/RunStage"
+        percent:
+          description: Null whenever remaining work cannot be estimated honestly.
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 100
+        message_key:
+          $ref: "#/components/schemas/MessageKey"
+        occurred_at:
+          $ref: "#/components/schemas/Timestamp"
+    RunNeedsInput:
+      title: RunNeedsInputEvent
+      type: object
+      required:
+        - request_id
+        - missing_fields
+        - prompt_key
+      properties:
+        request_id:
+          $ref: "#/components/schemas/Uuid"
+        missing_fields:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            maxLength: 128
+        prompt_key:
+          $ref: "#/components/schemas/MessageKey"
+    RunDegraded:
+      title: RunDegradedEvent
+      type: object
+      required:
+        - request_id
+        - service
+        - reason
+        - retrying
+      properties:
+        request_id:
+          $ref: "#/components/schemas/Uuid"
+        service:
+          type: string
+          maxLength: 64
+        reason:
+          $ref: "#/components/schemas/DegradationReason"
+        retrying:
+          type: boolean
+    RunCompleted:
+      title: RunCompletedEvent
+      type: object
+      required:
+        - request_id
+        - recommendation_id
+        - result_url
+        - status
+      properties:
+        request_id:
+          $ref: "#/components/schemas/Uuid"
+        recommendation_id:
+          $ref: "#/components/schemas/Uuid"
+        result_url:
+          type: string
+          maxLength: 512
+        status:
+          $ref: "#/components/schemas/RunStatus"
+    RunFailed:
+      title: RunFailedEvent
+      type: object
+      required:
+        - request_id
+        - error
+      properties:
+        request_id:
+          $ref: "#/components/schemas/Uuid"
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+    Heartbeat:
+      title: HeartbeatEvent
+      description: Keeps intermediaries from closing an idle stream. Never rendered.
+      type: object
+      required:
+        - server_time
+      properties:
+        server_time:
+          $ref: "#/components/schemas/Timestamp"
+  responses:
+    ValidationError:
+      description: The request failed validation. `field_errors` names each rejected path.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          examples:
+            validation:
+              $ref: "#/components/examples/ValidationErrorExample"
+    Unauthorized:
+      description: No token, or a token that failed verification.
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Authenticated, but not permitted — typically a missing consent or scope.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: |
+        No such resource for this caller. Resources owned by another user are reported as not
+        found rather than forbidden, so that ids cannot be probed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    IdempotencyConflict:
+      description: The idempotency key was reused with a different payload.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    PreconditionFailed:
+      description: The `If-Match` revision is stale. Re-read the resource and retry.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    PreconditionRequired:
+      description: "`If-Match` is required for this operation and was not supplied."
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    RateLimited:
+      description: Rate limit exceeded for this user, IP or endpoint bucket.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    DependencyUnavailable:
+      description: |
+        A dependency this operation needs is unavailable. The response says which capability is
+        degraded; it never substitutes a plausible value for missing data.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    DependencyTimeout:
+      description: A dependency did not answer inside its timeout budget.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  examples:
+    UserProfileExample:
+      summary: Profile of the calling user
+      description: |
+        Structural example. Identifiers are synthetic; no real user data appears in this repository.
+      value:
+        data:
+          user_id: 6f1d8a4e-2c37-4b19-9a0e-7f5c1d2b3a40
+          display_name: null
+          locale: th-TH
+          timezone: Asia/Bangkok
+          home_country_code: TH
+          consents:
+            - consent_id: 0b9c2f51-4d6a-47e8-8b21-5c9e7a1f3d62
+              type: ANALYTICS
+              granted: false
+              policy_version: 1.0.0
+              granted_at: 2026-09-17T08:30:00Z
+              revoked_at: 2026-09-18T02:10:00Z
+              expires_at: null
+          has_emergency_profile: false
+          created_at: 2026-09-17T08:29:55Z
+          updated_at: 2026-09-18T02:10:00Z
+          deleted_at: null
+        meta:
+          request_id: 3f2a1b90-6d4c-4e58-9a7b-1c2d3e4f5a6b
+          correlation_id: 3f2a1b90-6d4c-4e58-9a7b-1c2d3e4f5a6b
+          contract_version: 1.0.0
+          generated_at: 2026-09-18T02:11:00Z
+          degraded_services: []
+    LocationSearchExample:
+      summary: Geocoding results
+      description: |
+        Shape only. Coordinates and place ids are illustrative and are not treated as current
+        provider output anywhere in the running system.
+      value:
+        data:
+          - place_id: "1609350"
+            display_name: Bangkok, Thailand
+            coordinates:
+              type: Point
+              coordinates:
+                - 100.5018
+                - 13.7563
+            country_code: TH
+            admin1: Bangkok
+            timezone: Asia/Bangkok
+            provider: open_meteo
+            confirmed_by_user: false
+        meta:
+          request_id: 8c7b6a59-4d3e-42f1-b0a9-8e7d6c5b4a30
+          correlation_id: 8c7b6a59-4d3e-42f1-b0a9-8e7d6c5b4a30
+          contract_version: 1.0.0
+          generated_at: 2026-09-18T02:12:00Z
+          degraded_services: []
+    CreateTripExample:
+      summary: Creating a trip from two confirmed locations
+      value:
+        title: Bangkok to Chiang Mai
+        origin:
+          place_id: "1609350"
+          display_name: Bangkok, Thailand
+          coordinates:
+            type: Point
+            coordinates:
+              - 100.5018
+              - 13.7563
+          country_code: TH
+          admin1: Bangkok
+          timezone: Asia/Bangkok
+          provider: open_meteo
+          confirmed_by_user: true
+        destination:
+          place_id: "1153671"
+          display_name: Chiang Mai, Thailand
+          coordinates:
+            type: Point
+            coordinates:
+              - 98.9817
+              - 18.7883
+          country_code: TH
+          admin1: Chiang Mai
+          timezone: Asia/Bangkok
+          provider: open_meteo
+          confirmed_by_user: true
+        departure_time: 2026-09-20T09:30:00+07:00
+        return_time: null
+        timezone: Asia/Bangkok
+        travel_modes:
+          - TRAIN
+        preferences:
+          prefer_safer_route: true
+          prefer_lower_cost: false
+          prefer_lower_emissions: false
+          max_extra_duration_minutes: 90
+          avoid_tolls: false
+          accessibility: []
+    RunRefExample:
+      summary: Assessment accepted
+      value:
+        data:
+          request_id: b2c3d4e5-f6a7-4b89-9c0d-1e2f3a4b5c6d
+          trip_id: a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7
+          conversation_id: null
+          status: QUEUED
+          events_url: /api/v1/runs/b2c3d4e5-f6a7-4b89-9c0d-1e2f3a4b5c6d/events
+          poll_url: /api/v1/runs/b2c3d4e5-f6a7-4b89-9c0d-1e2f3a4b5c6d
+          submitted_at: 2026-09-18T02:15:00Z
+        meta:
+          request_id: b2c3d4e5-f6a7-4b89-9c0d-1e2f3a4b5c6d
+          correlation_id: b2c3d4e5-f6a7-4b89-9c0d-1e2f3a4b5c6d
+          contract_version: 1.0.0
+          generated_at: 2026-09-18T02:15:00Z
+          degraded_services: []
+    ValidationErrorExample:
+      summary: Rejected trip creation
+      value:
+        error:
+          code: VALIDATION_ERROR
+          message: The trip could not be created because some fields are invalid.
+          field_errors:
+            - path: destination.confirmed_by_user
+              code: NOT_CONFIRMED
+              message: Confirm the destination pin on the map before saving the trip.
+            - path: return_time
+              code: INCONSISTENT
+              message: Return time must be after departure time.
+          retryable: false
+          retry_after_seconds: null
+        meta:
+          request_id: 5a4b3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d
+          correlation_id: 5a4b3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d
+          contract_version: 1.0.0
+          generated_at: 2026-09-18T02:16:00Z
+          degraded_services: []

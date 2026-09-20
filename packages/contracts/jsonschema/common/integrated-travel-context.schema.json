@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IntegratedTravelContext",
+  "description": "The immutable evidence snapshot every downstream decision is computed against. A snapshot is never mutated: refreshing produces a new snapshot_id that records supersedes_snapshot_id, so an assessment can always be replayed against exactly the evidence that produced it.",
+  "type": "object",
+  "required": [
+    "snapshot_id",
+    "request_id",
+    "trip_id",
+    "schema_version",
+    "feature_schema_version",
+    "travel_window",
+    "route_candidates",
+    "route_corridor_geojson",
+    "weather",
+    "transport",
+    "disaster_events",
+    "official_alerts",
+    "features",
+    "quality_summary",
+    "source_ids",
+    "created_at",
+    "content_hash"
+  ],
+  "properties": {
+    "snapshot_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "request_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "trip_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "supersedes_snapshot_id": {
+      "oneOf": [
+        {
+          "$ref": "primitives.schema.json#/$defs/Uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema_version": {
+      "$ref": "primitives.schema.json#/$defs/SemVer"
+    },
+    "feature_schema_version": {
+      "$ref": "primitives.schema.json#/$defs/SemVer"
+    },
+    "travel_window": {
+      "$ref": "#/$defs/TravelWindow"
+    },
+    "route_candidates": {
+      "type": "array",
+      "items": {
+        "$ref": "route-candidate.schema.json"
+      }
+    },
+    "route_corridor_geojson": {
+      "description": "Buffered corridor used for the spatial intersection. Hazards are matched against this, not against the endpoints.",
+      "$ref": "geojson.schema.json#/$defs/Geometry"
+    },
+    "weather": {
+      "type": "array",
+      "items": {
+        "$ref": "weather.schema.json#/$defs/WeatherForecastPoint"
+      }
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "$ref": "weather.schema.json#/$defs/WeatherObservation"
+      },
+      "default": []
+    },
+    "transport": {
+      "type": "array",
+      "items": {
+        "$ref": "transport-status.schema.json"
+      }
+    },
+    "disaster_events": {
+      "type": "array",
+      "items": {
+        "$ref": "disaster-event.schema.json"
+      }
+    },
+    "official_alerts": {
+      "type": "array",
+      "items": {
+        "$ref": "disaster-event.schema.json"
+      }
+    },
+    "features": {
+      "description": "Derived model features keyed by name, versioned by feature_schema_version.",
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "number",
+          "string",
+          "boolean",
+          "null"
+        ]
+      }
+    },
+    "quality_summary": {
+      "$ref": "data-quality.schema.json"
+    },
+    "conflict_summary": {
+      "type": "array",
+      "items": {
+        "$ref": "data-quality.schema.json#/$defs/QualityConflict"
+      },
+      "default": []
+    },
+    "source_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "primitives.schema.json#/$defs/RecordId"
+      }
+    },
+    "created_at": {
+      "$ref": "primitives.schema.json#/$defs/Timestamp"
+    },
+    "content_hash": {
+      "$ref": "primitives.schema.json#/$defs/ContentHash"
+    }
+  },
+  "$defs": {
+    "TravelWindow": {
+      "title": "TravelWindow",
+      "type": "object",
+      "required": [
+        "starts_at",
+        "ends_at",
+        "timezone"
+      ],
+      "properties": {
+        "starts_at": {
+          "$ref": "primitives.schema.json#/$defs/Timestamp"
+        },
+        "ends_at": {
+          "$ref": "primitives.schema.json#/$defs/Timestamp"
+        },
+        "timezone": {
+          "$ref": "primitives.schema.json#/$defs/Timezone"
+        }
+      }
+    }
+  }
+}

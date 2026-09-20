@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ConsentRecord",
+  "description": "One versioned consent decision. Consent is append-only: revoking writes revoked_at rather than deleting the row, so that what the user agreed to and when stays auditable.",
+  "type": "object",
+  "required": ["consent_id", "type", "granted", "policy_version", "granted_at"],
+  "properties": {
+    "consent_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "type": { "$ref": "enums.schema.json#/$defs/ConsentType" },
+    "granted": { "type": "boolean" },
+    "policy_version": {
+      "description": "Version of the consent text the user was shown.",
+      "$ref": "primitives.schema.json#/$defs/SemVer"
+    },
+    "granted_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+    "revoked_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "expires_at": {
+      "description": "Set for scoped grants such as LOCATION_ONCE and for live-location sessions.",
+      "$ref": "primitives.schema.json#/$defs/NullableTimestamp"
+    }
+  }
+}

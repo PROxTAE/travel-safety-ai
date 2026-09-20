@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RouteCandidate",
+  "description": "One way of making the journey, with the hazard exposure measured along its corridor rather than at the endpoints. A route whose corridor carries an official closure must have exposure.closed = true and can never be labelled RECOMMENDED.",
+  "type": "object",
+  "required": [
+    "route_id",
+    "label",
+    "mode",
+    "geometry",
+    "distance_m",
+    "duration_seconds",
+    "exposure",
+    "risk_level",
+    "quality",
+    "sources"
+  ],
+  "properties": {
+    "route_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "provider_route_id": {
+      "description": "Opaque provider handle, kept so the same route can be re-fetched or audited.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 256
+    },
+    "label": {
+      "$ref": "enums.schema.json#/$defs/RouteLabel"
+    },
+    "mode": {
+      "$ref": "enums.schema.json#/$defs/TravelMode"
+    },
+    "geometry": {
+      "$ref": "geojson.schema.json#/$defs/LineString"
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/RouteSegment"
+      },
+      "default": []
+    },
+    "distance_m": {
+      "type": "number",
+      "minimum": 0
+    },
+    "duration_seconds": {
+      "type": "number",
+      "minimum": 0
+    },
+    "transfers": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "exposure": {
+      "$ref": "#/$defs/RouteExposure"
+    },
+    "risk_level": {
+      "$ref": "enums.schema.json#/$defs/RiskLevel"
+    },
+    "quality": {
+      "$ref": "data-quality.schema.json"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "source-provenance.schema.json"
+      }
+    }
+  },
+  "$defs": {
+    "RouteSegment": {
+      "title": "RouteSegment",
+      "type": "object",
+      "required": [
+        "segment_id",
+        "mode",
+        "distance_m",
+        "duration_seconds"
+      ],
+      "properties": {
+        "segment_id": {
+          "$ref": "primitives.schema.json#/$defs/Uuid"
+        },
+        "mode": {
+          "$ref": "enums.schema.json#/$defs/TravelMode"
+        },
+        "from_name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 256
+        },
+        "to_name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 256
+        },
+        "geometry": {
+          "oneOf": [
+            {
+              "$ref": "geojson.schema.json#/$defs/LineString"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "distance_m": {
+          "type": "number",
+          "minimum": 0
+        },
+        "duration_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "departure_time": {
+          "$ref": "primitives.schema.json#/$defs/NullableTimestamp"
+        },
+        "arrival_time": {
+          "$ref": "primitives.schema.json#/$defs/NullableTimestamp"
+        },
+        "transport_status_id": {
+          "oneOf": [
+            {
+              "$ref": "primitives.schema.json#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "RouteExposure": {
+      "title": "RouteExposure",
+      "description": "What this route is exposed to along its corridor within the travel window.",
+      "type": "object",
+      "required": [
+        "score",
+        "closed"
+      ],
+      "properties": {
+        "score": {
+          "$ref": "primitives.schema.json#/$defs/UnitInterval"
+        },
+        "hazard_event_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "primitives.schema.json#/$defs/Uuid"
+          },
+          "default": []
+        },
+        "weather_window_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "primitives.schema.json#/$defs/Uuid"
+          },
+          "default": []
+        },
+        "closed": {
+          "description": "True when an official closure covers part of this route.",
+          "type": "boolean"
+        },
+        "closure_source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "primitives.schema.json#/$defs/RecordId"
+          },
+          "default": []
+        }
+      }
+    }
+  }
+}

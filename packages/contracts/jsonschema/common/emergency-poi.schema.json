@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EmergencyPoi",
+  "description": "A nearby hospital, police station or embassy returned by a licensed places provider. A POI is a navigation aid, not a verified phone directory: any number shown here is the provider's and is labelled as such, while dialable emergency numbers come from OfficialContact.",
+  "type": "object",
+  "required": [
+    "poi_id",
+    "poi_type",
+    "name",
+    "location",
+    "distance_m",
+    "quality",
+    "source"
+  ],
+  "properties": {
+    "poi_id": {
+      "$ref": "primitives.schema.json#/$defs/RecordId"
+    },
+    "poi_type": {
+      "type": "string",
+      "enum": [
+        "HOSPITAL",
+        "CLINIC",
+        "PHARMACY",
+        "POLICE",
+        "FIRE_STATION",
+        "EMBASSY",
+        "CONSULATE",
+        "SHELTER"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 512
+    },
+    "location": {
+      "$ref": "geojson.schema.json#/$defs/Point"
+    },
+    "address": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "phone": {
+      "description": "As published by the places provider. Never presented as an official emergency number.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 32
+    },
+    "distance_m": {
+      "type": "number",
+      "minimum": 0
+    },
+    "open_now": {
+      "description": "Null unless the provider supplies opening hours; unknown is not open.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "quality": {
+      "$ref": "data-quality.schema.json"
+    },
+    "source": {
+      "$ref": "source-provenance.schema.json"
+    }
+  }
+}

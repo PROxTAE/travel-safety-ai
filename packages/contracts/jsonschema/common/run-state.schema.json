@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RunState",
+  "description": "Pollable state of an assessment run. It reports progress and where the result will appear; it never exposes the agent's reasoning, prompts or raw provider payloads.",
+  "type": "object",
+  "required": ["request_id", "status", "submitted_at", "updated_at"],
+  "properties": {
+    "request_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "trip_id": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    },
+    "conversation_id": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    },
+    "status": { "$ref": "enums.schema.json#/$defs/RunStatus" },
+    "stage": {
+      "oneOf": [
+        { "$ref": "enums.schema.json#/$defs/RunStage" },
+        { "type": "null" }
+      ]
+    },
+    "percent": {
+      "description": "Null whenever the remaining work cannot be estimated honestly.",
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "message_key": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/MessageKey" },
+        { "type": "null" }
+      ]
+    },
+    "missing_fields": {
+      "description": "Populated when status is NEEDS_INPUT. The system asks rather than guessing.",
+      "type": "array",
+      "items": { "type": "string", "maxLength": 128 },
+      "default": []
+    },
+    "recommendation_id": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    },
+    "result_url": { "type": ["string", "null"], "maxLength": 512 },
+    "error": {
+      "oneOf": [
+        { "$ref": "envelope.schema.json#/$defs/ErrorBody" },
+        { "type": "null" }
+      ]
+    },
+    "degraded_services": {
+      "type": "array",
+      "items": { "$ref": "envelope.schema.json#/$defs/DegradedService" },
+      "default": []
+    },
+    "submitted_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+    "updated_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+    "completed_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" }
+  }
+}

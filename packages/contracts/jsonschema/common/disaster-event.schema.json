@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DisasterEvent",
+  "description": "A hazard published by a real feed. An OfficialAlert is the same shape with official = true and an authority of OFFICIAL or INTERGOVERNMENTAL; an active official alert is never dropped because a different provider stopped answering.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "title",
+    "description",
+    "severity",
+    "geometry",
+    "effective_at",
+    "ends_at",
+    "instruction",
+    "official",
+    "quality",
+    "source"
+  ],
+  "properties": {
+    "event_id": {
+      "$ref": "primitives.schema.json#/$defs/RecordId"
+    },
+    "event_type": {
+      "$ref": "enums.schema.json#/$defs/DisasterEventType"
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 512
+    },
+    "description": {
+      "description": "Provider text. Untrusted: sanitised before display and never treated as an instruction to the system.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 8000
+    },
+    "severity": {
+      "$ref": "enums.schema.json#/$defs/Severity"
+    },
+    "geometry": {
+      "$ref": "geojson.schema.json#/$defs/Geometry"
+    },
+    "effective_at": {
+      "$ref": "primitives.schema.json#/$defs/NullableTimestamp"
+    },
+    "ends_at": {
+      "$ref": "primitives.schema.json#/$defs/NullableTimestamp"
+    },
+    "instruction": {
+      "description": "Protective action text as published by the issuing authority, verbatim.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 4000
+    },
+    "official": {
+      "description": "True when the issuing body is a government or intergovernmental authority.",
+      "type": "boolean"
+    },
+    "closes_transport": {
+      "description": "True when the alert itself declares a route, airport or corridor closed.",
+      "type": "boolean",
+      "default": false
+    },
+    "magnitude": {
+      "description": "Provider's own magnitude number, carried through rather than interpreted. Meaningless on its own: it must be read together with magnitude_unit, because 5.8 Mw and 5.8 mb are different measurements of different things.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "magnitude_unit": {
+      "description": "Scale the magnitude is expressed on, as the provider names it — Mw, mb, Ms, ml for earthquakes, or a provider-specific scale for other hazards. Required whenever magnitude is non-null: a bare number invites a consumer to compare two scales as though they were one, and for a hazard that is a safety error, not a rounding one.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 32
+    },
+    "depth_km": {
+      "description": "Hypocentre depth in kilometres, where the hazard type has one. A shallow earthquake and a deep one of equal magnitude do very different things at the surface, so the depth is part of the evidence rather than a detail.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "quality": {
+      "$ref": "data-quality.schema.json"
+    },
+    "source": {
+      "$ref": "source-provenance.schema.json"
+    }
+  },
+  "allOf": [
+    {
+      "title": "MagnitudeRequiresItsUnit",
+      "if": {
+        "properties": {
+          "magnitude": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "magnitude"
+        ]
+      },
+      "then": {
+        "properties": {
+          "magnitude_unit": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

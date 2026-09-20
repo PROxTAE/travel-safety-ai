@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Primitives",
+  "description": "Reusable scalar formats. Timestamps are ISO-8601; anything stored in Postgres is UTC with the originating IANA timezone kept alongside when it matters.",
+  "$defs": {
+    "Uuid": {
+      "title": "Uuid",
+      "description": "UUID, serialised in lowercase canonical form. Expressed as `format: uuid` alone rather than as a pattern as well: generators map the format onto a real UUID type whose canonical serialisation is already lowercase, whereas a pattern beside it forces the value back to a bare string.",
+      "type": "string",
+      "format": "uuid"
+    },
+    "RecordId": {
+      "title": "RecordId",
+      "description": "Identifier of a record as the producer mints it. Stable and reproducible: fetching the same fact twice must yield the same RecordId, because that is what lets module 05 deduplicate across sources and what lets an operator trace one fact back through a log. A provider adapter therefore derives it from the provider key and the provider's own record id (for example `usgs:us7000abcd`), never from a random UUID, which would differ on every fetch and defeat both. A service that mints a record with no upstream identity may use a UUID here; the format is deliberately wide enough for both.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:,+@/=-]*$"
+    },
+    "Timestamp": {
+      "title": "Timestamp",
+      "description": "ISO-8601 instant with an explicit offset, e.g. 2026-09-17T08:30:00Z.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "NullableTimestamp": {
+      "title": "NullableTimestamp",
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "CountryCode": {
+      "title": "CountryCode",
+      "description": "ISO-3166-1 alpha-2, uppercase.",
+      "type": "string",
+      "pattern": "^[A-Z]{2}$"
+    },
+    "Locale": {
+      "title": "Locale",
+      "description": "BCP-47 language tag, e.g. th-TH or en-GB.",
+      "type": "string",
+      "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z]{4})?(-([a-zA-Z]{2}|[0-9]{3}))?$",
+      "maxLength": 35
+    },
+    "Timezone": {
+      "title": "Timezone",
+      "description": "IANA time zone identifier, e.g. Asia/Bangkok. Validated against the tz database at the boundary, not by pattern alone.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9+_-]+(/[A-Za-z0-9+_.-]+)*$"
+    },
+    "Sha256Hex": {
+      "title": "Sha256Hex",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "ContentHash": {
+      "title": "ContentHash",
+      "description": "Digest of the payload a record was derived from, prefixed with the algorithm that produced it. The prefix is the point: a bare hex string is ambiguous the moment a second algorithm is introduced, and an unprefixed value silently compares unequal to a prefixed one rather than failing. Used for deduplication and for detecting provider schema drift.",
+      "type": "string",
+      "pattern": "^(sha256:[0-9a-f]{64}|sha512:[0-9a-f]{128})$"
+    },
+    "SemVer": {
+      "title": "SemVer",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "UnitInterval": {
+      "title": "UnitInterval",
+      "description": "Normalised score in [0, 1].",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "HttpsUrl": {
+      "title": "HttpsUrl",
+      "type": "string",
+      "format": "uri",
+      "maxLength": 2048
+    },
+    "MessageKey": {
+      "title": "MessageKey",
+      "description": "i18n key the web app resolves. Servers never send pre-translated progress copy.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "maxLength": 128
+    }
+  }
+}
