@@ -33,9 +33,11 @@ from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
 
 from app.api import health as health_routes
+from app.api.v1 import assessments as assessment_routes
 from app.api.v1 import consents as consent_routes
 from app.api.v1 import locations as location_routes
 from app.api.v1 import me as me_routes
+from app.api.v1 import runs as run_routes
 from app.api.v1 import trips as trip_routes
 from app.auth.jwks import JwksCache
 from app.db.engine import create_engine, create_session_factory, dispose_engine
@@ -213,6 +215,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(consent_routes.router)
     app.include_router(location_routes.router)
     app.include_router(trip_routes.router)
+    # Registered after trips: both mount under /api/v1/trips, and the assessment route is a
+    # sub-path rather than a competing one, so ordering is cosmetic but kept obvious.
+    app.include_router(assessment_routes.router)
+    app.include_router(run_routes.router)
 
     instrument_app(app)
     return app
