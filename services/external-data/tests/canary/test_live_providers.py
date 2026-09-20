@@ -13,6 +13,7 @@ will, which is the whole reason to keep tests that depend on the network.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -27,9 +28,19 @@ from app.adapters.open_meteo_weather import (
     OpenMeteoWeatherAdapter,
     WeatherQuery,
 )
+from app.adapters.openrouteservice import OpenRouteServiceAdapter
+from app.adapters.ors_pois import OrsPoisAdapter
 from app.adapters.usgs import UsgsAdapter
-from app.domain.enums import DataStatus, EventType, ProviderStatus, Severity
-from app.domain.queries import DisasterQuery
+from app.domain.enums import (
+    DataStatus,
+    EventType,
+    PlaceType,
+    ProviderStatus,
+    RiskLevel,
+    Severity,
+    TravelMode,
+)
+from app.domain.queries import DisasterQuery, NearbyPlacesQuery, RouteQuery
 from app.providers.registry import Defaults, ResolvedProvider, load_registry
 from app.settings import get_settings
 from app.transport.http import ProviderTransport
@@ -43,6 +54,15 @@ pytestmark = pytest.mark.canary
 # is not a canary any more. A failure here should mean the provider is actually
 # unreachable.
 _LIVE_CACHE: dict[str, list[Any]] = {}
+
+# Read at import time, before the autouse fixture in conftest clears provider
+# credentials for the rest of the suite. Without a key the routing canaries skip
+# rather than fail: a machine with no openrouteservice account is a normal state
+# for a teammate running the tests, and a canary that always fails gets ignored.
+_ORS_KEY = os.environ.get("ORS_API_KEY") or ""
+_needs_ors = pytest.mark.skipif(
+    not _ORS_KEY, reason="ORS_API_KEY is not set in this environment"
+)
 
 
 async def _once(key: str, fetch: Callable[[], Awaitable[list[Any]]]) -> list[Any]:
@@ -316,3 +336,138 @@ def _usgs_week(usgs: UsgsAdapter) -> Callable[[], Awaitable[list[Any]]]:
         days=7
     )
     return lambda: usgs.query(DisasterQuery(start=start))
+
+
+# --------------------------------------------------------------------- ORS
+
+
+@pytest.fixture
+def ors(monkeypatch: pytest.MonkeyPatch) -> OpenRouteServiceAdapter:
+    monkeypatch.setenv("ORS_API_KEY", _ORS_KEY)
+    get_settings.cache_clear()
+    return _adapter("openrouteservice", OpenRouteServiceAdapter)
+
+
+@pytest.fixture
+def ors_pois(monkeypatch: pytest.MonkeyPatch) -> OrsPoisAdapter:
+    monkeypatch.setenv("ORS_API_KEY", _ORS_KEY)
+    get_settings.cache_clear()
+    return _adapter("ors_pois", OrsPoisAdapter)
+
+
+BANGKOK = (100.5383, 13.7649)
+AYUTTHAYA = (100.5878, 14.3532)
+
+
+def _bangkok_route(ors: OpenRouteServiceAdapter) -> Callable[[], Awaitable[list[Any]]]:
+    return lambda: ors.query(
+        RouteQuery(waypoints=[BANGKOK, AYUTTHAYA], mode=TravelMode.CAR, alternatives=2)
+    )
+
+
+@_needs_ors
+async def test_live_ors_returns_a_real_road_route(
+    ors: OpenRouteServiceAdapter,
+) -> None:
+    """Phase 4 exit: a real road route with geometry and turn instructions."""
+    routes = await _once("ors_bangkok", _bangkok_route(ors))
+
+    assert routes, "the provider returned no route at all"
+    route = routes[0]
+    # Bangkok to Ayutthaya is about 75 km by road. A value near 74 in the wrong
+    # unit would be metres, and near 74000 in kilometres - both are caught here.
+    assert 50_000 < route.distance_m < 150_000
+    assert route.duration_seconds > 600
+    assert len(route.geometry.coordinates) > 50
+    assert route.segments and route.segments[0].steps
+
+
+@_needs_ors
+async def test_live_ors_geometry_is_longitude_latitude(
+    ors: OpenRouteServiceAdapter,
+) -> None:
+    """Schema drift that a frozen fixture can never catch: if the provider ever
+    changed ordinate order, every route would silently land in Somalia."""
+    routes = await _once("ors_bangkok", _bangkok_route(ors))
+
+    for longitude, latitude in routes[0].geometry.coordinates[:200]:
+        assert 95.0 < longitude < 110.0
+        assert 5.0 < latitude < 22.0
+
+
+@_needs_ors
+async def test_live_ors_never_asserts_a_risk_level(
+    ors: OpenRouteServiceAdapter,
+) -> None:
+    """The safety invariant, checked against the live provider rather than a
+    fixture, so a future provider field cannot start populating it by accident."""
+    routes = await _once("ors_bangkok", _bangkok_route(ors))
+
+    for route in routes:
+        assert route.risk_level is RiskLevel.UNKNOWN
+        assert route.exposure is None
+
+
+@_needs_ors
+async def test_live_ors_reports_the_road_graph_age(
+    ors: OpenRouteServiceAdapter,
+) -> None:
+    """Freshness here is the age of the map, not of the request.
+
+    If the provider stops sending `graph_date` the record must say PARTIAL
+    rather than quietly claiming to be fresh, so the field is worth watching.
+    """
+    routes = await _once("ors_bangkok", _bangkok_route(ors))
+    quality = routes[0].quality
+
+    if routes[0].source.published_at is None:
+        assert quality.status is DataStatus.PARTIAL
+    else:
+        assert quality.freshness_seconds is not None
+        assert quality.freshness_seconds > 0
+    # A route is computed, never observed.
+    assert routes[0].source.observed_at is None
+
+
+@_needs_ors
+async def test_live_ors_finds_hospitals_near_victory_monument(
+    ors_pois: OrsPoisAdapter,
+) -> None:
+    """Phase 4 exit for the emergency directory.
+
+    Central Bangkok has several large hospitals within two kilometres. An empty
+    answer here means the category mapping has drifted - which is exactly how
+    this went wrong the first time, when a plausible-looking category id
+    returned restaurants.
+    """
+    places = await _once(
+        "ors_pois_bangkok",
+        lambda: ors_pois.query(
+            NearbyPlacesQuery(
+                longitude=BANGKOK[0],
+                latitude=BANGKOK[1],
+                radius_m=2000,
+                place_types=[PlaceType.HOSPITAL, PlaceType.POLICE],
+            )
+        ),
+    )
+
+    assert places, "no emergency places found in central Bangkok"
+    assert any(place.place_type is PlaceType.HOSPITAL for place in places)
+    assert all(
+        place.place_type in (PlaceType.HOSPITAL, PlaceType.POLICE, PlaceType.OTHER)
+        for place in places
+    )
+
+
+@_needs_ors
+async def test_live_ors_places_stay_inside_the_radius(
+    ors_pois: OrsPoisAdapter,
+) -> None:
+    places = await _once("ors_pois_bangkok", lambda: [])
+
+    for place in places:
+        if place.distance_m is not None:
+            # A little slack: the provider measures from the buffered geometry.
+            assert place.distance_m <= 2_500
+        assert place.source.source_url is not None
