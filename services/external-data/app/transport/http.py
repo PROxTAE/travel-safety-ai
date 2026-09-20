@@ -45,6 +45,10 @@ class ProviderResponse:
     url: str
     fetched_at: float
     elapsed_seconds: float
+    # Undecoded body, kept only when the caller asked for it. GTFS-Realtime is
+    # Protocol Buffers and a GTFS schedule is a zip archive - neither survives a
+    # trip through the JSON decoder, and neither should be forced through one.
+    content: bytes | None = None
 
 
 def _retry_after_seconds(headers: httpx.Headers) -> float | None:
@@ -255,6 +259,7 @@ class ProviderTransport:
                         url=str(response.url),
                         fetched_at=time.time(),
                         elapsed_seconds=elapsed,
+                        content=None if decode_json else response.content,
                     )
 
                 code, retryable = _classify(response.status_code, retry.retry_on_status)

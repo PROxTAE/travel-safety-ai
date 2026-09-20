@@ -21,6 +21,7 @@ from app.domain.enums import (
     RiskLevel,
     RouteLabel,
     Severity,
+    TransportStatusCode,
     TravelMode,
 )
 
@@ -308,3 +309,66 @@ class EmergencyPlace(BaseModel):
     provider_category: str | None = None
     quality: DataQuality
     source: SourceProvenance
+
+
+class StopRef(BaseModel):
+    """Contract § 3.6 `origin_stop` / `destination_stop`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    stop_id: str | None = None
+    name: str
+    coordinates: GeoPoint | None = None
+
+
+class Cancellation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    cancelled: bool
+    reason: str | None = None
+    announced_at: datetime | None = None
+
+
+class TransportStatus(BaseModel):
+    """Contract § 3.6 — live status for one scheduled trip.
+
+    The invariant § 3.6 states outright: `ON_TIME` requires real-time evidence
+    and must never be concluded from the absence of an alert. A running train
+    whose scheduled trip cannot be matched is `UNKNOWN`, because without the
+    schedule there is nothing to be on time against, and `delay_minutes` stays
+    null rather than becoming a comforting zero.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    mode: TravelMode
+    operator: str | None = None
+    service_number: str | None = None
+    origin_stop: StopRef
+    destination_stop: StopRef
+
+    scheduled_departure: datetime | None = None
+    estimated_departure: datetime | None = None
+    scheduled_arrival: datetime | None = None
+    estimated_arrival: datetime | None = None
+
+    status: TransportStatusCode = TransportStatusCode.UNKNOWN
+    delay_minutes: int | None = None
+    cancellation: Cancellation | None = None
+
+    quality: DataQuality
+    source: SourceProvenance
+
+    # Which registered feed answered. Coverage is per agency and never global,
+    # so a consumer needs to know whose data this is without parsing the id.
+    feed_id: str | None = None
+
+    @model_validator(mode="after")
+    def _on_time_needs_a_schedule_to_be_on_time_against(self) -> Self:
+        if self.status is TransportStatusCode.ON_TIME and self.delay_minutes is None:
+            raise ValueError(
+                "ON_TIME requires a measured delay; without a matched schedule "
+                "the status is UNKNOWN (contract § 3.6)"
+            )
+        return self

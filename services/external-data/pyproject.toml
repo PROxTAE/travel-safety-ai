@@ -17,6 +17,14 @@ dependencies = [
     "alembic==1.14.0",
     "redis==5.2.1",
     "pyyaml==6.0.2",
+    # GTFS-Realtime arrives as Protocol Buffers, not JSON. These are the
+    # official generated bindings; hand-rolling a parser for a binary wire
+    # format the provider can change is not a reasonable trade.
+    "gtfs-realtime-bindings==1.0.0",
+    # GTFS schedule times are local to the agency, and the container image is
+    # slim enough to have no system zone database. Without this a New York
+    # timetable is read as UTC and every train looks four hours late.
+    "tzdata==2024.2",
     "opentelemetry-api==1.29.0",
     "opentelemetry-sdk==1.29.0",
     "opentelemetry-exporter-otlp-proto-http==1.29.0",
@@ -62,7 +70,8 @@ plugins = ["pydantic.mypy"]
 exclude = ["app/migrations/versions/"]
 
 [[tool.mypy.overrides]]
-module = ["prometheus_client.*", "opentelemetry.*"]
+# google.transit ships generated protobuf modules with no py.typed marker.
+module = ["prometheus_client.*", "opentelemetry.*", "google.transit.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

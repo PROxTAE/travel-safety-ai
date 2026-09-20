@@ -90,3 +90,21 @@ class NearbyPlacesQuery:
             raise ValueError(f"longitude {self.longitude} out of range")
         if not -90.0 <= self.latitude <= 90.0:
             raise ValueError(f"latitude {self.latitude} out of range")
+
+
+@dataclass(slots=True)
+class TransitQuery:
+    """Live status for registered transit feeds.
+
+    Coverage is per agency and never global, so a query outside every
+    registered feed is answered with OUTSIDE_COVERAGE rather than an empty list:
+    "no trains here" and "we do not cover here" are different answers.
+    """
+
+    # GeoJSON order (min_lon, min_lat, max_lon, max_lat). Used to pick which
+    # registered feeds can answer at all.
+    bbox: tuple[float, float, float, float] | None = None
+    route_ids: list[str] = field(default_factory=list)
+    stop_ids: list[str] = field(default_factory=list)
+    feed_ids: list[str] = field(default_factory=list)
+    limit: int = 50

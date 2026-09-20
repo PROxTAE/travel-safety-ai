@@ -149,3 +149,19 @@ class PlaceType(StrEnum):
     EMBASSY = "EMBASSY"
     TOWNHALL = "TOWNHALL"
     OTHER = "OTHER"
+
+
+class TransportStatusCode(StrEnum):
+    """Contract § 3.6.
+
+    § 3.6 is explicit that `ON_TIME` needs real-time evidence and must never be
+    concluded from the absence of an alert. A live train whose scheduled trip
+    cannot be found is therefore UNKNOWN, not ON_TIME: without the schedule
+    there is nothing to be on time against.
+    """
+
+    ON_TIME = "ON_TIME"
+    DELAYED = "DELAYED"
+    CANCELLED = "CANCELLED"
+    DISRUPTED = "DISRUPTED"
+    UNKNOWN = "UNKNOWN"
