@@ -29,6 +29,9 @@ services:
       - alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
 
   api:
+    # Its own tag, so building the dev stage cannot overwrite the runtime image that
+    # compose.yaml starts. Same Dockerfile, different stage, different name.
+    image: smart-travel-api:dev
     build:
       # The dev stage adds pytest, ruff and mypy on top of the same locked dependency set the
       # runtime image uses, so `docker compose run --rm api uv run pytest` checks the code against
