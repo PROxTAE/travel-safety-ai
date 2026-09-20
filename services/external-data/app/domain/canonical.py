@@ -113,3 +113,27 @@ class DataQuality(BaseModel):
             flags=[QualityFlag.MISSING],
             notes=[reason],
         )
+
+
+# What `official` means, decided by the Lead in issue #32: a warning or order
+# has actually been issued, not merely that a government body recorded the
+# event. Before this, `official` was True on all 514 events in a live query -
+# including a magnitude -0.48 earthquake nobody can feel - and a field with one
+# value on every record carries no information at all.
+#
+# This matters more than it looks: shared context § 13 scenario 3 makes
+# "official closure/high alert" force `AVOID` **over** the LLM and the model
+# score. It is the strongest shortcut in the system, so what feeds it has to
+# mean something.
+HIGH_ALERT_LEVELS = frozenset({"orange", "red"})
+
+
+def warning_has_been_issued(alert_level: str | None) -> bool:
+    """True when the source has published a high-level impact alert.
+
+    Case-insensitive because the providers disagree: GDACS writes `Orange` and
+    `Red`, USGS PAGER writes `orange` and `red`.
+    """
+    if alert_level is None:
+        return False
+    return alert_level.strip().lower() in HIGH_ALERT_LEVELS

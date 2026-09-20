@@ -226,7 +226,25 @@ def test_source_url_points_at_the_provider_record(adapter: UsgsAdapter) -> None:
     raw = load_fixture(FIXTURE)
     event = _run(adapter, raw)[0]
     assert event.source.source_url == raw["features"][0]["properties"]["url"]
-    assert event.official is True
+
+
+def test_coming_from_usgs_does_not_by_itself_make_an_event_official(
+    adapter: UsgsAdapter,
+) -> None:
+    """This assertion used to read `official is True`, and it was right about
+    the old meaning: USGS is a government body, so everything it published was
+    "official".
+
+    Issue #32 changed the meaning to "a warning has been issued". The
+    authority of the source is still recorded - in `source.authority`, which is
+    OFFICIAL - but publishing a seismometer reading is not issuing a warning.
+    """
+    from app.domain.enums import SourceAuthority
+
+    event = _run(adapter, load_fixture(FIXTURE))[0]
+
+    assert event.source.authority is SourceAuthority.OFFICIAL
+    assert event.official is False
 
 
 # ------------------------------------------------------------ feed selection
