@@ -15,7 +15,14 @@ from typing import Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.domain.canonical import DataQuality, SourceProvenance
-from app.domain.enums import EventType, Severity
+from app.domain.enums import (
+    EventType,
+    PlaceType,
+    RiskLevel,
+    RouteLabel,
+    Severity,
+    TravelMode,
+)
 
 
 class GeoPoint(BaseModel):
@@ -166,3 +173,138 @@ class DisasterEvent(BaseModel):
     reporting_networks: list[str] = Field(default_factory=list)
     # One provider event can have many episodes (a storm's successive updates).
     episode_id: str | None = None
+
+
+class GeoLineString(BaseModel):
+    """GeoJSON LineString, RFC 7946. Every position is [longitude, latitude].
+
+    Route geometry is handed to module 05 for corridor intersection and to
+    module 01 for drawing. A swapped pair puts the route in the wrong
+    hemisphere, and unlike a single point nobody notices until the map is open,
+    so the ordering is enforced here rather than trusted.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["LineString"] = "LineString"
+    coordinates: list[tuple[float, float]] = Field(min_length=2)
+
+    @model_validator(mode="after")
+    def _within_range(self) -> Self:
+        for index, (longitude, latitude) in enumerate(self.coordinates):
+            if not -180.0 <= longitude <= 180.0:
+                raise ValueError(f"longitude {longitude} out of range at index {index}")
+            if not -90.0 <= latitude <= 90.0:
+                raise ValueError(f"latitude {latitude} out of range at index {index}")
+        return self
+
+
+class RouteStep(BaseModel):
+    """One manoeuvre. `instruction` is provider prose in the provider's own
+    language; module 04 neither translates nor rewrites it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    distance_m: float = Field(ge=0)
+    duration_seconds: float = Field(ge=0)
+    instruction: str | None = None
+    street_name: str | None = None
+    # Index range into the parent route geometry, so a consumer can highlight
+    # the stretch of road a step refers to without re-matching coordinates.
+    way_points: tuple[int, int] | None = None
+
+
+class RouteSegment(BaseModel):
+    """Contract § 3.8 `segments[]`.
+
+    A road route from one provider is a single-mode segment. The field exists
+    for multimodal itineraries, which module 04 does not build - it returns the
+    road leg, and module 05 stitches legs together.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    segment_id: str
+    mode: TravelMode
+    from_name: str | None = None
+    to_name: str | None = None
+    geometry: GeoLineString | None = None
+    distance_m: float = Field(ge=0)
+    duration_seconds: float = Field(ge=0)
+    departure_time: datetime | None = None
+    arrival_time: datetime | None = None
+    transport_status_id: str | None = None
+    steps: list[RouteStep] = Field(default_factory=list)
+
+
+class RouteCandidate(BaseModel):
+    """Contract § 3.8, as far as a routing provider can fill it.
+
+    Two required contract fields are deliberately left unset here:
+
+    `exposure` needs the route intersected with hazards and weather windows,
+    which is module 05/06 work. `risk_level` is a judgement on top of that, and
+    § 2 is explicit that risk must not be read as an action. A routing engine
+    knows road geometry and travel time; it has no view on danger. Emitting
+    `exposure.score = 0` and `closed = false` would be the most dangerous thing
+    this module could do - a route across a closed bridge would arrive at
+    module 07 asserting, in the contract's own vocabulary, that nothing is wrong.
+
+    So both stay null/UNKNOWN and the record carries INCOMPLETE. The contract
+    marks `exposure` required, which a raw producer cannot satisfy; that
+    mismatch is raised for the Lead rather than papered over.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    route_id: str
+    provider_route_id: str | None = None
+    label: RouteLabel
+    mode: TravelMode
+    geometry: GeoLineString
+    segments: list[RouteSegment] = Field(default_factory=list)
+    distance_m: float = Field(ge=0)
+    duration_seconds: float = Field(ge=0)
+    transfers: int = Field(default=0, ge=0)
+
+    # Filled by `/routes/evaluate` downstream, not here. See the class docstring.
+    exposure: None = None
+    risk_level: RiskLevel = RiskLevel.UNKNOWN
+
+    quality: DataQuality
+    source: SourceProvenance
+
+    # Bounding box of the whole geometry, in GeoJSON order
+    # [min_lon, min_lat, max_lon, max_lat]. Module 05 uses it to pre-filter
+    # hazards before doing the expensive corridor intersection.
+    bbox: tuple[float, float, float, float] | None = None
+
+
+class EmergencyPlace(BaseModel):
+    """A police station / hospital / embassy resolved near a coordinate.
+
+    The shared context is blunt about this data: OSM tags are "frequently stale
+    or missing" and embassies "especially unreliable", and it must never stand
+    in for an official phone directory. So `name` is nullable, `phone` is
+    whatever OSM happened to hold, and every record carries quality alongside -
+    a consumer that renders these must show the caveat, not just the pin.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    place_id: str
+    place_type: PlaceType
+    name: str | None = None
+    location: GeoPoint
+    # Straight-line metres from the query point as reported by the provider -
+    # not travel distance, and explicitly not a promise that the road exists.
+    distance_m: float | None = Field(default=None, ge=0)
+    address: str | None = None
+    phone: str | None = None
+    website: str | None = None
+    opening_hours: str | None = None
+    # The provider's own category string, kept so an OTHER mapping can be
+    # diagnosed without re-fetching.
+    provider_category: str | None = None
+    quality: DataQuality
+    source: SourceProvenance
