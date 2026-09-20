@@ -123,7 +123,10 @@ providers:
   - id: openrouteservice
     name: openrouteservice
     kind: ROUTE
-    status: PENDING_CREDENTIAL
+    # Approved as the road-routing provider in 00_SHARED_PROJECT_CONTEXT.md § 5.
+    # Activated 2026-09-20 once a key existed and both endpoints answered for
+    # real; see docs/handoffs/M04-external-data.md for the verification.
+    status: ACTIVE
     authority: LICENSED_PROVIDER
     base_url_env: ORS_BASE_URL
     endpoints:
@@ -137,7 +140,7 @@ providers:
     credential:
       required: true
       env: ORS_API_KEY
-      owner: TBD — Team Lead to assign and record account holder
+      owner: "Mrbeer19 (module 04 owner) — personal openrouteservice free-plan account; key lives in .env only"
     coverage:
       global: true
       notes: >-
@@ -152,9 +155,13 @@ providers:
       required: true
       text: "Directions courtesy of openrouteservice.org | OpenStreetMap contributors"
     quota:
-      documented: "free plan has a daily request ceiling and a per-minute rate limit"
+      # Measured from the provider's own X-Ratelimit-* headers on 2026-09-20,
+      # not read off a pricing page: limit 200, reset 85,785 s away, i.e. a
+      # daily ceiling. The directions and POI endpoints have separate budgets.
+      documented: "free plan: 200 directions requests per day (X-Ratelimit-Limit=200, window ~24 h)"
       source: https://openrouteservice.org/plans/
-      verification_required: true
+      daily_limit: 200
+      verification_required: false
     cache:
       ttl_seconds: 3600
       negative_ttl_seconds: 120
@@ -354,7 +361,9 @@ providers:
   - id: ors_pois
     name: openrouteservice POIs
     kind: EMERGENCY_DIRECTORY
-    status: PENDING_CREDENTIAL
+    # Same account as the routing provider. Activated 2026-09-20 after a live
+    # call returned real hospital and police records for Bangkok.
+    status: ACTIVE
     authority: LICENSED_PROVIDER
     base_url_env: ORS_BASE_URL
     endpoints:
@@ -366,7 +375,7 @@ providers:
     credential:
       required: true
       env: ORS_API_KEY
-      owner: TBD — same account as the routing provider
+      owner: "Mrbeer19 (module 04 owner) — same openrouteservice account as the routing provider"
     coverage:
       global: true
       notes: >-
@@ -382,9 +391,13 @@ providers:
       required: true
       text: "POI data © OpenStreetMap contributors via openrouteservice"
     quota:
-      documented: "shares the openrouteservice account quota"
+      # Measured 2026-09-20: this endpoint has its OWN budget, four times
+      # smaller than directions. Treating them as one pool would exhaust the
+      # emergency directory without warning.
+      documented: "free plan: 50 POI requests per day (X-Ratelimit-Limit=50, window ~24 h)"
       source: https://openrouteservice.org/plans/
-      verification_required: true
+      daily_limit: 50
+      verification_required: false
     cache:
       ttl_seconds: 86400
       negative_ttl_seconds: 600

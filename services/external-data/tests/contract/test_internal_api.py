@@ -132,9 +132,21 @@ def test_health_response_contains_no_secret_material(client: TestClient) -> None
     assert "password" not in raw.lower()
 
 
-def test_health_reports_quota_as_unverified(client: TestClient) -> None:
+def test_health_reports_whether_a_quota_was_ever_verified(client: TestClient) -> None:
+    """`quota_verified` must track the registry, not a constant.
+
+    It started life as "always false", which was true while nothing had been
+    measured. A consumer deciding how hard it may poll needs it to change when
+    a real ceiling is confirmed - openrouteservice's was, from the provider's
+    own rate-limit headers.
+    """
     providers = client.get(HEALTH_PATH, headers=AUTH).json()["data"]["providers"]
-    assert all(p["quota_verified"] is False for p in providers)
+    by_id = {p["provider"]: p for p in providers}
+    assert by_id["openrouteservice"]["quota_verified"] is True
+    assert by_id["ors_pois"]["quota_verified"] is True
+    # Nothing else has been measured against a live account yet.
+    assert by_id["usgs_earthquake"]["quota_verified"] is False
+    assert by_id["gdacs"]["quota_verified"] is False
 
 
 def test_unknown_route_returns_the_error_envelope(client: TestClient) -> None:
