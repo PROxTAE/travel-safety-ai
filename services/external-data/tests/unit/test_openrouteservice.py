@@ -40,9 +40,7 @@ AYUTTHAYA = (100.5878, 14.3532)
 
 
 def _adapter() -> OpenRouteServiceAdapter:
-    entry = next(
-        p for p in load_registry(REGISTRY_PATH).providers if p.id == "openrouteservice"
-    )
+    entry = next(p for p in load_registry(REGISTRY_PATH).providers if p.id == "openrouteservice")
     provider = ResolvedProvider(
         entry=entry,
         effective_status=ProviderStatus.ACTIVE,
@@ -164,9 +162,7 @@ def test_different_waypoints_give_different_cache_keys(
     get_settings.cache_clear()
     adapter = _adapter()
     first = adapter.build_request(_query()).cache_key_fields
-    second = adapter.build_request(
-        _query(waypoints=[BANGKOK, (98.98, 18.78)])
-    ).cache_key_fields
+    second = adapter.build_request(_query(waypoints=[BANGKOK, (98.98, 18.78)])).cache_key_fields
     assert first != second
 
 
@@ -290,8 +286,8 @@ def test_freshness_is_the_graph_age_not_the_request_age() -> None:
     something true and useful - how old the map is.
     """
     route = _routes()[0]
-    assert route.source.observed_at is None
-    assert route.source.published_at is not None
+    assert route.sources[0].observed_at is None
+    assert route.sources[0].published_at is not None
     assert route.quality.freshness_seconds is not None
     assert route.quality.freshness_seconds > 0
 
@@ -319,9 +315,9 @@ def test_a_missing_graph_date_is_partial_not_fresh() -> None:
 
 def test_provenance_carries_the_licence_and_a_content_hash() -> None:
     route = _routes()[0]
-    assert route.source.license
-    assert route.source.content_hash is not None
-    assert route.source.provider == "openrouteservice"
+    assert route.sources[0].license
+    assert route.sources[0].content_hash is not None
+    assert route.sources[0].provider == "openrouteservice"
 
 
 def test_source_id_does_not_collide_between_unrelated_queries() -> None:
@@ -332,9 +328,9 @@ def test_source_id_does_not_collide_between_unrelated_queries() -> None:
     same source record - and provenance that does not identify one record is
     not provenance.
     """
-    bangkok_to_ayutthaya = [route.source.source_id for route in _routes()]
+    bangkok_to_ayutthaya = [route.sources[0].source_id for route in _routes()]
     bangkok_to_chiang_mai = [
-        route.source.source_id for route in _routes(waypoints=[BANGKOK, (98.98, 18.78)])
+        route.sources[0].source_id for route in _routes(waypoints=[BANGKOK, (98.98, 18.78)])
     ]
     assert not set(bangkok_to_ayutthaya) & set(bangkok_to_chiang_mai)
 
@@ -342,12 +338,12 @@ def test_source_id_does_not_collide_between_unrelated_queries() -> None:
 def test_source_id_is_stable_for_the_same_query() -> None:
     """Unique is only half of it; it must also survive a re-fetch, or a cached
     record and a fresh one look like two different sources."""
-    first = [route.source.source_id for route in _routes()]
-    second = [route.source.source_id for route in _routes()]
+    first = [route.sources[0].source_id for route in _routes()]
+    second = [route.sources[0].source_id for route in _routes()]
     assert first == second
 
 
 def test_each_route_in_one_response_has_its_own_source_id() -> None:
     routes = _routes(alternatives=2)
-    ids = [route.source.source_id for route in routes]
+    ids = [route.sources[0].source_id for route in routes]
     assert len(set(ids)) == len(ids)

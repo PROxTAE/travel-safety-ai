@@ -138,9 +138,9 @@ def test_the_cache_key_does_not_carry_an_exact_coordinate(
     and a cache key outlives the request."""
     monkeypatch.setenv("ORS_API_KEY", "test-key")
     get_settings.cache_clear()
-    fields = _adapter().build_request(
-        _query(longitude=100.538312, latitude=13.764987)
-    ).cache_key_fields
+    fields = (
+        _adapter().build_request(_query(longitude=100.538312, latitude=13.764987)).cache_key_fields
+    )
     assert fields is not None
     assert fields["lon"] == 100.5383
     assert fields["lat"] == 13.765
@@ -158,7 +158,7 @@ def test_a_missing_key_is_an_auth_error() -> None:
 def test_real_hospitals_and_police_come_back() -> None:
     places = _places()
     assert len(places) == 19
-    kinds = {place.place_type for place in places}
+    kinds = {place.poi_type for place in places}
     assert PlaceType.HOSPITAL in kinds
     assert PlaceType.POLICE in kinds
 
@@ -177,9 +177,9 @@ def test_an_unnamed_place_is_kept_and_flagged_not_dropped() -> None:
         assert QualityFlag.MISSING in place.quality.flags
 
 
-def test_place_id_is_stable_and_traceable_to_openstreetmap() -> None:
+def test_poi_id_is_stable_and_traceable_to_openstreetmap() -> None:
     place = _places()[0]
-    assert place.place_id.startswith("ors_pois:osm:")
+    assert place.poi_id.startswith("ors_pois:osm:")
     assert place.source.source_url is not None
     assert "openstreetmap.org" in place.source.source_url
 
@@ -231,7 +231,7 @@ def test_an_unknown_category_becomes_other_and_keeps_the_provider_name() -> None
     adapter = _adapter()
     response = _response(payload)
     place = adapter.normalize(adapter.validate(response), response, _query())[0]
-    assert place.place_type is PlaceType.OTHER
+    assert place.poi_type is PlaceType.OTHER
     assert place.provider_category == "pigeon_loft"
     assert QualityFlag.INFERRED in place.quality.flags
 
@@ -246,7 +246,7 @@ def test_embassies_are_flagged_as_unreliable() -> None:
     adapter = _adapter()
     response = _response(payload)
     place = adapter.normalize(adapter.validate(response), response, _query())[0]
-    assert place.place_type is PlaceType.EMBASSY
+    assert place.poi_type is PlaceType.EMBASSY
     assert QualityFlag.STALE in place.quality.flags
 
 

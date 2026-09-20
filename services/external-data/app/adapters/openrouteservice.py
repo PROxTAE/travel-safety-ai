@@ -146,13 +146,10 @@ class OpenRouteServiceAdapter(ProviderAdapter[RouteQuery, RouteCandidate]):
             supported = ", ".join(sorted(str(mode) for mode in PROFILE_BY_MODE))
             return CoverageDecision(
                 False,
-                f"{query.mode} is not a road-network mode; "
-                f"this provider answers {supported}",
+                f"{query.mode} is not a road-network mode; " f"this provider answers {supported}",
             )
         if query.preference not in PREFERENCES:
-            return CoverageDecision(
-                False, f"unknown routing preference: {query.preference}"
-            )
+            return CoverageDecision(False, f"unknown routing preference: {query.preference}")
         if query.alternatives:
             if query.alternatives > MAX_ALTERNATIVE_ROUTES:
                 return CoverageDecision(
@@ -311,13 +308,15 @@ class OpenRouteServiceAdapter(ProviderAdapter[RouteQuery, RouteCandidate]):
                     exposure=None,
                     risk_level=RiskLevel.UNKNOWN,
                     quality=_quality(graph_date, fetched_at, feature),
-                    source=self.provenance(
-                        response,
-                        provider_record_id=provider_route_id,
-                        observed_at=None,
-                        published_at=graph_date,
-                        payload_for_hash=feature.model_dump(mode="json"),
-                    ),
+                    sources=[
+                        self.provenance(
+                            response,
+                            provider_record_id=provider_route_id,
+                            observed_at=None,
+                            published_at=graph_date,
+                            payload_for_hash=feature.model_dump(mode="json"),
+                        )
+                    ],
                     bbox=_bbox(feature.bbox or model.bbox),
                 )
             )
@@ -404,9 +403,7 @@ def _bbox(raw: list[float] | None) -> tuple[float, float, float, float] | None:
     return (float(raw[0]), float(raw[1]), float(raw[2]), float(raw[3]))
 
 
-def _quality(
-    graph_date: datetime | None, fetched_at: datetime, feature: OrsFeature
-) -> DataQuality:
+def _quality(graph_date: datetime | None, fetched_at: datetime, feature: OrsFeature) -> DataQuality:
     flags: list[QualityFlag] = [QualityFlag.INCOMPLETE]
     notes: list[str] = [
         "exposure and risk_level are not set by module 04 - a routing provider "
