@@ -212,3 +212,31 @@ def test_blank_internal_token_is_treated_as_unset(
     monkeypatch.setenv("INTERNAL_SERVICE_TOKEN", "")
     get_settings.cache_clear()
     assert get_settings().internal_service_token is None
+
+
+def test_authority_ranks_the_record_not_the_host(registry: ResolvedRegistry) -> None:
+    """Module 05 resolves conflicts by authority rank, so what a provider is
+    assigned decides which source wins when two disagree.
+
+    The rank is about where the record came from, not who hosts it. EONET is
+    run by a government agency but does not observe or declare anything - it
+    curates what other networks reported and links back to them, so a wildfire
+    from it carries `sources: [{"id": "IRWIN"}]`. Ranking it OFFICIAL put a
+    tracker above GDACS, which would settle a disagreement about a cyclone in
+    favour of the source that is only relaying it.
+    """
+    from app.domain.enums import SourceAuthority
+
+    by_id = {p.id: p.entry.authority for p in registry.all()}
+
+    # Direct records: each of these publishes what it measured or operates.
+    assert by_id["usgs_earthquake"] is SourceAuthority.OFFICIAL
+    assert by_id["gtfs_registry"] is SourceAuthority.OFFICIAL
+    # A cross-agency warning system.
+    assert by_id["gdacs"] is SourceAuthority.INTERGOVERNMENTAL
+    # Curated, with attribution back to whoever reported it.
+    assert by_id["nasa_eonet"] is SourceAuthority.COMMUNITY
+
+    assert (
+        by_id["nasa_eonet"] is not SourceAuthority.OFFICIAL
+    ), "a curated tracker outranking a warning system inverts conflict resolution"

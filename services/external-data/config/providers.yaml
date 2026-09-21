@@ -360,7 +360,18 @@ providers:
     name: NASA EONET v3
     kind: DISASTER
     status: ACTIVE
-    authority: OFFICIAL
+    # COMMUNITY, not OFFICIAL, and the distinction is about the record rather
+    # than the host. EONET does not observe or declare anything: it curates
+    # events other networks reported and links back to them, so a wildfire here
+    # carries `"sources": [{"id": "IRWIN", ...}]` pointing at the agency that
+    # actually recorded it.
+    #
+    # Module 05 ranks authority for conflict resolution, with OFFICIAL meaning
+    # "a competent agency's direct record". Leaving EONET at OFFICIAL put a
+    # tracker above GDACS, so a cyclone the two disagreed about would be settled
+    # in favour of the one that is only relaying it. Found by module 05 asking
+    # module 04 to check these assignments.
+    authority: COMMUNITY
     base_url_env: EONET_BASE_URL
     endpoints:
       events: /events
