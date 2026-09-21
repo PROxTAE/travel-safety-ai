@@ -27,8 +27,8 @@ from app.pipeline.features import (
     FeatureInputs,
     FeaturePolicy,
     FeatureVector,
-    build_features,
     before_cutoff,
+    build_features,
     feature_schema,
 )
 
@@ -92,7 +92,9 @@ def build(
         ("transport", before_cutoff(transport, recommendation_at)),
     ):
         if records is not None:
-            timestamps = [record.source.fetched_at for record in records if record.source.fetched_at]
+            timestamps = [
+                record.source.fetched_at for record in records if record.source.fetched_at
+            ]
             fetched_at[name] = min(timestamps) if timestamps else None
     inputs = FeatureInputs(
         route, samples, recommendation_at, weather, disasters, transport, sources, fetched_at

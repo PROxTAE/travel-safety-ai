@@ -110,7 +110,9 @@ def compute_route_features(
         ("transport", known.transport),
     ):
         if records is not None:
-            timestamps = [record.source.fetched_at for record in records if record.source.fetched_at]
+            timestamps = [
+                record.source.fetched_at for record in records if record.source.fetched_at
+            ]
             fetched_at[name] = min(timestamps) if timestamps else None
     samples = sample_route(
         route.geometry,
