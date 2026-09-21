@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Envelope",
+  "description": "Transport envelopes every public and internal JSON response uses. Response envelopes stay open so that adding an optional field is non-breaking; request bodies close themselves at the endpoint level.",
+  "$defs": {
+    "ResponseMeta": {
+      "title": "ResponseMeta",
+      "type": "object",
+      "required": ["request_id", "contract_version", "generated_at"],
+      "properties": {
+        "request_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        "correlation_id": {
+          "oneOf": [
+            { "$ref": "primitives.schema.json#/$defs/Uuid" },
+            { "type": "null" }
+          ]
+        },
+        "contract_version": { "$ref": "primitives.schema.json#/$defs/SemVer" },
+        "generated_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+        "degraded_services": {
+          "description": "Dependencies that answered late, partially or not at all while producing this response.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/DegradedService" },
+          "default": []
+        }
+      }
+    },
+    "DegradationReason": {
+      "title": "DegradationReason",
+      "type": "string",
+      "enum": [
+        "TIMEOUT",
+        "UNAVAILABLE",
+        "RATE_LIMITED",
+        "STALE_DATA",
+        "PARTIAL_COVERAGE",
+        "NOT_CONFIGURED",
+        "SCHEMA_MISMATCH"
+      ]
+    },
+    "DegradedService": {
+      "title": "DegradedService",
+      "type": "object",
+      "required": ["service", "reason"],
+      "properties": {
+        "service": { "type": "string", "maxLength": 64 },
+        "reason": { "$ref": "#/$defs/DegradationReason" },
+        "since": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+        "retrying": { "type": "boolean", "default": false }
+      }
+    },
+    "PageMeta": {
+      "title": "PageMeta",
+      "description": "Opaque cursor pagination. Cursors are server-generated and must not be parsed by clients.",
+      "type": "object",
+      "required": ["cursor", "next_cursor", "has_more"],
+      "properties": {
+        "cursor": { "type": ["string", "null"], "maxLength": 512 },
+        "next_cursor": { "type": ["string", "null"], "maxLength": 512 },
+        "has_more": { "type": "boolean" }
+      }
+    },
+    "FieldError": {
+      "title": "FieldError",
+      "type": "object",
+      "required": ["path", "code"],
+      "properties": {
+        "path": {
+          "description": "Dotted or indexed path into the rejected request, for example destination.coordinates.",
+          "type": "string",
+          "maxLength": 256
+        },
+        "code": {
+          "type": "string",
+          "enum": [
+            "REQUIRED",
+            "INVALID_FORMAT",
+            "OUT_OF_RANGE",
+            "TOO_LONG",
+            "TOO_SHORT",
+            "UNKNOWN_FIELD",
+            "UNSUPPORTED_VALUE",
+            "NOT_CONFIRMED",
+            "INCONSISTENT"
+          ]
+        },
+        "message": {
+          "description": "Optional user-safe detail. Never echoes a rejected value that is itself sensitive.",
+          "type": ["string", "null"],
+          "maxLength": 512
+        }
+      }
+    },
+    "ErrorBody": {
+      "title": "ErrorBody",
+      "type": "object",
+      "required": ["code", "message", "retryable"],
+      "properties": {
+        "code": { "$ref": "enums.schema.json#/$defs/ErrorCode" },
+        "message": {
+          "description": "Human-readable and safe to display. Never carries a stack trace, SQL, provider credential or internal host name.",
+          "type": "string",
+          "maxLength": 1024
+        },
+        "field_errors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/FieldError" },
+          "default": []
+        },
+        "retryable": { "type": "boolean" },
+        "retry_after_seconds": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "maximum": 86400
+        }
+      }
+    },
+    "ErrorResponse": {
+      "title": "ErrorResponse",
+      "type": "object",
+      "required": ["error", "meta"],
+      "properties": {
+        "error": { "$ref": "#/$defs/ErrorBody" },
+        "meta": { "$ref": "#/$defs/ResponseMeta" }
+      }
+    }
+  }
+}

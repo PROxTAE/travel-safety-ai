@@ -37,7 +37,7 @@ tests/contract|integration|e2e
 docs/adr/ docs/api/ docs/diagrams/ docs/handoffs/ docs/acceptance/
 assets/                   ภาพ UI ต้นแบบ (อ่านอย่างเดียว)
 IMPLEMENTATION_PLANS/     แผนของทุกคน + กติกา
-compose.yaml              โครงจริงของระบบ (profile core พร้อมใช้, app เจ้าของเพิ่มเอง)
+compose.yaml              โครงจริงของระบบ (infra กลางขึ้นเสมอ, profile app เจ้าของแต่ละ module เพิ่มเอง)
 compose.dev.yaml          override สำหรับพัฒนา (host port, hot reload)
 .env.example              ชื่อค่าตั้งทั้งหมด (ห้าม commit .env)
 ```
@@ -50,7 +50,7 @@ compose.dev.yaml          override สำหรับพัฒนา (host port,
 git clone https://github.com/PROxTAE/travel-safety-ai.git
 cd travel-safety-ai
 cp .env.example .env            # PowerShell: Copy-Item .env.example .env   แล้วเติมค่า required
-docker compose -f compose.yaml -f compose.dev.yaml --profile core up -d --wait
+docker compose -f compose.yaml -f compose.dev.yaml up -d --wait
 docker compose ps               # postgres redis qdrant keycloak ต้อง healthy
 ```
 

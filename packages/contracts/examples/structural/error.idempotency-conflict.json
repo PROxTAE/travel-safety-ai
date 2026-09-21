@@ -1,0 +1,24 @@
+{
+  "target": "jsonschema/common/envelope.schema.json#/$defs/ErrorResponse",
+  "kind": "structural",
+  "summary": "The error a client gets when it reuses an Idempotency-Key with a different payload. Not retryable: the client must use a new key.",
+  "provenance": {
+    "redaction": "synthetic — identifiers are made up. Note that the message does not echo either payload."
+  },
+  "value": {
+    "error": {
+      "code": "IDEMPOTENCY_CONFLICT",
+      "message": "This idempotency key was already used for a different request. Use a new key.",
+      "field_errors": [],
+      "retryable": false,
+      "retry_after_seconds": null
+    },
+    "meta": {
+      "request_id": "7e6d5c4b-3a29-4018-b7c6-d5e4f3a2b1c0",
+      "correlation_id": "7e6d5c4b-3a29-4018-b7c6-d5e4f3a2b1c0",
+      "contract_version": "1.0.0",
+      "generated_at": "2026-09-19T08:14:00Z",
+      "degraded_services": []
+    }
+  }
+}

@@ -1,13 +1,15 @@
 # SafetyTravel Assistant — runtime topology (ดู IMPLEMENTATION_PLANS/00_GIT_DOCKER_DELIVERY_RULES.md §8)
 #
+# infra กลาง (postgres redis qdrant keycloak) ไม่มี profile = ขึ้นเสมอ → `docker compose up -d <service>` ของ module ใดก็ได้
+# จะดึง infra ที่ต้องพึ่งขึ้นมาให้เอง ไม่ต้องใส่ --profile
 # profiles:
-#   core          postgres redis qdrant keycloak                      ← พร้อมใช้แล้ว
 #   app           web api agent external-data data-integration        ← เจ้าของแต่ละ module เพิ่ม service ของตัวเอง
 #                 risk-knowledge decision-engine recommendation          ใน Phase 1 ผ่าน PR (ดูตัวอย่างท้ายไฟล์)
 #   observability otel-collector prometheus grafana                   ← lead
 #
 # ใช้คู่กับ compose.dev.yaml ตอนพัฒนา:
-#   docker compose -f compose.yaml -f compose.dev.yaml --profile core up -d
+#   docker compose -f compose.yaml -f compose.dev.yaml up -d                    # infra กลางอย่างเดียว
+#   docker compose -f compose.yaml -f compose.dev.yaml --profile app up -d      # + service ทุก module
 # ไฟล์นี้เป็น shared surface: แก้แล้วต้องมี lead รีวิว ห้ามใส่ secret จริง ห้ามใส่ host-specific path
 
 name: smart-travel
@@ -15,7 +17,6 @@ name: smart-travel
 services:
   postgres:
     image: postgis/postgis:16-3.4
-    profiles: [core]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-smart_travel}
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
@@ -32,7 +33,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    profiles: [core]
     command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
     volumes:
       - redis-data:/data
@@ -45,7 +45,6 @@ services:
 
   qdrant:
     image: qdrant/qdrant:v1.12.4
-    profiles: [core]
     volumes:
       - qdrant-data:/qdrant/storage
     healthcheck:
@@ -57,7 +56,6 @@ services:
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
-    profiles: [core]
     command: ["start-dev", "--import-realm", "--health-enabled=true"]
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
@@ -79,6 +77,92 @@ services:
       timeout: 5s
       retries: 20
       start_period: 60s
+    restart: unless-stopped
+
+  external-data:
+    build:
+      context: ./services/external-data
+      target: runtime
+    profiles: [app]
+    env_file: .env
+    environment:
+      # Container DNS, not host ports (shared context § 3).
+      POSTGRES_HOST: postgres
+      REDIS_URL: redis://redis:6379/0
+      GTFS_PROVIDER_CONFIG: /app/config/providers.yaml
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/live', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  api:
+    # Public API (module 02) — the only service the browser talks to besides web.
+    # No host port here: production topology exposes nothing directly. compose.dev.yaml
+    # publishes 8000 for local work.
+    #
+    # The tag is explicit because compose.dev.yaml builds a different stage of the same
+    # Dockerfile. Left to the default name both stages would land on `smart-travel-api`, and
+    # whichever was built last would win: build the dev stage, then `up` without the override,
+    # and the service starts the dev image, whose CMD is `uv run pytest` — it runs the suite,
+    # exits, and `restart: unless-stopped` loops it, never serving a request.
+    image: smart-travel-api:runtime
+    build:
+      context: ./services/api
+      target: runtime
+    profiles: [app]
+    env_file: .env
+    environment:
+      SERVICE_NAME: api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      # Liveness only. Readiness depends on PostgreSQL, Redis and Keycloak; restarting the
+      # container whenever one of those blinks would turn a recoverable outage into a crash loop.
+      # Probe /health/ready separately — the acceptance runbook does.
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=3).status == 200 else 1)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  web:
+    # Browser-facing application. The runtime image is standalone and runs as
+    # its own non-root user; host publication belongs in compose.dev.yaml.
+    image: smart-travel-web:runtime
+    build:
+      context: ./apps/web
+      target: runtime
+    profiles: [app]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------

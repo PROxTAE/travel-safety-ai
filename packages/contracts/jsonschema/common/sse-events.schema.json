@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SseEvents",
+  "description": "Payloads carried by GET /api/v1/runs/{request_id}/events. Every event has a monotonic id so a client can resume with Last-Event-ID. No event may carry a raw provider body, a prompt, chain-of-thought, an access token or personal data.",
+  "$defs": {
+    "RunAccepted": {
+      "title": "RunAcceptedEvent",
+      "type": "object",
+      "required": ["request_id", "status", "submitted_at"],
+      "properties": {
+        "request_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        "status": { "$ref": "enums.schema.json#/$defs/RunStatus" },
+        "submitted_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "RunProgress": {
+      "title": "RunProgressEvent",
+      "type": "object",
+      "required": ["request_id", "stage", "message_key"],
+      "properties": {
+        "request_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        "stage": { "$ref": "enums.schema.json#/$defs/RunStage" },
+        "percent": {
+          "description": "Null whenever remaining work cannot be estimated honestly.",
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "message_key": { "$ref": "primitives.schema.json#/$defs/MessageKey" },
+        "occurred_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" }
+      }
+    },
+    "RunNeedsInput": {
+      "title": "RunNeedsInputEvent",
+      "type": "object",
+      "required": ["request_id", "missing_fields", "prompt_key"],
+      "properties": {
+        "request_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        "missing_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "maxLength": 128 }
+        },
+        "prompt_key": { "$ref": "primitives.schema.json#/$defs/MessageKey" }
+      }
+    },
+    "RunDegraded": {
+      "title": "RunDegradedEvent",
+      "type": "object",
+      "required": ["request_id", "service", "reason", "retrying"],
+      "properties": {
+        "request_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        "service": { "type": "string", "maxLength": 64 },
+        "reason": { "$ref": "envelope.schema.json#/$defs/DegradationReason" },
+        "retrying": { "type": "boolean" }
+      }
+    },
+    "RunCompleted": {
+      "title": "RunCompletedEvent",
+      "type": "object",
+      "required": ["request_id", "recommendation_id", "result_url", "status"],
+      "properties": {
+        "request_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        "recommendation_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        "result_url": { "type": "string", "maxLength": 512 },
+        "status": { "$ref": "enums.schema.json#/$defs/RunStatus" }
+      }
+    },
+    "RunFailed": {
+      "title": "RunFailedEvent",
+      "type": "object",
+      "required": ["request_id", "error"],
+      "properties": {
+        "request_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        "error": { "$ref": "envelope.schema.json#/$defs/ErrorBody" }
+      }
+    },
+    "Heartbeat": {
+      "title": "HeartbeatEvent",
+      "description": "Keeps intermediaries from closing an idle stream. Never rendered.",
+      "type": "object",
+      "required": ["server_time"],
+      "properties": {
+        "server_time": { "$ref": "primitives.schema.json#/$defs/Timestamp" }
+      }
+    }
+  }
+}

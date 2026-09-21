@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EmergencyProfile",
+  "description": "Medical and next-of-kin details the traveller chooses to store for an emergency. Stored encrypted at the application layer under a key that does not live in the same database; returned only to its owner, never logged, never traced, never sent to an LLM.",
+  "type": "object",
+  "required": ["updated_at"],
+  "properties": {
+    "blood_type": {
+      "type": ["string", "null"],
+      "enum": ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "UNKNOWN", null]
+    },
+    "allergies": {
+      "type": "array",
+      "maxItems": 32,
+      "items": { "type": "string", "maxLength": 128 },
+      "default": []
+    },
+    "medical_notes": {
+      "description": "Free text. Redacted from every log, metric and trace.",
+      "type": ["string", "null"],
+      "maxLength": 2000
+    },
+    "medications": {
+      "type": "array",
+      "maxItems": 32,
+      "items": { "type": "string", "maxLength": 128 },
+      "default": []
+    },
+    "contacts": {
+      "type": "array",
+      "maxItems": 8,
+      "items": { "$ref": "#/$defs/EmergencyContactPerson" },
+      "default": []
+    },
+    "insurance": {
+      "oneOf": [{ "$ref": "#/$defs/InsuranceRef" }, { "type": "null" }]
+    },
+    "updated_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+    "key_version": {
+      "description": "Encryption key version the stored payload was sealed with. Echoed so that key rotation is auditable; the key itself is never exposed.",
+      "type": ["string", "null"],
+      "maxLength": 32
+    }
+  },
+  "$defs": {
+    "EmergencyContactPerson": {
+      "title": "EmergencyContactPerson",
+      "type": "object",
+      "required": ["name", "phone"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "relationship": { "type": ["string", "null"], "maxLength": 64 },
+        "phone": {
+          "description": "E.164 where possible. Redacted from logs.",
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 32
+        },
+        "locale": {
+          "oneOf": [
+            { "$ref": "primitives.schema.json#/$defs/Locale" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "InsuranceRef": {
+      "title": "InsuranceRef",
+      "type": "object",
+      "required": ["provider_name"],
+      "properties": {
+        "provider_name": { "type": "string", "maxLength": 256 },
+        "policy_reference": { "type": ["string", "null"], "maxLength": 128 },
+        "emergency_phone": { "type": ["string", "null"], "maxLength": 32 }
+      }
+    }
+  }
+}

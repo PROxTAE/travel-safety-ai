@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TravelPreference",
+  "description": "User routing preferences. Preferences never weaken a safety decision: they rank acceptable options, they do not make an unacceptable option acceptable.",
+  "type": "object",
+  "properties": {
+    "prefer_safer_route": { "type": "boolean", "default": true },
+    "prefer_lower_cost": { "type": "boolean", "default": false },
+    "prefer_lower_emissions": { "type": "boolean", "default": false },
+    "max_extra_duration_minutes": {
+      "description": "How much extra travel time the user will accept for a safer route.",
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 1440,
+      "default": 90
+    },
+    "avoid_tolls": { "type": "boolean", "default": false },
+    "accessibility": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "string",
+        "enum": [
+          "STEP_FREE",
+          "WHEELCHAIR",
+          "LOW_FLOOR_VEHICLE",
+          "AVOID_STAIRS",
+          "ASSISTANCE_REQUIRED",
+          "VISUAL_IMPAIRMENT",
+          "HEARING_IMPAIRMENT"
+        ]
+      },
+      "default": []
+    }
+  }
+}

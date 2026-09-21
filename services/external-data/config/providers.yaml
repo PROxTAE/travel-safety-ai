@@ -1,0 +1,441 @@
+# Provider registry — module 04 (external-data)
+#
+# Phase 0 deliverable (04_EXTERNAL_DATA_SERVICES_IMPLEMENTATION.md § "Phase 0 — Provider governance").
+# Mounted into the container at ${GTFS_PROVIDER_CONFIG} (default /app/config/providers.yaml).
+#
+# RULES
+# - This file carries NO credential values. It names the env var that holds each
+#   credential; the value lives in .env / the deployment secret store only.
+# - `status` is what the runtime must honour. Only ACTIVE providers may be called.
+#   Anything else must surface as an explicit unavailable/degraded state —
+#   never as fabricated or sample data.
+# - Every `quota` block below is transcribed from the provider's public docs and is
+#   NOT yet confirmed against a real account. `verification_required: true` means
+#   Team Lead must confirm the live limit before Phase 1 enables the adapter.
+
+schema_version: "1.0.0"
+contract_version: "1.0.0"
+module: 04-external-data
+phase: "0"
+
+defaults:
+  # Applied unless a provider overrides them. Tuned further in Phase 1.
+  timeout:
+    connect_seconds: 3
+    read_seconds: 10
+    total_seconds: 15
+  retry:
+    # Only 408 / 429 / transient 5xx are retryable, and Retry-After always wins.
+    max_attempts: 3
+    backoff: exponential_jitter
+    initial_backoff_seconds: 0.5
+    retry_on_status: [408, 429, 500, 502, 503, 504]
+  circuit_breaker:
+    failure_threshold: 5
+    open_seconds: 60
+    half_open_probes: 1
+  retention:
+    # Contract 00 § 8: default is to NOT persist raw provider bodies.
+    store_raw_body: false
+    fetch_log_days: 30
+    cache_backend: redis
+
+providers:
+  # ---------------------------------------------------------------- GEOCODING
+  - id: open_meteo_geocoding
+    name: Open-Meteo Geocoding
+    kind: GEOCODING
+    status: ACTIVE
+    authority: LICENSED_PROVIDER
+    base_url_env: OPEN_METEO_GEOCODING_URL
+    endpoints:
+      search: /v1/search
+    health:
+      # Cheapest deterministic call that proves auth + schema are intact.
+      url: https://geocoding-api.open-meteo.com/v1/search?name=Bangkok&count=1
+      method: GET
+      expect_status: 200
+    credential:
+      required: false
+      env: null
+      owner: null
+    coverage:
+      global: true
+      notes: >-
+        Place-name index derived from GeoNames/OpenStreetMap. Coverage is thin for
+        informal settlements and very recent administrative renames.
+    license:
+      spdx_or_name: CC-BY-4.0
+      url: https://open-meteo.com/en/license
+      upstream: OpenStreetMap contributors (ODbL)
+      commercial_use: false
+    attribution:
+      required: true
+      text: "Geocoding by Open-Meteo (CC BY 4.0), data © OpenStreetMap contributors"
+    quota:
+      documented: "free non-commercial tier; provider publishes per-minute/hour/day ceilings"
+      source: https://open-meteo.com/en/pricing
+      verification_required: true
+    cache:
+      ttl_seconds: 86400
+      negative_ttl_seconds: 300
+      key_fields: [provider, schema_version, normalized_name, locale, country_code, count]
+
+  # ------------------------------------------------------------------ WEATHER
+  - id: open_meteo_forecast
+    name: Open-Meteo Forecast
+    kind: WEATHER
+    status: ACTIVE
+    authority: LICENSED_PROVIDER
+    base_url_env: OPEN_METEO_BASE_URL
+    endpoints:
+      forecast: /v1/forecast
+    health:
+      url: https://api.open-meteo.com/v1/forecast?latitude=13.75&longitude=100.5&hourly=temperature_2m&forecast_days=1
+      method: GET
+      expect_status: 200
+    credential:
+      required: false
+      env: null
+      owner: null
+    coverage:
+      global: true
+      notes: >-
+        Model output, not station observation. Always request timezone=UTC and
+        explicit units so the adapter never has to guess.
+    license:
+      spdx_or_name: CC-BY-4.0
+      url: https://open-meteo.com/en/license
+      commercial_use: false
+    attribution:
+      required: true
+      text: "Weather data by Open-Meteo.com (CC BY 4.0)"
+    quota:
+      documented: "free non-commercial tier; provider publishes per-minute/hour/day ceilings"
+      source: https://open-meteo.com/en/pricing
+      verification_required: true
+    cache:
+      ttl_seconds: 900
+      negative_ttl_seconds: 120
+      key_fields: [provider, schema_version, lat_bucket, lon_bucket, time_window, fields, units]
+
+  # -------------------------------------------------------------------- ROUTE
+  - id: openrouteservice
+    name: openrouteservice
+    kind: ROUTE
+    # Approved as the road-routing provider in 00_SHARED_PROJECT_CONTEXT.md § 5.
+    # Activated 2026-09-20 once a key existed and both endpoints answered for
+    # real; see docs/handoffs/M04-external-data.md for the verification.
+    status: ACTIVE
+    authority: LICENSED_PROVIDER
+    base_url_env: ORS_BASE_URL
+    endpoints:
+      directions: /v2/directions/{profile}/geojson
+      pois: /pois
+    health:
+      url: https://api.openrouteservice.org/v2/health
+      method: GET
+      expect_status: 200
+      notes: health probe is keyless; routing calls are not
+    credential:
+      required: true
+      env: ORS_API_KEY
+      owner: "Mrbeer19 (module 04 owner) — personal openrouteservice free-plan account; key lives in .env only"
+    coverage:
+      global: true
+      notes: >-
+        Road graph from OpenStreetMap. Quality drops where OSM is sparse.
+        avoid_areas and alternative_routes have documented size/count limits.
+    license:
+      spdx_or_name: openrouteservice terms (CC-BY-4.0 style attribution)
+      url: https://openrouteservice.org/terms-of-service/
+      upstream: OpenStreetMap contributors (ODbL)
+      commercial_use: conditional
+    attribution:
+      required: true
+      text: "Directions courtesy of openrouteservice.org | OpenStreetMap contributors"
+    quota:
+      # Measured from the provider's own X-Ratelimit-* headers on 2026-09-20,
+      # not read off a pricing page: limit 200, reset 85,785 s away, i.e. a
+      # daily ceiling. The directions and POI endpoints have separate budgets.
+      documented: "free plan: 200 directions requests per day (X-Ratelimit-Limit=200, window ~24 h)"
+      source: https://openrouteservice.org/plans/
+      daily_limit: 200
+      verification_required: false
+    cache:
+      ttl_seconds: 3600
+      negative_ttl_seconds: 120
+      key_fields: [provider, schema_version, profile, waypoints_hash, preferences, avoid_areas_hash]
+
+  # ------------------------------------------------------------------- FLIGHT
+  - id: amadeus
+    name: Amadeus Self-Service (production)
+    kind: FLIGHT
+    status: UNAVAILABLE
+    authority: LICENSED_PROVIDER
+    base_url_env: AMADEUS_BASE_URL
+    endpoints:
+      token: /v1/security/oauth2/token
+    health:
+      url: null
+      notes: no health probe until a production credential exists
+    credential:
+      required: true
+      env: [AMADEUS_CLIENT_ID, AMADEUS_CLIENT_SECRET]
+      owner: TBD — Team Lead to assign and record account holder
+    coverage:
+      global: partial
+      notes: >-
+        HARD RULE from the module plan: Amadeus *test* data must never be served as a
+        real production result. Until a production credential is issued this
+        capability stays UNAVAILABLE and the UI must say so.
+    license:
+      spdx_or_name: Amadeus Self-Service API terms
+      url: https://developers.amadeus.com/self-service/apis-docs/guides/developer-guides/API-Keys/
+      commercial_use: conditional
+    attribution:
+      required: true
+      text: "Flight data powered by Amadeus"
+    quota:
+      documented: "test and production tiers have different ceilings"
+      source: https://developers.amadeus.com/self-service
+      verification_required: true
+    cache:
+      ttl_seconds: 300
+      negative_ttl_seconds: 60
+      key_fields: [provider, schema_version, origin, destination, departure_date, cabin]
+
+  # ------------------------------------------------------------------ TRANSIT
+  - id: gtfs_registry
+    name: Registered agency GTFS / GTFS-Realtime feeds
+    kind: TRANSIT
+    # Activated 2026-09-20 with one registered agency. The module plan requires
+    # at least ONE real GTFS-RT region to work for the demo; Bangkok publishes
+    # no live GTFS-RT (only a stale static snapshot), so the demo region is the
+    # New York City subway, whose feeds need no credential. Coverage is recorded
+    # per feed below and is never claimed to be global.
+    status: ACTIVE
+    authority: OFFICIAL
+    base_url_env: null
+    endpoints: {}
+    health:
+      # A region is now registered, so this resolves to that feed's realtime
+      # endpoint - the thing the module actually depends on. Probing the
+      # schedule archive instead would download 5.6 MB every five minutes to
+      # learn nothing about whether live data is flowing.
+      url: https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace
+      method: GET
+      expect_status: 200
+      notes: resolves to the registered feed's realtime endpoint
+    credential:
+      required: per_feed
+      env: null
+      owner: "Mrbeer19 (module 04 owner) — the registered feed needs no credential"
+    coverage:
+      global: false
+      notes: >-
+        Strictly per-agency. The module plan requires at least ONE real GTFS-RT
+        region to work for the demo. Static schedule is NOT realtime status —
+        they map to different quality flags.
+    license:
+      spdx_or_name: per feed
+      url: null
+      commercial_use: per_feed
+    attribution:
+      required: true
+      # One registered feed today, so the provider-level line names it. A second
+      # agency means this becomes a join of the per-feed lines below.
+      text: "Transit data from the Metropolitan Transportation Authority (MTA open data)"
+    quota:
+      # Measured 2026-09-20: the feed sends no rate-limit header. The agency
+      # regenerates trip updates about every 30s, so polling faster than the
+      # 30s realtime TTL below buys nothing and is impolite.
+      documented: "no published hard quota; the agency regenerates trip updates about every 30 seconds"
+      source: https://api.mta.info/
+      verification_required: true
+    cache:
+      static_ttl_seconds: 86400
+      realtime_ttl_seconds: 30
+      key_fields: [provider, feed_id, schema_version, route_or_stop, time_window]
+    feeds:
+      - feed_id: mta_nyct_subway
+        agency: Metropolitan Transportation Authority — New York City Transit
+        mode: TRAIN
+        timezone: America/New_York
+        # GeoJSON order. New York City only; every query outside this box is
+        # answered OUTSIDE_COVERAGE rather than with an empty list.
+        bbox: [-74.30, 40.45, -73.68, 40.95]
+        schedule_url: https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip
+        # The A/C/E lines. The agency splits realtime by line group; this is the
+        # group the captured fixture came from.
+        realtime_trip_updates_url: https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace
+        realtime_alerts_url: https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/camsys%2Fsubway-alerts
+        credential_required: false
+        license:
+          spdx_or_name: MTA open data terms
+          url: https://www.mta.info/developers
+        attribution: "Transit data from the Metropolitan Transportation Authority"
+        notes: >-
+          The realtime trip_id is the schedule trip_id with its service prefix
+          stripped, so the two only join on the suffix after the last
+          underscore. Joining them verbatim matches nothing at all, silently.
+
+  # ----------------------------------------------------------------- DISASTER
+  - id: usgs_earthquake
+    name: USGS Earthquake Hazards Program
+    kind: DISASTER
+    status: ACTIVE
+    authority: OFFICIAL
+    base_url_env: USGS_FEED_URL
+    endpoints:
+      summary_feed: /earthquakes/feed/v1.0/summary/{window}.geojson
+    health:
+      url: https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_day.geojson
+      method: GET
+      expect_status: 200
+    credential:
+      required: false
+      env: null
+      owner: null
+    coverage:
+      global: true
+      notes: >-
+        Authoritative for earthquakes. Feeds have no bbox parameter — fetch the
+        window feed and let module 05 do precise corridor intersection.
+    license:
+      spdx_or_name: US Government public domain
+      url: https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
+      commercial_use: true
+    attribution:
+      required: true
+      text: "Earthquake data: U.S. Geological Survey"
+    quota:
+      documented: "no published hard quota; feeds regenerate about once per minute"
+      source: https://earthquake.usgs.gov/earthquakes/feed/v1.0/
+      verification_required: true
+    cache:
+      ttl_seconds: 60
+      negative_ttl_seconds: 30
+      key_fields: [provider, schema_version, feed_window]
+
+  - id: gdacs
+    name: GDACS (Global Disaster Alert and Coordination System)
+    kind: DISASTER
+    status: ACTIVE
+    authority: INTERGOVERNMENTAL
+    base_url_env: GDACS_BASE_URL
+    endpoints:
+      event_list: /api/events/geteventlist/SEARCH
+    health:
+      url: https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=EQ
+      method: GET
+      expect_status: 200
+    credential:
+      required: false
+      env: null
+      owner: null
+    coverage:
+      global: true
+      notes: >-
+        Multi-hazard (EQ, TC, FL, VO, WF, DR). Timestamps arrive WITHOUT a zone
+        suffix — treat as UTC and record the assumption as a quality note.
+        alertlevel is Green/Orange/Red, not the project Severity enum.
+    license:
+      spdx_or_name: GDACS terms of use
+      url: https://www.gdacs.org/About/disclaimer.aspx
+      commercial_use: conditional
+    attribution:
+      required: true
+      text: "Alerts: GDACS — European Commission Joint Research Centre / UN OCHA"
+    quota:
+      documented: "no published hard quota; polling should stay modest"
+      source: https://www.gdacs.org/
+      verification_required: true
+    cache:
+      ttl_seconds: 300
+      negative_ttl_seconds: 60
+      key_fields: [provider, schema_version, event_types, bbox_bucket, time_window]
+
+  - id: nasa_eonet
+    name: NASA EONET v3
+    kind: DISASTER
+    status: ACTIVE
+    authority: OFFICIAL
+    base_url_env: EONET_BASE_URL
+    endpoints:
+      events: /events
+    health:
+      url: https://eonet.gsfc.nasa.gov/api/v3/events?limit=1
+      method: GET
+      expect_status: 200
+    credential:
+      required: false
+      env: null
+      owner: null
+    coverage:
+      global: true
+      notes: >-
+        Curated near-real-time natural events. Slower to publish than USGS/GDACS,
+        so it is a corroborating source, never the sole basis for an alert.
+        `closed: null` means the event is still open.
+    license:
+      spdx_or_name: NASA open data
+      url: https://eonet.gsfc.nasa.gov/docs/v3
+      commercial_use: true
+    attribution:
+      required: true
+      text: "Event data: NASA EONET"
+    quota:
+      documented: "no published hard quota for EONET v3"
+      source: https://eonet.gsfc.nasa.gov/docs/v3
+      verification_required: true
+    cache:
+      ttl_seconds: 600
+      negative_ttl_seconds: 120
+      key_fields: [provider, schema_version, category, bbox_bucket, time_window, status]
+
+  # ------------------------------------------------- EMERGENCY DIRECTORY (POI)
+  - id: ors_pois
+    name: openrouteservice POIs
+    kind: EMERGENCY_DIRECTORY
+    # Same account as the routing provider. Activated 2026-09-20 after a live
+    # call returned real hospital and police records for Bangkok.
+    status: ACTIVE
+    authority: LICENSED_PROVIDER
+    base_url_env: ORS_BASE_URL
+    endpoints:
+      pois: /pois
+    health:
+      url: https://api.openrouteservice.org/v2/health
+      method: GET
+      expect_status: 200
+    credential:
+      required: true
+      env: ORS_API_KEY
+      owner: "Mrbeer19 (module 04 owner) — same openrouteservice account as the routing provider"
+    coverage:
+      global: true
+      notes: >-
+        Police / hospital / pharmacy come from OSM tags and are frequently stale or
+        missing. Embassies are especially unreliable. Every POI must carry
+        coverage + quality flags; never present this as an authoritative directory.
+    license:
+      spdx_or_name: openrouteservice terms
+      url: https://openrouteservice.org/terms-of-service/
+      upstream: OpenStreetMap contributors (ODbL)
+      commercial_use: conditional
+    attribution:
+      required: true
+      text: "POI data © OpenStreetMap contributors via openrouteservice"
+    quota:
+      # Measured 2026-09-20: this endpoint has its OWN budget, four times
+      # smaller than directions. Treating them as one pool would exhaust the
+      # emergency directory without warning.
+      documented: "free plan: 50 POI requests per day (X-Ratelimit-Limit=50, window ~24 h)"
+      source: https://openrouteservice.org/plans/
+      daily_limit: 50
+      verification_required: false
+    cache:
+      ttl_seconds: 86400
+      negative_ttl_seconds: 600
+      key_fields: [provider, schema_version, lat_bucket, lon_bucket, radius, poi_type, locale]

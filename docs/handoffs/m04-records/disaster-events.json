@@ -1,0 +1,362 @@
+{
+  "_note": "Two events from each of the three hazard sources. Note that severity is UNKNOWN on all of them by design, the provider's own numbers live in magnitude/magnitude_unit/alert_level, and the same real event can appear in more than one source - see duplicate_groups in the endpoint response.",
+  "_generated_from": "real captured provider responses in services/external-data/tests/fixtures/real-sanitized/",
+  "_warning": "Sample output, not a contract. packages/contracts is the contract. Timestamps are from generation time and will look stale.",
+  "records": [
+    {
+      "event_id": "usgs_earthquake:us7000ti1p",
+      "event_type": "EARTHQUAKE",
+      "title": "M 6.5 - 169 km W of Nikolski, Alaska",
+      "description": "magnitude 6.5, depth 98.0 km, status reviewed",
+      "severity": "UNKNOWN",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -171.3756,
+          52.8594
+        ]
+      },
+      "effective_at": "2026-09-17T14:19:52.210000Z",
+      "ends_at": null,
+      "instruction": null,
+      "official": true,
+      "quality": {
+        "status": "STALE",
+        "score": null,
+        "score_version": null,
+        "flags": [
+          "STALE"
+        ],
+        "coverage": null,
+        "completeness": null,
+        "freshness_seconds": 121135,
+        "conflicts": [],
+        "notes": [
+          "from the USGS day summary feed",
+          "freshness is the age of the feed itself (generated 2026-09-19T07:45:37Z); how long ago the earthquake happened is effective_at"
+        ]
+      },
+      "source": {
+        "source_id": "usgs_earthquake:us7000ti1p",
+        "provider": "usgs_earthquake",
+        "provider_record_id": "us7000ti1p",
+        "authority": "OFFICIAL",
+        "source_url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000ti1p",
+        "license": "US Government public domain",
+        "observed_at": "2026-09-17T14:19:52.210000Z",
+        "published_at": "2026-09-18T14:29:54.553000Z",
+        "fetched_at": "2026-09-20T17:24:32.094906Z",
+        "expires_at": "2026-09-20T17:25:32.094906Z",
+        "content_hash": "sha256:83a6be8925082912ecf2ff020c012c453aebb8ae767fa2a25cfdc4aa3d596f01",
+        "schema_version": "1.0.0"
+      },
+      "magnitude": 6.5,
+      "magnitude_unit": "mww",
+      "depth_km": 98.0,
+      "alert_level": "green",
+      "tsunami": true,
+      "cross_reference_ids": [
+        "attliih5",
+        "aka2026slmipb"
+      ],
+      "reporting_networks": [],
+      "episode_id": null
+    },
+    {
+      "event_id": "usgs_earthquake:us7000tgrk",
+      "event_type": "EARTHQUAKE",
+      "title": "M 6.5 - 126 km NNE of Teluknaga, Indonesia",
+      "description": "magnitude 6.5, depth 372.0 km, status reviewed",
+      "severity": "UNKNOWN",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          106.8742,
+          -4.9832
+        ]
+      },
+      "effective_at": "2026-09-11T21:23:55.907000Z",
+      "ends_at": null,
+      "instruction": null,
+      "official": true,
+      "quality": {
+        "status": "STALE",
+        "score": null,
+        "score_version": null,
+        "flags": [
+          "STALE"
+        ],
+        "coverage": null,
+        "completeness": null,
+        "freshness_seconds": 121135,
+        "conflicts": [],
+        "notes": [
+          "from the USGS day summary feed",
+          "freshness is the age of the feed itself (generated 2026-09-19T07:45:37Z); how long ago the earthquake happened is effective_at"
+        ]
+      },
+      "source": {
+        "source_id": "usgs_earthquake:us7000tgrk",
+        "provider": "usgs_earthquake",
+        "provider_record_id": "us7000tgrk",
+        "authority": "OFFICIAL",
+        "source_url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000tgrk",
+        "license": "US Government public domain",
+        "observed_at": "2026-09-11T21:23:55.907000Z",
+        "published_at": "2026-09-12T21:29:59.017000Z",
+        "fetched_at": "2026-09-20T17:24:32.094906Z",
+        "expires_at": "2026-09-20T17:25:32.094906Z",
+        "content_hash": "sha256:f24fac5067a59ec767ed1dd6b2a7498d934ba0f1b5d197452c4f7dc2722a769e",
+        "schema_version": "1.0.0"
+      },
+      "magnitude": 6.5,
+      "magnitude_unit": "mww",
+      "depth_km": 372.0,
+      "alert_level": "green",
+      "tsunami": false,
+      "cross_reference_ids": [],
+      "reporting_networks": [],
+      "episode_id": null
+    },
+    {
+      "event_id": "gdacs:1562260:1729706",
+      "event_type": "EARTHQUAKE",
+      "title": "Earthquake in China",
+      "description": "Earthquake in China",
+      "severity": "UNKNOWN",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          105.229,
+          29.2752
+        ]
+      },
+      "effective_at": "2026-08-28T05:13:35Z",
+      "ends_at": null,
+      "instruction": null,
+      "official": true,
+      "quality": {
+        "status": "FRESH",
+        "score": null,
+        "score_version": null,
+        "flags": [
+          "INFERRED"
+        ],
+        "coverage": null,
+        "completeness": null,
+        "freshness_seconds": 0,
+        "conflicts": [],
+        "notes": [
+          "provider timestamps carry no timezone offset and are read as UTC",
+          "the feed carries no generation time, so freshness is the age of this read; any delay between the event and its publication here is not visible to us",
+          "provider last revised this record 2026-08-28T07:04:27Z",
+          "provider severity text: Magnitude 5M, Depth:10km",
+          "provider marks this event as no longer current"
+        ]
+      },
+      "source": {
+        "source_id": "gdacs:1562260",
+        "provider": "gdacs",
+        "provider_record_id": "1562260",
+        "authority": "INTERGOVERNMENTAL",
+        "source_url": "https://www.gdacs.org/report.aspx?eventid=1562260&episodeid=1729706&eventtype=EQ",
+        "license": "GDACS terms of use",
+        "observed_at": "2026-08-28T05:13:35Z",
+        "published_at": "2026-08-28T07:04:27Z",
+        "fetched_at": "2026-09-20T17:24:32.097407Z",
+        "expires_at": "2026-09-20T17:29:32.097407Z",
+        "content_hash": "sha256:1c802e0844d12de6de4df8a714ef0a16c1c67534174d54362a4f6ddbcf9e40e1",
+        "schema_version": "1.0.0"
+      },
+      "magnitude": 5.0,
+      "magnitude_unit": "M",
+      "depth_km": null,
+      "alert_level": "Orange",
+      "tsunami": null,
+      "cross_reference_ids": [
+        "EQ-2026-000168-CHN"
+      ],
+      "reporting_networks": [
+        "NEIC"
+      ],
+      "episode_id": "1729706"
+    },
+    {
+      "event_id": "gdacs:1558059:1725109",
+      "event_type": "EARTHQUAKE",
+      "title": "Earthquake in Indonesia",
+      "description": "Earthquake in Indonesia",
+      "severity": "UNKNOWN",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.3517,
+          -8.3101
+        ]
+      },
+      "effective_at": "2026-08-14T21:58:21Z",
+      "ends_at": null,
+      "instruction": null,
+      "official": true,
+      "quality": {
+        "status": "FRESH",
+        "score": null,
+        "score_version": null,
+        "flags": [
+          "INFERRED"
+        ],
+        "coverage": null,
+        "completeness": null,
+        "freshness_seconds": 0,
+        "conflicts": [],
+        "notes": [
+          "provider timestamps carry no timezone offset and are read as UTC",
+          "the feed carries no generation time, so freshness is the age of this read; any delay between the event and its publication here is not visible to us",
+          "provider last revised this record 2026-09-19T07:45:26Z",
+          "provider severity text: Magnitude 7.7M, Depth:10km",
+          "provider marks this event as no longer current"
+        ]
+      },
+      "source": {
+        "source_id": "gdacs:1558059",
+        "provider": "gdacs",
+        "provider_record_id": "1558059",
+        "authority": "INTERGOVERNMENTAL",
+        "source_url": "https://www.gdacs.org/report.aspx?eventid=1558059&episodeid=1725109&eventtype=EQ",
+        "license": "GDACS terms of use",
+        "observed_at": "2026-08-14T21:58:21Z",
+        "published_at": "2026-09-19T07:45:26Z",
+        "fetched_at": "2026-09-20T17:24:32.097407Z",
+        "expires_at": "2026-09-20T17:29:32.097407Z",
+        "content_hash": "sha256:9717c7dcd82e4bc67bf780dd2ae5460063a39031e635a26b2785bbb133006f26",
+        "schema_version": "1.0.0"
+      },
+      "magnitude": 7.7,
+      "magnitude_unit": "M",
+      "depth_km": null,
+      "alert_level": "Red",
+      "tsunami": null,
+      "cross_reference_ids": [],
+      "reporting_networks": [
+        "NEIC"
+      ],
+      "episode_id": "1725109"
+    },
+    {
+      "event_id": "nasa_eonet:EONET_24483",
+      "event_type": "WILDFIRE",
+      "title": "Wildfire Breezy, Starr, Texas",
+      "description": "7 Miles NE from Rio Grande City, TX",
+      "severity": "UNKNOWN",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -98.712896,
+          26.45826
+        ]
+      },
+      "effective_at": "2026-09-16T20:17:00Z",
+      "ends_at": null,
+      "instruction": null,
+      "official": true,
+      "quality": {
+        "status": "FRESH",
+        "score": null,
+        "score_version": null,
+        "flags": [],
+        "coverage": null,
+        "completeness": null,
+        "freshness_seconds": 0,
+        "conflicts": [],
+        "notes": [
+          "EONET is curated and publishes more slowly than USGS or GDACS; treat as corroboration, not as the first alert",
+          "the feed carries no generation time, so freshness is the age of this read; the provider's publication lag is not visible to us",
+          "the provider last observed this event 2026-09-16T20:17:00Z",
+          "magnitude is in acres and is only comparable within this event type"
+        ]
+      },
+      "source": {
+        "source_id": "nasa_eonet:EONET_24483",
+        "provider": "nasa_eonet",
+        "provider_record_id": "EONET_24483",
+        "authority": "OFFICIAL",
+        "source_url": "https://irwin.doi.gov/observer/incidents/2026-TXTXS-268653",
+        "license": "NASA open data",
+        "observed_at": "2026-09-16T20:17:00Z",
+        "published_at": null,
+        "fetched_at": "2026-09-20T17:24:32.098944Z",
+        "expires_at": "2026-09-20T17:34:32.098944Z",
+        "content_hash": "sha256:25a91d6036fd63121120ccee8ffe866c2b78e9dc429fb34e37f5051ef40e6525",
+        "schema_version": "1.0.0"
+      },
+      "magnitude": 500.0,
+      "magnitude_unit": "acres",
+      "depth_km": null,
+      "alert_level": null,
+      "tsunami": null,
+      "cross_reference_ids": [],
+      "reporting_networks": [
+        "IRWIN"
+      ],
+      "episode_id": null
+    },
+    {
+      "event_id": "nasa_eonet:EONET_24488",
+      "event_type": "WILDFIRE",
+      "title": "Wildfire FLORISTON, Nevada, California",
+      "description": "10 Miles NE from Truckee, CA",
+      "severity": "UNKNOWN",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -120.025216,
+          39.394425
+        ]
+      },
+      "effective_at": "2026-09-16T13:01:00Z",
+      "ends_at": null,
+      "instruction": null,
+      "official": true,
+      "quality": {
+        "status": "FRESH",
+        "score": null,
+        "score_version": null,
+        "flags": [],
+        "coverage": null,
+        "completeness": null,
+        "freshness_seconds": 0,
+        "conflicts": [],
+        "notes": [
+          "EONET is curated and publishes more slowly than USGS or GDACS; treat as corroboration, not as the first alert",
+          "the feed carries no generation time, so freshness is the age of this read; the provider's publication lag is not visible to us",
+          "the provider last observed this event 2026-09-16T13:01:00Z",
+          "magnitude is in acres and is only comparable within this event type"
+        ]
+      },
+      "source": {
+        "source_id": "nasa_eonet:EONET_24488",
+        "provider": "nasa_eonet",
+        "provider_record_id": "EONET_24488",
+        "authority": "OFFICIAL",
+        "source_url": "https://irwin.doi.gov/observer/incidents/2026-CANEU-029037",
+        "license": "NASA open data",
+        "observed_at": "2026-09-16T13:01:00Z",
+        "published_at": null,
+        "fetched_at": "2026-09-20T17:24:32.098944Z",
+        "expires_at": "2026-09-20T17:34:32.098944Z",
+        "content_hash": "sha256:259456e79222e03c5eb757f19840ca667e046e61719fc4f5532aa904453edd99",
+        "schema_version": "1.0.0"
+      },
+      "magnitude": 610.0,
+      "magnitude_unit": "acres",
+      "depth_km": null,
+      "alert_level": null,
+      "tsunami": null,
+      "cross_reference_ids": [],
+      "reporting_networks": [
+        "IRWIN"
+      ],
+      "episode_id": null
+    }
+  ]
+}

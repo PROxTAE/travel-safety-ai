@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UserProfile",
+  "description": "The caller's own profile. user_id is an internal UUID; the OIDC subject is never exposed to the browser and email is never a primary key.",
+  "type": "object",
+  "required": ["user_id", "locale", "timezone", "created_at", "updated_at", "consents"],
+  "properties": {
+    "user_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "display_name": {
+      "description": "Name taken from the identity provider, shown only back to the owner.",
+      "type": ["string", "null"],
+      "maxLength": 256
+    },
+    "locale": { "$ref": "primitives.schema.json#/$defs/Locale" },
+    "timezone": { "$ref": "primitives.schema.json#/$defs/Timezone" },
+    "home_country_code": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/CountryCode" },
+        { "type": "null" }
+      ]
+    },
+    "consents": {
+      "description": "Current effective consent state, one entry per ConsentType the user has ever acted on.",
+      "type": "array",
+      "items": { "$ref": "consent-record.schema.json" }
+    },
+    "has_emergency_profile": {
+      "description": "Whether an encrypted emergency profile exists. The profile content itself is never included here.",
+      "type": "boolean",
+      "default": false
+    },
+    "created_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+    "updated_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+    "deleted_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" }
+  }
+}

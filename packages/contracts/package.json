@@ -1,0 +1,29 @@
+{
+  "name": "@smart-travel/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Source of truth for the Smart Travel Assistant API and entity contracts. Everything under generated/ is produced from openapi/ and jsonschema/ and must never be hand-edited.",
+  "type": "module",
+  "scripts": {
+    "lint": "redocly lint openapi/public-api.yaml",
+    "bundle": "node scripts/bundle.mjs",
+    "validate:schemas": "node scripts/validate-schemas.mjs",
+    "validate:examples": "node scripts/validate-examples.mjs",
+    "generate:ts": "node scripts/generate-typescript.mjs",
+    "generate:py": "bash scripts/generate-python.sh",
+    "generate": "npm run bundle && npm run generate:ts && npm run generate:py",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "check": "npm run lint && npm run validate:schemas && npm run validate:examples && npm run typecheck"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.53.3",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.7.3",
+    "yaml": "2.9.1"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
