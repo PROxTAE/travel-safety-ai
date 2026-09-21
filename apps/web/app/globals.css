@@ -1,6 +1,39 @@
 @import "tailwindcss";
 @import "@heroui/styles";
 
+.data-badge {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  color: #101a4b;
+  background: #ddf9ee;
+}
+.data-badge[data-risk="HIGH"],
+.data-warning {
+  color: #772c14;
+  background: #fff1dc;
+}
+.data-badge[data-risk="UNKNOWN"] {
+  background: #eef0f4;
+}
+.data-warning {
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+}
+.data-freshness {
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+.data-skeleton {
+  min-height: 4rem;
+  padding: 1rem;
+  background: #eef0f4;
+  border-radius: 0.75rem;
+}
+
 :root {
   --primary-teal: #08b88a;
   --primary-teal-dark: #049d7a;

@@ -1,7 +1,16 @@
 import Image from "next/image";
 import Link from "next/link";
+import { signIn } from "@/lib/auth";
+import { safeReturnTo } from "@/lib/auth/session";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
+}) {
+  const params = await searchParams;
+  const available = Boolean(process.env.AUTH_SECRET && process.env.AUTH_KEYCLOAK_ISSUER);
+  const returnTo = safeReturnTo(params.callbackUrl);
   return (
     <main className="login-shell">
       <section className="login-visual" aria-labelledby="login-visual-title">
@@ -45,13 +54,25 @@ export default function LoginPage() {
         />
         <div className="login-card">
           <span className="availability-pill login-availability">
-            <span aria-hidden="true" /> Sign-in unavailable
+            <span aria-hidden="true" /> {available ? "Secure sign-in" : "Sign-in unavailable"}
           </span>
           <h2 id="login-title">Welcome back</h2>
-          <p>Sign-in is currently unavailable. You can still plan a trip or open emergency help.</p>
-          <div className="login-disabled-action" aria-disabled="true">
-            Sign in
-          </div>
+          <p>
+            {available
+              ? "Sign in to access your profile and trips."
+              : "Sign-in is currently unavailable. Emergency help remains accessible."}
+          </p>
+          {params.error && <p role="alert">Sign-in could not be completed. Please try again.</p>}
+          <form
+            action={async () => {
+              "use server";
+              await signIn("keycloak", { redirectTo: returnTo });
+            }}
+          >
+            <button className="login-outline-action" type="submit" disabled={!available}>
+              Sign in with Keycloak
+            </button>
+          </form>
           <div className="login-divider" aria-hidden="true">
             <span />
             <em>or</em>

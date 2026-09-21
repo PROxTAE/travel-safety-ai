@@ -1,0 +1,134 @@
+# Isolated integration environment: no published ports, no existing volumes or credentials.
+name: smart-travel-web-phase2
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: web_test
+      POSTGRES_DB: web_test
+      POSTGRES_PASSWORD: ${PHASE2_PASSWORD:?provided by test:docker}
+    tmpfs: [/var/lib/postgresql/data]
+    volumes:
+      - ../../infra/postgres/init/00-schemas.sql:/docker-entrypoint-initdb.d/00-schemas.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U web_test -d web_test]
+      interval: 3s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 3s
+      retries: 30
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: [start-dev, --import-realm, --health-enabled=true]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${PHASE2_PASSWORD}
+    volumes:
+      - ../../infra/keycloak/smart-travel-realm.json:/opt/keycloak/data/import/realm.json:ro
+    healthcheck:
+      test:
+        [
+          CMD,
+          bash,
+          -c,
+          "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && grep -q '\"status\": \"UP\"' <&3",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+  api:
+    image: smart-travel-api:dev
+    build:
+      context: ../../services/api
+      target: dev
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: web_test
+      POSTGRES_DB: web_test
+      POSTGRES_PASSWORD: ${PHASE2_PASSWORD}
+      REDIS_URL: redis://redis:6379/0
+      OIDC_ISSUER: http://keycloak:8080/realms/smart-travel
+    command:
+      [
+        sh,
+        -c,
+        "alembic upgrade head && exec uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000 --no-access-log",
+      ]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
+    healthcheck:
+      test:
+        [
+          CMD,
+          python,
+          -c,
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  web:
+    image: smart-travel-web:phase2
+    build:
+      context: .
+      target: development
+    environment:
+      AUTH_SECRET: ${PHASE2_PASSWORD}
+      AUTH_URL: http://web:3000
+      AUTH_TRUST_HOST: "true"
+      AUTH_KEYCLOAK_ID: web
+      AUTH_KEYCLOAK_ISSUER: http://keycloak:8080/realms/smart-travel
+      API_BASE_URL: http://api:8000
+      NEXT_PUBLIC_API_BASE_URL: http://api:8000
+    command: [pnpm, dev, --hostname, 0.0.0.0]
+    depends_on:
+      keycloak: { condition: service_healthy }
+      api: { condition: service_healthy }
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  checks:
+    image: smart-travel-web:phase2
+    environment:
+      CI: "true"
+    volumes:
+      - ../../packages/contracts:/packages/contracts:ro
+    command: [sh, -c, "pnpm check:api && pnpm lint && pnpm typecheck && pnpm test"]
+  browser:
+    image: mcr.microsoft.com/playwright:v1.55.0-noble
+    working_dir: /runner
+    environment:
+      PLAYWRIGHT_BASE_URL: http://web:3000
+      PHASE2_PASSWORD: ${PHASE2_PASSWORD}
+      KEYCLOAK_BASE_URL: http://keycloak:8080
+    volumes:
+      - ./tests/e2e:/runner/tests/e2e:ro
+      - ./playwright.config.ts:/runner/playwright.config.ts:ro
+      - browser-dependencies:/runner/node_modules
+      - browser-results:/runner/test-results
+    depends_on:
+      keycloak: { condition: service_healthy }
+      api: { condition: service_healthy }
+      web: { condition: service_healthy }
+    command:
+      [
+        sh,
+        -c,
+        "npm install --ignore-scripts --no-save --package-lock=false @playwright/test@1.55.0 && npx playwright test",
+      ]
+volumes:
+  browser-dependencies:
+  browser-results:
