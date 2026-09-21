@@ -441,6 +441,7 @@ class GtfsAdapter(ProviderAdapter[TransitQuery, TransportStatus]):
             ),
             source=self.provenance(
                 response,
+                license_override=_feed_license(feed),
                 provider_record_id=update.trip.trip_id or None,
                 # The feed header timestamp is when the agency built this
                 # snapshot - a real observation time, unlike the fetch.
@@ -552,6 +553,20 @@ class GtfsAdapter(ProviderAdapter[TransitQuery, TransportStatus]):
 
 
 # --------------------------------------------------------------- helpers
+
+
+def _feed_license(feed: dict[str, Any]) -> str | None:
+    """The licence of the agency that published this record.
+
+    The provider-level entry says "per feed", which is true of the registry and
+    useless on a record: a consumer holding one needs to know whose terms apply
+    to the data in their hand, not that it varies.
+    """
+    licence = feed.get("license")
+    if isinstance(licence, dict):
+        name = licence.get("spdx_or_name")
+        return str(name) if name else None
+    return str(licence) if licence else None
 
 
 def _bbox_overlaps(query: tuple[float, float, float, float], feed_bbox: Any) -> bool:

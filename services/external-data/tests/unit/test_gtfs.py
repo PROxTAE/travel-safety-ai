@@ -343,3 +343,15 @@ def test_stops_keep_their_names_and_coordinates() -> None:
         longitude, latitude = record.origin_stop.coordinates.coordinates
         assert -75.0 < longitude < -73.0
         assert 40.0 < latitude < 41.5
+
+
+def test_a_transit_record_carries_its_own_agency_licence() -> None:
+    """The provider entry says "per feed", which is true of the registry and
+    useless on a record.
+
+    A consumer holding one transit status needs to know whose terms apply to
+    the data in their hand. Serving data without its licence is a licence
+    breach, not a missing nicety, and "per feed" tells nobody anything.
+    """
+    record = _records()[0]
+    assert record.source.license == "MTA open data terms"
