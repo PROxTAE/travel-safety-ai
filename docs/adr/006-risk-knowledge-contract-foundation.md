@@ -42,3 +42,20 @@ and route coefficients remain pending rather than being fabricated.
 - Phase 1 can expose honest degraded states before a model or knowledge corpus
   exists.
 - Shared contract files require contracts-maintainer and Team Lead review.
+
+## CVE-2026-85091 temporary disposition
+
+- Decision: temporarily accepted while the Debian 13 `zlib` package has no
+  fixed version.
+- Decision owner: Team Lead (`PROxTAE`).
+- Recorded decision: PR #12 review submitted `2026-09-19T19:20:11Z`.
+- Operating owner: Module 06, with Platform/Security oversight.
+- Conditions: keep `risk-knowledge` internal-only and do not expose it directly
+  to external input; retain the non-root/read-only runtime controls; re-scan the
+  complete image at least weekly and on every base-image or lockfile change.
+- Review trigger: a fixed Debian package/base image becomes available, the
+  service exposure changes, or a scan reports a new critical/high finding.
+- Review action: rebuild and re-scan, then replace this temporary acceptance or
+  stop release if the conditions no longer hold.
+- This is a risk acceptance record, not a VEX statement and not evidence that
+  the vulnerable package has been fixed.

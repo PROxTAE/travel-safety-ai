@@ -150,7 +150,7 @@ docker scout cves --only-severity critical,high --exit-code local://sta-risk-kno
   Last completed scan: 0 critical, 1 high: CVE-2026-85091 in Debian zlib; no fixed version.
 ```
 
-- Runtime image: `sha256:f4f488e484659b7fa5cd8320a7d9f63a3b2789241e963cf78a9d5bcceab56c5d`, non-root `app`, read-only, 2 CPU, 2 GiB. A new external Scout metadata submission was not authorized; the previously recorded upstream-unfixed CVE disposition remains required.
+- Runtime image: `sha256:f4f488e484659b7fa5cd8320a7d9f63a3b2789241e963cf78a9d5bcceab56c5d`, non-root `app`, read-only, 2 CPU, 2 GiB. A new external Scout metadata submission was not authorized. Team Lead temporarily accepted the upstream-unfixed CVE in PR #12 review subject to weekly/change-triggered re-scans and no direct external-input exposure; ADR-006 is the authoritative record.
 - SBOM: SPDX 2.3 generated successfully, 180 packages; artifact SHA-256 `bea0c0dd9e1668ed506ed3f82e0c8cb253f5ab463bc5421db10c843998b8b926`.
 - UI screenshots/video: N/A; no UI ownership or changes.
 - Sanitized IDs: request `50000000-0000-4000-8000-000000000001`, correlation `...0002`, trace `0123456789abcdef0123456789abcdef`.
@@ -180,7 +180,7 @@ docker scout cves --only-severity critical,high --exit-code local://sta-risk-kno
 
 - Issues #43/#44 settle the official-alert null/criticality fields and are implemented here; the remaining contract/route/source approvals still require review.
 - M05 generated integration models, provider-input records, immutable snapshot implementation, lineage/version implementation, and producer/consumer compatibility tests are not yet merged into `origin/main`; Phase 2 remains blocked.
-- Full image scan has one upstream-unfixed high `zlib` CVE. Do not merge without a security disposition; no exception or VEX is asserted by this PR.
+- Full image scan has one upstream-unfixed high `zlib` CVE. Team Lead's temporary acceptance and its operating conditions are recorded in ADR-006; no VEX or fixed package version is asserted.
 - No active model or knowledge collection is shipped. This is intentionally visible as degraded/unavailable.
 - `/internal/v1/evidence/package` intentionally returns 503 until Phase 7.
 - Route numeric ranking remains disabled until approved coefficients exist.
@@ -195,5 +195,5 @@ docker scout cves --only-severity critical,high --exit-code local://sta-risk-kno
 ## Handoff
 
 - Completion report: `docs/handoffs/M06-risk-knowledge.md`.
-- Next owners: modules 03/05/07 review v1 contracts; Team Lead approves acceptance/source workflow; Platform/Security reviews shared Compose/role changes and the unfixed CVE.
+- Next owners: modules 03/05/07 review v1 contracts; Team Lead approves acceptance/source workflow; Platform/Security oversees the ADR-006 CVE conditions and re-scan evidence.
 - Reviewer focus: null/quality/provenance semantics, official constraint precedence, schema ownership, alias activation atomicity, and unavailable/degraded responses.

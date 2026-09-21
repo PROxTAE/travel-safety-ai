@@ -26,9 +26,9 @@ structured logs, Docker hardening, and conservative deterministic fallbacks.
 
 The service never fabricates current data: without approved model and knowledge
 artifacts it returns `UNKNOWN`/`DEGRADED` or explicit unavailable states. Phase
-0/1 implementation is complete, but this branch is **not ready to merge or
-release** until required contract/governance reviews and a security disposition
-for one upstream-unfixed base-image CVE are recorded. Phases 2–8 are explicitly
+0/1 implementation is complete. PR #12 has merged, and the Team Lead's temporary
+acceptance of the upstream-unfixed base-image CVE is now recorded in ADR-006
+with mandatory operating conditions. Phases 2–8 are explicitly
 out of scope and remain required for the full module.
 
 ## 3. Original responsibility and acceptance criteria
@@ -265,7 +265,7 @@ Findings:
 - Gitleaks `origin/main..HEAD`: 12 post-rebase commits / approximately 417 KB scanned read-only with the container network disabled; no leaks found.
 - Containerized `pip-audit`: no known dependency vulnerabilities; the local project itself is correctly skipped because it is not a PyPI package.
 - Docker Scout actionable gate (`--only-fixed`, critical/high): last completed scan had 0 findings.
-- Docker Scout full critical/high scan: last completed scan had 0 critical, **1 high** — `CVE-2026-85091` in Debian 13 `zlib 1:1.3.dfsg+really1.3.1-1`; Scout reported `Fixed version: not fixed`. The review-fix image uses the same pinned base and dependency lock, but a new external Scout submission was not authorized. Merge still requires security reviewer disposition; no VEX/exception is asserted here.
+- Docker Scout full critical/high scan: last completed scan had 0 critical, **1 high** — `CVE-2026-85091` in Debian 13 `zlib 1:1.3.dfsg+really1.3.1-1`; Scout reported `Fixed version: not fixed`. Team Lead temporarily accepted the risk in PR #12 review at `2026-09-19T19:20:11Z`, conditioned on an internal-only service with no direct external-input exposure and a complete image re-scan at least weekly and on every base-image/lockfile change. Module 06 owns the re-scan, with Platform/Security oversight. Revisit immediately when a fixed package/base image appears, service exposure changes, or a scan reports another critical/high finding. This is not a VEX statement and does not claim the package is fixed; the authoritative record is ADR-006.
 - SPDX 2.3 SBOM generation passed: 180 packages, 854,495 bytes; generated artifact SHA-256 `bea0c0dd9e1668ed506ed3f82e0c8cb253f5ab463bc5421db10c843998b8b926` (CI should retain the artifact rather than commit generated output).
 
 ## 13. Problems encountered and resolutions
@@ -304,9 +304,10 @@ Findings:
 | No approved indexed documents | no guidance passages | explicit empty evidence/unavailable | M06 + Team Lead | high | Phase 5 |
 | Route coefficients unapproved | no safer-route ranking | enforce hard constraints only | M05/M06/M07 | high | Phase 6 approval |
 | Evidence package unavailable | consumers call sub-capabilities or handle 503 | stable error envelope | M06 | high | Phase 7 |
-| One unfixed base CVE | security gate cannot be declared fully green | monitor upstream; security review before merge | Security/Lead | high | dependency bot/base rebuild |
+| One temporarily accepted unfixed base CVE | exposure remains while no upstream fix exists | weekly and change-triggered full-image scan; internal-only/no direct external-input exposure; rebuild when fixed | M06 + Platform/Security | high | ADR-006; dependency bot/base rebuild |
 | TestClient deprecation warnings | test-only future maintenance | migrate when FastAPI/Starlette finalizes `httpx2` path | M06 | low | later maintenance |
-| Canonical provenance/quality fields differ across M04, M05 PR #15, and M06 | real M04 records can be rejected by strict M06 schema | keep PR draft; M02 must settle `source_id` type and quality formula-version field before a versioned producer/consumer update | M02/M04/M05/M06 | high | contract review before merge |
+| `RouteCandidate.route_id` is a canonical `RecordId`, while `RiskAssessment.route_id`, request route IDs, and knowledge persistence remain UUID | Phase 2 assessment/route APIs cannot consume provider-derived route IDs end to end yet | this compatibility slice aligns snapshot ingestion only; do not change assessment/persistence identity without an owner-approved contract decision | Contract owner + M03/M06/M07 | high | contract decision before Phase 2 |
+| Quality-gate outcome exists only in `quality_summary.notes` | consumers would need to parse free text | retain the merged representation and do not invent a field until affected owners approve one | Contract owner + M03/M07 | high | Issue #63 |
 
 ## 16. Handoff to other members
 
@@ -314,10 +315,10 @@ Findings:
 | --- | --- | --- | --- | --- |
 | M02 API | incompatibility evidence from real M04 payload | settle `source_id` type and `score_version`/`formula_version` name | canonical provenance/quality schema | blocks merge |
 | M03 agent | stable v1 request/response and degraded semantics | review evidence/status consumption | OpenAPI + JSON Schema 1.0.0 | approval blocks merge |
-| M05 integration | Issues #43/#44 official-alert null policy applied; remaining feature/provenance dependencies pending | merge generated models, provider inputs, immutable snapshot, lineage/version implementation, and compatibility tests into `origin/main` | `feature_schema.v1.yaml` plus canonical M05 outputs | blocks Phase 2 |
+| M05 integration | merged canonical snapshot, provider inputs, feature/null policy, lineage/version fields, and compatibility fixture | review this M06 consumer-alignment PR and keep the canonical example stable | `IntegratedTravelContext` 1.0.0 plus feature schema 1.0.0 | snapshot ingestion ready after this PR; Issue #63 remains |
 | M07 decision | risk/route/evidence inputs and hard constraints | approve acceptance targets/route policy | governance 1.0.0 | approval blocks model/ranking |
 | Team Lead | source workflow and numeric gates | record approvals or requested versioned changes | governance/source workflow | blocks later phases |
-| Platform/Security | role bootstrap, Compose, image evidence | review shared surfaces and CVE disposition | env/Compose/migration/SBOM | blocks merge |
+| Platform/Security | role bootstrap, Compose, image evidence | oversee ADR-006 CVE conditions and re-scan results | env/Compose/migration/SBOM | blocks release if conditions fail |
 
 ## 17. Commit and PR inventory
 
@@ -335,7 +336,7 @@ da10df1 fix(risk): validate selected snapshot routes
 ```
 
 - PR review findings addressed locally: commit authors remain `Nonyeol`; shared Compose secret coupling is removed; shared internal token is adopted; HTTP 404 envelope and selected-route validation fail closed; Issues #43/#44 now preserve nullable official-alert evidence and `UNKNOWN` behavior.
-- Required checks: Docker lint/format/mypy pass; 41 tests pass with 90.77% coverage; 31 shared schemas and 6 examples validate; branch secret scan and Python dependency audit pass. The previously recorded upstream-unfixed image finding still requires disposition.
+- Required checks: Docker lint/format/mypy pass; 41 tests pass with 90.77% coverage; 31 shared schemas and 6 examples validate; branch secret scan and Python dependency audit pass. The upstream-unfixed image finding is temporarily accepted under the controls and review triggers recorded in ADR-006.
 - Rebased on main SHA: `9007d524f1f85d999c7729b95f9969456fef5454`; Compose conflict resolution retains merged M01 web, M02 API, M04 external-data, and M06 risk-knowledge/MLflow services. Shared contract and Compose validation pass against the rebased tree.
 - Proposed squash title: `feat(risk): establish risk evidence contracts and service foundation`.
 
@@ -354,7 +355,7 @@ da10df1 fix(risk): validate selected snapshot routes
 - [x] Required work outside Phase 0/1 is explicitly listed, not hidden.
 - [x] documentation/env/contracts/migrations are updated.
 - [ ] downstream owner approvals are recorded.
-- [ ] ready to merge — blocked by required reviews and unfixed-CVE disposition.
+- [x] PR #12 merged after required review; the unfixed-CVE temporary disposition and operating conditions are recorded in ADR-006.
 - [ ] ready to release — Phases 2–8 and real approved artifacts are not implemented.
 
 Prepared by: Codex on branch `contract/06-risk-evidence-route-schema`
@@ -362,3 +363,32 @@ Prepared by: Codex on branch `contract/06-risk-evidence-route-schema`
 Reviewer: pending
 
 Date: 2026-09-19
+
+## 20. Post-merge M05 snapshot consumer alignment
+
+Branch `fix/06-canonical-snapshot-consumer` starts from `origin/main`
+`0e8845a05707a02b847be296f9ac8c60a7ad73ac`. It aligns only the M06
+`IntegratedTravelContext` consumer projection with the merged canonical M05
+snapshot: stable route/source `RecordId` values, nullable unevaluated exposure
+bound to `UNKNOWN`, `DataQuality.score_version`, structured quality conflicts,
+and nullable source attribution. The complete sanitized M05 Bangkok-route
+snapshot now validates unchanged through both the M06 JSON Schema and Pydantic
+consumer model.
+
+Verification for this follow-up:
+
+- Docker Ruff lint: pass; format check: 43 files already formatted.
+- Docker strict mypy: no issues in 30 source files.
+- Docker pytest: 49 passed, 0 failed, 0 skipped; 91.04% coverage.
+- Shared contract suite: 92 passed; 31 schemas compile and 7 examples validate.
+- Generated public and integration-input models reproduce byte-for-byte.
+- Compose app-profile configuration validates with process-only placeholders;
+  no local `.env` file was created.
+- Diff Gitleaks: no leaks in approximately 32 KB; `pip-audit`: no known Python
+  dependency vulnerabilities.
+
+Still unresolved and deliberately unchanged: Issue #63 has no approved
+quality-gate representation, and `RiskAssessment.route_id`, endpoint route ID
+parameters, and knowledge persistence remain UUID while canonical
+`RouteCandidate.route_id` is a `RecordId`. Phase 2 must not start until affected
+owners record that identity decision and a fresh readiness check passes.
