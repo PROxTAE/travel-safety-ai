@@ -795,7 +795,7 @@ export interface components {
              * @default false
              */
             closes_transport?: boolean;
-            /** @description Hypocentre depth in kilometres, where the hazard type has one. A shallow earthquake and a deep one of equal magnitude do very different things at the surface, so the depth is part of the evidence rather than a detail. */
+            /** @description Hypocentre depth in kilometres, where the hazard type has one. A shallow earthquake and a deep one of equal magnitude do very different things at the surface, so the depth is part of the evidence rather than a detail. May be negative: USGS reports hypocentres above the sea-level reference (for example -3.48 km in mountain regions; 289 of 10,642 events in one month), and dropping them would lose real evidence. -15 km leaves a wide margin below the shallowest observed value. There is no upper bound, because deep subduction earthquakes reach about 700 km. */
             depth_km?: number | null;
             /** @description Provider text. Untrusted: sanitised before display and never treated as an instruction to the system. */
             description: string | null;
