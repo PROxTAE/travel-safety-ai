@@ -9,7 +9,8 @@
 > what the plan asks for when a capability cannot be served honestly.
 >
 > The acceptance checklist is walked item by item in § 16 with the evidence for
-> each. Two items are partial and say so.
+> each. One item is partial — the cross-module review with module 05, which has
+> not started — and says so.
 
 ## 1. Metadata
 
@@ -270,6 +271,30 @@ still open.
 `docs/canonical-field-mapping.md` § 7 carries Q1–Q6 for คน 5/6 — chiefly who
 derives `severity` and what the `DataQuality.score` formula is.
 `docs/coverage-and-degraded-ux.md` carries U1–U3 for คน 1/2.
+
+### 9.3b `official` — resolved as "a warning has been issued" (issue #32)
+
+Kept because the shape of the mistake is worth remembering.
+
+`official` meant "a government body recorded this", which every one of the
+three hazard sources satisfies. A live query returned **514 events, all of them
+`official: true`**, including a magnitude -0.48 earthquake. A field with one
+value on every record carries no information, and a consumer filtering on it
+gets everything or nothing.
+
+The reason it mattered is § 13 scenario 3: official closure or high alert
+forces `AVOID` over both the LLM and the model score.
+
+The Lead chose "a warning or order has actually been issued". The rule is now
+"the source published a high-level impact alert" rather than a list of
+providers, so it applies uniformly: GDACS Orange/Red, and USGS PAGER
+orange/red. The action item named only GDACS because the sample the issue was
+written from had no USGS PAGER alert above green - but PAGER does publish
+orange and red, for the handful of earthquakes a year this field exists for,
+and hard-coding USGS to False would be wrong at the one moment it is
+load-bearing. Flagged in the PR for the Lead to narrow if that reading is wrong.
+
+Live after the change: **96 of 512 (19%)**.
 
 ### 9.4 `RouteCandidate.exposure` cannot be filled by its producer
 
@@ -590,16 +615,22 @@ per-provider concurrency limiter, cache stampede lock, negative caching, and a
 quota tracker reading the provider's own headers. Nineteen resilience cases in
 `tests/contract/test_resilience.py` on top of the unit tests.
 
-### ⚠️ official-source priority metadata is correct but one question is open
+### ✅ official-source priority metadata is correct
 
 `authority` is carried per provider and official sources are never weakened.
-What is still unsettled is `official` on `DisasterEvent`: it currently means
-"the issuing body is a government authority", so a magnitude 0.4 earthquake
-nobody needs to act on is `official: true`. Whether it should instead mean "a
-warning has been issued" is open item H, raised with the Lead and unanswered.
 
-Nothing downstream is blocked — the field is present and consistent — but a
-consumer reading it as "this matters" would be misled.
+`official` on `DisasterEvent` was the last open question (item H, issue #32).
+It used to mean "the issuing body is a government authority", which was true of
+every record: a live query returned 514 events with `official: true` on all of
+them, including a magnitude -0.48 earthquake nobody can feel.
+
+The Lead settled it as **"a warning or order has actually been issued"**. The
+same query now returns 96 of 512 (19%), all of them GDACS Orange or Red — the
+alerts GDACS raises only after assessing impact.
+
+That number matters because shared context § 13 scenario 3 makes official
+closure or high alert force `AVOID` **over** the LLM and the model score. It is
+the strongest shortcut in the system, and until now everything fed it.
 
 ### ✅ live canaries pass and licence/attribution are documented
 

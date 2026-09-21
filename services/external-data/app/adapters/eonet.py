@@ -222,7 +222,9 @@ class EonetAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                     effective_at=started_at,
                     ends_at=_parse_iso(raw.closed),
                     instruction=None,
-                    official=True,
+                    # EONET curates and tracks; it issues no warnings at all,
+                    # so nothing from it can have had one issued.
+                    official=False,
                     # Current intensity, from the latest observation - not the
                     # value it had when it was first seen.
                     magnitude=latest.magnitudeValue,

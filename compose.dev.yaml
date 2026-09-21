@@ -71,6 +71,20 @@ services:
         "--no-access-log",
       ]
 
+  web:
+    # Development image keeps pnpm and source tooling; the production runtime
+    # remains the standalone, non-root image defined in compose.yaml.
+    image: smart-travel-web:dev
+    build:
+      target: development
+    ports: ["3000:3000"]
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    volumes:
+      - ./apps/web:/app
+      - web-node-modules:/app/node_modules
+    command: ["pnpm", "dev", "--hostname", "0.0.0.0"]
+
   # ตัวอย่าง override ของ module (เจ้าของเพิ่มพร้อม service ใน compose.yaml)
   #
   # external-data:
@@ -88,3 +102,4 @@ services:
 
 volumes:
   api-dev-cache:
+  web-node-modules:
