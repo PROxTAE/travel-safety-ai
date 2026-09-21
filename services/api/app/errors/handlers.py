@@ -239,11 +239,14 @@ def register_exception_handlers(app: FastAPI, settings: Settings) -> None:
             status=exc.status_code,
         )
         observe_error(route=route, error_code=code.value)
-        # exc.detail is replaced: Starlette's defaults are fine, but a detail set deep in a
-        # dependency is not guaranteed to be safe to show.
+        message = (
+            exc.detail
+            if (exc.status_code in (413, 415) and isinstance(exc.detail, str))
+            else _DEFAULT_MESSAGES.get(code, "The request could not be completed.")
+        )
         return _respond(
             code=code,
-            message=_DEFAULT_MESSAGES.get(code, "The request could not be completed."),
+            message=message,
             settings=settings,
             status_override=exc.status_code,
         )

@@ -22,7 +22,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Header, Path, Query, Request, Response, status
+from fastapi import APIRouter, Depends, Header, Path, Query, Request, Response, status
 from sqlalchemy.exc import IntegrityError
 
 from app.api.responses import data_response, list_response
@@ -49,10 +49,15 @@ from app.schemas.trip import (
     TripModel,
     UpdateTripRequest,
 )
+from app.security.rate_limit import rate_limit
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/v1/trips", tags=["trips"])
+router = APIRouter(
+    prefix="/api/v1/trips",
+    tags=["trips"],
+    dependencies=[Depends(rate_limit("trips"))],
+)
 
 CREATE_TRIP_OPERATION = "createTrip"
 

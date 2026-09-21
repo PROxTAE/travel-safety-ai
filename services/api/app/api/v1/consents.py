@@ -23,6 +23,7 @@ from app.errors.exceptions import FieldError, ValidationFailed
 from app.repositories import audit, consents
 from app.schemas.envelope import DataResponse
 from app.schemas.user import ConsentRecordModel, ConsentRequest
+from app.security.rate_limit import rate_limit
 
 router = APIRouter(prefix="/api/v1", tags=["identity"])
 
@@ -35,6 +36,7 @@ TravelPrincipal = Annotated[Principal, Depends(require_scopes(TRAVEL_SCOPE))]
     summary="Grant or withdraw a consent",
     status_code=status.HTTP_201_CREATED,
     response_model=DataResponse[ConsentRecordModel],
+    dependencies=[Depends(rate_limit("consents"))],
     responses={
         400: {"description": "A field failed validation."},
         401: {"description": "No token, or a token that failed verification."},

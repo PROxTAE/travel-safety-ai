@@ -79,6 +79,34 @@ request_body_rejected_total = Counter(
     registry=REGISTRY,
 )
 
+rate_limit_rejected_total = Counter(
+    "api_rate_limit_rejected_total",
+    "Requests rejected by rate limiting, by endpoint and subject type.",
+    labelnames=("endpoint", "subject_type"),
+    registry=REGISTRY,
+)
+
+active_sse_connections = Gauge(
+    "api_active_sse_connections",
+    "Number of active SSE progress streams currently open.",
+    registry=REGISTRY,
+)
+
+downstream_request_duration_seconds = Histogram(
+    "api_downstream_request_duration_seconds",
+    "Time spent in downstream internal service calls.",
+    labelnames=("dependency", "operation"),
+    buckets=_LATENCY_BUCKETS,
+    registry=REGISTRY,
+)
+
+downstream_request_errors_total = Counter(
+    "api_downstream_request_errors_total",
+    "Downstream internal service call errors by dependency and error kind.",
+    labelnames=("dependency", "error_kind"),
+    registry=REGISTRY,
+)
+
 
 def observe_request(*, method: str, route: str, status_code: int, duration_seconds: float) -> None:
     """Record one finished request.

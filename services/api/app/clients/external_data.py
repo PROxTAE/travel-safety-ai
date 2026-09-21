@@ -21,6 +21,11 @@ import httpx
 
 from app.errors.exceptions import DependencyTimeout, DependencyUnavailable
 from app.observability.logging import get_logger
+from app.observability.metrics import (
+    downstream_request_duration_seconds,
+    downstream_request_errors_total,
+)
+from app.security.outbound import validate_outbound_url
 from app.settings import Settings
 
 logger = get_logger(__name__)
@@ -87,6 +92,7 @@ class ExternalDataClient:
             )
 
         url = f"{self._settings.external_data_service_url.rstrip('/')}{GEOCODE_PATH}"
+        validate_outbound_url(url, self._settings)
         payload = {
             "query": query,
             "count": limit,
@@ -95,9 +101,18 @@ class ExternalDataClient:
         if country_code is not None:
             payload["country_code"] = country_code
 
+        import time
+
+        start_time = time.monotonic()
         try:
             response = await self._client.post(url, json=payload, headers=self._headers)
+            downstream_request_duration_seconds.labels(
+                dependency=DEPENDENCY, operation="geocode_search"
+            ).observe(time.monotonic() - start_time)
         except httpx.TimeoutException as exc:
+            downstream_request_errors_total.labels(
+                dependency=DEPENDENCY, error_kind="timeout"
+            ).inc()
             logger.warning(
                 "dependency_timeout",
                 event_type="dependency",
@@ -108,6 +123,9 @@ class ExternalDataClient:
                 DEPENDENCY, message="Place search did not answer in time."
             ) from exc
         except httpx.HTTPError as exc:
+            downstream_request_errors_total.labels(
+                dependency=DEPENDENCY, error_kind="http_error"
+            ).inc()
             # The exception text can contain the internal host and port. It goes to the log, which
             # is where an operator needs it, and never into the response.
             logger.warning(
@@ -120,6 +138,9 @@ class ExternalDataClient:
             raise DependencyUnavailable(DEPENDENCY, message="Place search is unavailable.") from exc
 
         if response.status_code >= 500:
+            downstream_request_errors_total.labels(
+                dependency=DEPENDENCY, error_kind=f"status_{response.status_code}"
+            ).inc()
             logger.warning(
                 "dependency_error_status",
                 event_type="dependency",

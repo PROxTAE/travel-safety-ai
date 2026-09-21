@@ -363,6 +363,37 @@ class Settings(BaseSettings):
         description="Public bodies are small; a trip is a few kilobytes at most.",
     )
 
+    # --- Rate limiting --------------------------------------------------------------------------
+    #
+    # Token bucket parameters per endpoint. The delivery rules require these to be tunable without
+    # a code change.
+
+    rate_limit_enabled: bool = Field(default=True, alias="API_RATE_LIMIT_ENABLED")
+    rate_limit_default_capacity: int = Field(
+        default=60, alias="API_RATE_LIMIT_DEFAULT_CAPACITY", ge=1, le=10_000
+    )
+    rate_limit_default_refill_per_second: float = Field(
+        default=1.0, alias="API_RATE_LIMIT_DEFAULT_REFILL_PER_SECOND", gt=0, le=1000.0
+    )
+    rate_limit_location_search_capacity: int = Field(
+        default=30, alias="API_RATE_LIMIT_LOCATION_SEARCH_CAPACITY", ge=1, le=10_000
+    )
+    rate_limit_location_search_refill_per_second: float = Field(
+        default=0.5, alias="API_RATE_LIMIT_LOCATION_SEARCH_REFILL_PER_SECOND", gt=0, le=1000.0
+    )
+    rate_limit_assessment_capacity: int = Field(
+        default=5, alias="API_RATE_LIMIT_ASSESSMENT_CAPACITY", ge=1, le=10_000
+    )
+    rate_limit_assessment_refill_per_second: float = Field(
+        default=0.1, alias="API_RATE_LIMIT_ASSESSMENT_REFILL_PER_SECOND", gt=0, le=1000.0
+    )
+    rate_limit_auth_capacity: int = Field(
+        default=10, alias="API_RATE_LIMIT_AUTH_CAPACITY", ge=1, le=10_000
+    )
+    rate_limit_auth_refill_per_second: float = Field(
+        default=0.2, alias="API_RATE_LIMIT_AUTH_REFILL_PER_SECOND", gt=0, le=1000.0
+    )
+
     # --- Observability -----------------------------------------------------------------------
 
     otel_exporter_endpoint: str | None = Field(
