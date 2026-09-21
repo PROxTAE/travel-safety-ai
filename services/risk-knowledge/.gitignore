@@ -1,3 +1,10 @@
 .coverage
 coverage.xml
 htmlcov/
+
+# Historical dataset and raw provider dumps (kept outside Git per license and governance rules)
+data/
+training/data/
+*.parquet
+*.csv
+*.jsonl
