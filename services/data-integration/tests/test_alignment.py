@@ -4,7 +4,9 @@ Provider HTTP 200 captures: Open-Meteo 2026-09-20T14:43:47Z;
 USGS 2026-09-19T07:45:38Z. Routes here are test-only derived geometries.
 """
 
+import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from app.domain.canonical import (
     DisasterEvent,
@@ -142,3 +144,57 @@ def test_transport_requires_linked_trip_stops_and_time() -> None:
     assert align_transport(wrong, status, time_tolerance_seconds=60).status == "OUTSIDE_COVERAGE"
     missing = status.model_copy(update={"service_number": None})
     assert align_transport(segment, missing, time_tolerance_seconds=60).status == "UNAVAILABLE"
+
+
+def _usgs_area(geometry: dict) -> DisasterEvent:
+    """Variant of the captured USGS event carrying an area instead of a point (#45)."""
+    raw = json.loads((Path(__file__).parent / "fixtures" / "m04-usgs-event.json").read_text(
+        encoding="utf-8"))["records"][0]  # fmt: skip
+    # The capture is STALE, which alignment rightly reports; FRESH isolates the geometry.
+    return DisasterEvent.model_validate(
+        raw
+        | {
+            "geometry": geometry,
+            "effective_at": "2026-09-18T00:00:00Z",
+            "quality": raw["quality"] | {"status": "FRESH"},
+        }
+    )
+
+
+def _square(west: float, south: float, east: float, north: float) -> list:
+    return [[[west, south], [east, south], [east, north], [west, north], [west, south]]]
+
+
+def _bangkok_samples():
+    line = GeoLineString(type="LineString", coordinates=[(100.49, 13.74), (100.51, 13.74)])
+    return sample_route(
+        line, departure_at=datetime(2026, 9, 19, tzinfo=UTC), duration_seconds=600,
+        max_spacing_m=500,
+    )  # fmt: skip
+
+
+def test_polygon_crossing_the_route_matches_at_zero_distance() -> None:
+    samples = _bangkok_samples()
+    event = _usgs_area({"type": "Polygon", "coordinates": _square(100.495, 13.73, 100.505, 13.75)})
+    result = align_disaster(samples, event, radius_m=0)
+    assert (result.status, result.distance_m) == ("MATCHED", 0.0)
+    # The ETA is the first sample inside the square, not the route start.
+    assert result.route_eta > samples[0].eta
+
+
+def test_polygon_edge_near_the_route_uses_edge_distance_not_vertices() -> None:
+    # The square's lower edge runs 0.002 deg (about 222 m) north of the route at 13.74,
+    # while its nearest vertex is over 1 km away along the route direction.
+    area = _square(100.4, 13.742, 100.6, 13.8)
+    result = align_disaster(
+        _bangkok_samples(), _usgs_area({"type": "Polygon", "coordinates": area}), radius_m=300
+    )
+    assert result.status == "MATCHED"
+    assert 200 < result.distance_m < 240
+
+
+def test_far_multipolygon_is_outside_coverage() -> None:
+    far = {"type": "MultiPolygon", "coordinates": [_square(101.0, 14.0, 101.1, 14.1)]}
+    result = align_disaster(_bangkok_samples(), _usgs_area(far), radius_m=5000)
+    assert result.status == "OUTSIDE_COVERAGE"
+    assert result.reason == "DISTANCE"
