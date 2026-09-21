@@ -7,7 +7,6 @@ Editing this file by hand makes the models disagree with the contract, which is 
 failure this pipeline exists to prevent.
 """
 
-
 from __future__ import annotations
 
 from datetime import datetime

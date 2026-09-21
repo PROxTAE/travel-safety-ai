@@ -89,7 +89,7 @@ class RateLimiter:
         if script is None:
             script = redis.register_script(_RATE_LIMITER_SCRIPT)
             with contextlib.suppress(Exception):
-                redis._rate_limit_script = script
+                setattr(redis, "_rate_limit_script", script)  # noqa: B010
         return script
 
     async def check(

@@ -252,18 +252,14 @@ async def test_http_rate_limiting_returns_429_with_retry_after(
 
 
 async def test_disabled_rate_limit_allows_all(
-    test_rate_limiter: RateLimiter, fake_redis: Any
+    test_rate_limiter: RateLimiter, fake_redis: Any, settings: Settings
 ) -> None:
-    settings = Settings(
-        POSTGRES_USER="user",
-        POSTGRES_PASSWORD="pwd",
-        API_RATE_LIMIT_ENABLED=False,
-    )
+    disabled_settings = settings.model_copy(update={"rate_limit_enabled": False})
 
     for _ in range(10):
         res = await test_rate_limiter.check(
             redis=fake_redis,
-            settings=settings,
+            settings=disabled_settings,
             subject="disabled_test",
             endpoint="test",
             capacity=1,
