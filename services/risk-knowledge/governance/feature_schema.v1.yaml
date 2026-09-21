@@ -36,21 +36,21 @@ features:
   - name: corridor_official_closure_active
     type: boolean
     unit: none
-    nullable: false
+    nullable: true
     critical: true
     meaning: An active official closure intersects this route corridor and travel window.
     lineage: official_alerts + spatial_temporal_join_v1
   - name: corridor_official_evacuation_active
     type: boolean
     unit: none
-    nullable: false
-    critical: true
+    nullable: true
+    critical: false
     meaning: An active official evacuation or no-go order intersects this route corridor and travel window.
     lineage: official_alerts + spatial_temporal_join_v1
   - name: corridor_extreme_alert_active
     type: boolean
     unit: none
-    nullable: false
+    nullable: true
     critical: true
     meaning: An active official EXTREME alert intersects this route corridor and travel window.
     lineage: official_alerts + spatial_temporal_join_v1

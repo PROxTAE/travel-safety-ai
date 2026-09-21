@@ -7,11 +7,11 @@
 | Module/owner | Module 06 — Risk and Knowledge Services |
 | Issue/PR | Draft PR #12; body mirrored in `docs/handoffs/M06-risk-knowledge-pr-body.md` |
 | Branch | `contract/06-risk-evidence-route-schema` |
-| Base/final commit SHA | `d17aae1152dff29d60f7dc7fbd8514c7b255bade` / post-conflict head `5165fd1` (report refresh commit follows) |
-| Date/time/timezone | 2026-09-20 22:18 +07:00 (Asia/Bangkok) |
+| Base/final commit SHA | `9007d524f1f85d999c7729b95f9969456fef5454` / current PR #12 head (reported after push) |
+| Date/time/timezone | 2026-09-21 +07:00 (Asia/Bangkok) |
 | Reviewers | Required: Team Lead plus contracts/security reviewer; contract consumers: modules 03, 05, and 07 |
 | Contract version | `1.0.0` |
-| Docker image digest/tag | `sta-risk-knowledge:phase1`, `sha256:b31842b776f68a1011cffc24790ebb99ea3896746904523d1a59d61916362ca4` |
+| Docker image digest/tag | `sta-risk-knowledge:phase1`, `sha256:f4f488e484659b7fa5cd8320a7d9f63a3b2789241e963cf78a9d5bcceab56c5d` |
 | Related model/policy/prompt/collection version | feature `1.0.0`; route policy `1.0.0` pending approval; fallback `fallback-safety-1.0.0`; no active model or collection |
 
 ## 2. Executive summary
@@ -215,7 +215,7 @@ docker compose -f compose.yaml -f compose.dev.yaml --profile app up -d risk-know
 - Port: internal 8004; volumes: read-only model artifacts; PostgreSQL/Qdrant named volumes.
 - Readiness: `200 ready/degraded` when critical DB/auth work; `503 not_ready` when critical dependency/config is unavailable. Liveness checks process only.
 - Limits: 2 CPUs and 2 GiB RAM; load/peak memory not measured in Phase 1.
-- Image: 336,800,915 bytes uncompressed, digest `sha256:b31842b...`.
+- Image: 336,800,932 bytes, image ID `sha256:f4f488e...`.
 
 ## 10. Tests and verification
 
@@ -223,12 +223,12 @@ docker compose -f compose.yaml -f compose.dev.yaml --profile app up -d risk-know
 | --- | --- | ---: | ---: | ---: | --- |
 | Format/lint | `docker run --rm sta-risk-knowledge:test ruff check ...` and `ruff format --check ...` | 43 files formatted; lint pass | 0 | 0 | post-rebase run |
 | Type | `docker run --rm sta-risk-knowledge:test mypy app` | 30 source files | 0 | 0 | strict mode |
-| Unit + contract | `docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term` | 39 | 0 | 0 | 90.77% branch-aware coverage; threshold 80% |
+| Unit + contract | `docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term` | 41 | 0 | 0 | 90.77% branch-aware coverage; threshold 80%; 2 upstream deprecation warnings |
 | Shared contracts | `npm run check --prefix packages/contracts` | 31 schemas and 6 examples; OpenAPI lint and TypeScript typecheck pass | 0 | 0 | run after rebasing onto M02/M04 main |
 | Repository CI compatibility | Python 3.11 `py_compile` over `git ls-files '*.py'` | 118 tracked files | 0 | 0 | matches temporary shared workflow interpreter |
 | OpenAPI | `npx --yes @redocly/cli@1.34.5 lint ...` | valid | 0 | 0 | four advisory warnings documented above |
 | Integration | real PostgreSQL/Qdrant containers; migration up/down/up; HTTP/DB smoke | pass | 0 | 0 | revision/ownership/persistence verified |
-| Security/privacy | Gitleaks branch scan; `pip-audit`; Docker Scout | source/deps/actionable image findings pass | 1 upstream-unfixed high | 0 | see Section 12 |
+| Security/privacy | network-disabled Gitleaks branch scan; containerized `pip-audit`; prior Docker Scout evidence | source and Python dependencies pass | 1 previously recorded upstream-unfixed high | 0 | see Section 12 |
 | E2E | full model/RAG/routes evidence chain | 0 | 0 | N/A | Phases 2–8 out of scope |
 | Accessibility/visual | N/A | 0 | 0 | N/A | no UI change |
 | Load/performance | N/A | 0 | 0 | N/A | scheduled for Phase 8 |
@@ -262,8 +262,8 @@ Not applicable. Phase 0/1 changes no UI-owned path or screen.
 
 Findings:
 
-- Gitleaks `origin/main..HEAD`: post-rebase branch diff scanned after the review fixes; no leaks found.
-- `pip-audit`: no known dependency vulnerabilities; the local project itself is correctly skipped because it is not a PyPI package.
+- Gitleaks `origin/main..HEAD`: 12 post-rebase commits / approximately 417 KB scanned read-only with the container network disabled; no leaks found.
+- Containerized `pip-audit`: no known dependency vulnerabilities; the local project itself is correctly skipped because it is not a PyPI package.
 - Docker Scout actionable gate (`--only-fixed`, critical/high): last completed scan had 0 findings.
 - Docker Scout full critical/high scan: last completed scan had 0 critical, **1 high** — `CVE-2026-85091` in Debian 13 `zlib 1:1.3.dfsg+really1.3.1-1`; Scout reported `Fixed version: not fixed`. The review-fix image uses the same pinned base and dependency lock, but a new external Scout submission was not authorized. Merge still requires security reviewer disposition; no VEX/exception is asserted here.
 - SPDX 2.3 SBOM generation passed: 180 packages, 854,495 bytes; generated artifact SHA-256 `bea0c0dd9e1668ed506ed3f82e0c8cb253f5ab463bc5421db10c843998b8b926` (CI should retain the artifact rather than commit generated output).
@@ -314,7 +314,7 @@ Findings:
 | --- | --- | --- | --- | --- |
 | M02 API | incompatibility evidence from real M04 payload | settle `source_id` type and `score_version`/`formula_version` name | canonical provenance/quality schema | blocks merge |
 | M03 agent | stable v1 request/response and degraded semantics | review evidence/status consumption | OpenAPI + JSON Schema 1.0.0 | approval blocks merge |
-| M05 integration | feature/null/provenance contract proposal | approve mapping and feature meanings | `feature_schema.v1.yaml` | approval blocks model phases |
+| M05 integration | Issues #43/#44 official-alert null policy applied; remaining feature/provenance dependencies pending | merge generated models, provider inputs, immutable snapshot, lineage/version implementation, and compatibility tests into `origin/main` | `feature_schema.v1.yaml` plus canonical M05 outputs | blocks Phase 2 |
 | M07 decision | risk/route/evidence inputs and hard constraints | approve acceptance targets/route policy | governance 1.0.0 | approval blocks model/ranking |
 | Team Lead | source workflow and numeric gates | record approvals or requested versioned changes | governance/source workflow | blocks later phases |
 | Platform/Security | role bootstrap, Compose, image evidence | review shared surfaces and CVE disposition | env/Compose/migration/SBOM | blocks merge |
@@ -334,9 +334,9 @@ da10df1 fix(risk): validate selected snapshot routes
 5165fd1 docs(risk): record route validation evidence
 ```
 
-- PR review findings addressed locally: commit authors rewritten to `Nonyeol`; shared Compose secret coupling removed; shared internal token adopted; HTTP 404 envelope covered; selected route IDs now fail closed. Canonical provenance/quality alignment and CVE disposition remain pending external decisions.
-- Required checks: all Phase 0/1 functional checks pass; full image scan has one upstream-unfixed high finding requiring disposition.
-- Rebased on main SHA: `d17aae1152dff29d60f7dc7fbd8514c7b255bade`; Compose retains merged M02 API, M04 external-data, and M06 risk-knowledge/MLflow services. Shared contract checks pass against the rebased tree.
+- PR review findings addressed locally: commit authors remain `Nonyeol`; shared Compose secret coupling is removed; shared internal token is adopted; HTTP 404 envelope and selected-route validation fail closed; Issues #43/#44 now preserve nullable official-alert evidence and `UNKNOWN` behavior.
+- Required checks: Docker lint/format/mypy pass; 41 tests pass with 90.77% coverage; 31 shared schemas and 6 examples validate; branch secret scan and Python dependency audit pass. The previously recorded upstream-unfixed image finding still requires disposition.
+- Rebased on main SHA: `9007d524f1f85d999c7729b95f9969456fef5454`; Compose conflict resolution retains merged M01 web, M02 API, M04 external-data, and M06 risk-knowledge/MLflow services. Shared contract and Compose validation pass against the rebased tree.
 - Proposed squash title: `feat(risk): establish risk evidence contracts and service foundation`.
 
 ## 18. Rollback and recovery

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from typing import cast
 from uuid import UUID
 
 from app.contracts import IntegratedTravelContext, RiskLevel
@@ -16,6 +17,25 @@ def test_missing_model_never_returns_low(snapshot: IntegratedTravelContext) -> N
     assert result[0].score is None
     assert "MODEL_UNAVAILABLE" in result[0].reason_codes
     assert result[0].quality.status == "PARTIAL"
+
+
+def test_missing_official_alert_features_remain_unknown(
+    snapshot_payload: dict[str, object],
+) -> None:
+    payload = deepcopy(snapshot_payload)
+    features = cast(dict[str, object], payload["features"])
+    features["corridor_official_closure_active"] = None
+    features["corridor_official_evacuation_active"] = None
+    features["corridor_extreme_alert_active"] = None
+
+    snapshot = IntegratedTravelContext.model_validate(payload)
+    result = assess_with_conservative_fallback(snapshot, [ROUTE_ID])
+
+    assert snapshot.features["corridor_official_closure_active"] is None
+    assert snapshot.features["corridor_official_evacuation_active"] is None
+    assert snapshot.features["corridor_extreme_alert_active"] is None
+    assert result[0].risk_level is RiskLevel.UNKNOWN
+    assert "MISSING_CRITICAL_EVIDENCE" in {override.code for override in result[0].safety_overrides}
 
 
 def test_active_official_extreme_alert_forces_high(

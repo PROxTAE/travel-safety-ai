@@ -7,6 +7,13 @@ contracts and governance gates, plus a persistent FastAPI/PostgreSQL/Qdrant
 service foundation with explicit degraded behavior. No trained model, indexed
 knowledge corpus, numeric ranking policy, or fake current data is shipped.
 
+This update rebases Phase 0–1 onto `origin/main` at `9007d52`, preserves the
+M01 web, M02 API, M04 external-data, and M06 risk-knowledge/MLflow Compose
+services, and applies the approved null-policy decisions from Issues #43 and
+#44. Official-alert booleans are nullable, missing evidence remains `UNKNOWN`,
+and `corridor_official_evacuation_active` is temporarily non-critical until M04
+has real provider coverage.
+
 This PR must remain draft until consumer/governance approvals and the documented
 upstream-unfixed `zlib` CVE disposition are recorded.
 
@@ -44,6 +51,7 @@ Out of scope:
 - Shared Compose: PostgreSQL no longer requires the M06 database password when another module starts shared infrastructure; the M06 role bootstrap explicitly skips only that role when its secret is absent.
 - Rollout: on an existing PostgreSQL volume, explicitly run the idempotent role bootstrap before Alembic because entrypoint init scripts run only for empty volumes.
 - Compatibility: new contract version `1.0.0`; numeric governance values remain null and cannot activate unsafe capability.
+- Feature null policy: official-alert booleans accept null without coercing it to false; closure/extreme remain critical, while evacuation is temporarily non-critical per Issues #43/#44.
 
 ## Real data and provenance
 
@@ -89,7 +97,8 @@ docker run --rm sta-risk-knowledge:test mypy app
   Success: no issues found in 30 source files.
 
 docker run --rm sta-risk-knowledge:test pytest --cov=app --cov-report=term
-  39 passed, 0 failed, 0 skipped; total coverage 90.77% (gate 80%).
+  41 passed, 0 failed, 0 skipped; total coverage 90.77% (gate 80%).
+  2 upstream deprecation warnings; no test skips.
 
 npm run check --prefix packages/contracts
   public OpenAPI lint passed; 31 JSON Schemas compiled; 6 examples validated; TypeScript typecheck passed.
@@ -102,7 +111,8 @@ npx --yes @redocly/cli@1.34.5 lint packages/contracts/openapi/internal-risk-know
   Valid OpenAPI; 4 advisory warnings (license metadata and health/metrics 4xx rule).
 
 docker compose -f compose.yaml -f compose.dev.yaml --profile core --profile app --profile training config --quiet
-  exit 0 with `RISK_KNOWLEDGE_DB_PASSWORD` intentionally absent; no `.env` file was retained or committed.
+  exit 0 using a temporary placeholder-only `.env`; the file was removed immediately and was not committed.
+  The merged model retains M01 web, M02 API, M04 external-data, M06 risk-knowledge, and MLflow.
 
 docker run --rm --entrypoint bash -v "H:/travel-safety-ai/infra/postgres/init/01-risk-knowledge-role.sh:/tmp/role.sh:ro" sta-risk-knowledge:test /tmp/role.sh
   exit 0; `Skipping Module 06 role bootstrap: RISK_KNOWLEDGE_DB_PASSWORD is not set`.
@@ -127,10 +137,10 @@ Route selection regression
 PostgreSQL paused
   liveness 200; readiness 503 not_ready/DATABASE_UNAVAILABLE in 2.027 s.
 
-docker run --rm -v "H:/travel-safety-ai:/repo" zricethezav/gitleaks:v8.28.0 git /repo --log-opts="origin/main..HEAD" --no-banner --redact
-  post-rebase branch diff scanned after the review fixes; no leaks found.
+docker run --rm --network none -v "H:/travel-safety-ai:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.24.3 git /repo --log-opts="origin/main..HEAD" --redact=100 --no-banner --verbose
+  12 post-rebase commits and approximately 417 KB scanned with network disabled; no leaks found.
 
-uv run --frozen --with pip-audit pip-audit
+docker run --rm sta-risk-knowledge:test uv run --frozen --with pip-audit pip-audit
   no known dependency vulnerabilities.
 
 docker scout cves --only-severity critical,high --only-fixed --exit-code local://sta-risk-knowledge:phase1
@@ -140,7 +150,7 @@ docker scout cves --only-severity critical,high --exit-code local://sta-risk-kno
   Last completed scan: 0 critical, 1 high: CVE-2026-85091 in Debian zlib; no fixed version.
 ```
 
-- Runtime image: `sha256:b31842b776f68a1011cffc24790ebb99ea3896746904523d1a59d61916362ca4`, non-root `app`, read-only, 2 CPU, 2 GiB. The route-validation image keeps the same pinned base and lock; a new external Scout metadata submission was not authorized.
+- Runtime image: `sha256:f4f488e484659b7fa5cd8320a7d9f63a3b2789241e963cf78a9d5bcceab56c5d`, non-root `app`, read-only, 2 CPU, 2 GiB. A new external Scout metadata submission was not authorized; the previously recorded upstream-unfixed CVE disposition remains required.
 - SBOM: SPDX 2.3 generated successfully, 180 packages; artifact SHA-256 `bea0c0dd9e1668ed506ed3f82e0c8cb253f5ab463bc5421db10c843998b8b926`.
 - UI screenshots/video: N/A; no UI ownership or changes.
 - Sanitized IDs: request `50000000-0000-4000-8000-000000000001`, correlation `...0002`, trace `0123456789abcdef0123456789abcdef`.
@@ -168,8 +178,8 @@ docker scout cves --only-severity critical,high --exit-code local://sta-risk-kno
 
 ## Risks and limitations
 
-- Contract/feature/route/source approvals are not yet recorded; proposed shared surfaces require review.
-- Canonical `source_id` and quality score-version fields still differ across M04, M05 PR #15, and M06; M02/API owner decision plus producer/consumer tests are required before merge.
+- Issues #43/#44 settle the official-alert null/criticality fields and are implemented here; the remaining contract/route/source approvals still require review.
+- M05 generated integration models, provider-input records, immutable snapshot implementation, lineage/version implementation, and producer/consumer compatibility tests are not yet merged into `origin/main`; Phase 2 remains blocked.
 - Full image scan has one upstream-unfixed high `zlib` CVE. Do not merge without a security disposition; no exception or VEX is asserted by this PR.
 - No active model or knowledge collection is shipped. This is intentionally visible as degraded/unavailable.
 - `/internal/v1/evidence/package` intentionally returns 503 until Phase 7.

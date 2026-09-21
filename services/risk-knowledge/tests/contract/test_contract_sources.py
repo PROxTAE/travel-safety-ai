@@ -92,3 +92,20 @@ def test_governance_configs_fail_closed_pending_approval() -> None:
     assert route_policy["ranking"]["pending_numeric_coefficients_behavior"].startswith(
         "enforce_hard_constraints"
     )
+
+
+def test_official_alert_feature_null_policy_matches_lead_decisions() -> None:
+    feature_schema = yaml.safe_load(
+        (SERVICE_ROOT / "governance" / "feature_schema.v1.yaml").read_text(encoding="utf-8")
+    )
+    features = {feature["name"]: feature for feature in feature_schema["features"]}
+
+    assert feature_schema["null_policy"]["model_behavior"] == (
+        "route_assessment_must_be_UNKNOWN_when_any_critical_feature_is_null"
+    )
+    assert features["corridor_official_closure_active"]["nullable"] is True
+    assert features["corridor_official_closure_active"]["critical"] is True
+    assert features["corridor_extreme_alert_active"]["nullable"] is True
+    assert features["corridor_extreme_alert_active"]["critical"] is True
+    assert features["corridor_official_evacuation_active"]["nullable"] is True
+    assert features["corridor_official_evacuation_active"]["critical"] is False
