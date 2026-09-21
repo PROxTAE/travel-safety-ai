@@ -27,6 +27,7 @@ from app.pipeline.features import (
     FeatureInputs,
     FeaturePolicy,
     FeatureVector,
+    before_cutoff,
     build_features,
     feature_schema,
 )
@@ -67,6 +68,7 @@ def build(
     recommendation_at: datetime = AFTER_CAPTURE,
     mode: str = "CAR",
     spacing_m: float = 1000,
+    source_quality: dict[str, DataQuality] | None = None,
 ) -> FeatureVector:
     base = RouteCandidate.model_validate(record("m04-route-candidates.json"))
     route = base.model_copy(
@@ -79,12 +81,23 @@ def build(
     samples = sample_route(
         route.geometry, departure_at=departure, duration_seconds=3600, max_spacing_m=spacing_m
     )
-    sources: dict[str, DataQuality] = {"route": route.quality}
+    sources: dict[str, DataQuality] = {"route": route.quality, **(source_quality or {})}
     for name, records in (("weather", weather), ("disaster", disasters), ("transport", transport)):
         if records:
             sources[name] = records[0].quality
+    fetched_at: dict[str, datetime | None] = {}
+    for name, records in (
+        ("weather", before_cutoff(weather, recommendation_at)),
+        ("disaster", before_cutoff(disasters, recommendation_at)),
+        ("transport", before_cutoff(transport, recommendation_at)),
+    ):
+        if records is not None:
+            timestamps = [
+                record.source.fetched_at for record in records if record.source.fetched_at
+            ]
+            fetched_at[name] = min(timestamps) if timestamps else None
     inputs = FeatureInputs(
-        route, samples, recommendation_at, weather, disasters, transport, sources
+        route, samples, recommendation_at, weather, disasters, transport, sources, fetched_at
     )
     return build_features(inputs, POLICY)
 
@@ -190,9 +203,79 @@ def test_stale_realtime_feed_is_unknown_disruption_for_transit() -> None:
 
 
 def test_freshness_is_oldest_critical_source_age() -> None:
-    values = build(weather=[bangkok_weather()], disasters=[usgs_event()]).values
-    ages = [bangkok_weather().quality.freshness_seconds, usgs_event().quality.freshness_seconds]
-    assert values["critical_evidence_freshness_seconds"] == max(a for a in ages if a is not None)
+    event = usgs_event()
+    values = build(weather=[bangkok_weather()], disasters=[event]).values
+    assert event.quality.freshness_seconds is not None
+    assert event.source.fetched_at is not None
+    elapsed = 2_128  # ceil(18:00:00 - 17:24:32.094906)
+    assert values["critical_evidence_freshness_seconds"] == (
+        event.quality.freshness_seconds + elapsed
+    )
+
+
+def test_freshness_includes_time_between_fetch_and_snapshot() -> None:
+    recommendation_at = datetime(2026, 9, 21, 18, tzinfo=UTC)
+    event = usgs_event()
+    # Variant: isolate elapsed time after fetch from the producer's age-at-fetch value.
+    event = event.model_copy(
+        update={"quality": event.quality.model_copy(update={"freshness_seconds": 0})}
+    )
+    fetched_at = event.source.fetched_at
+    assert fetched_at is not None
+    age_at_snapshot = (recommendation_at - fetched_at).total_seconds()
+
+    values = build(
+        weather=[bangkok_weather()], disasters=[event], recommendation_at=recommendation_at
+    ).values
+
+    assert values["critical_evidence_freshness_seconds"] >= age_at_snapshot
+
+
+def test_freshness_uses_oldest_fetched_record_per_source() -> None:
+    recommendation_at = datetime(2026, 9, 21, 18, tzinfo=UTC)
+    recent = bangkok_weather()
+    assert recent.source.fetched_at is not None
+    oldest_fetched_at = datetime(2026, 9, 20, 12, tzinfo=UTC)
+    older = recent.model_copy(
+        update={
+            "id": f"{recent.id}:older",
+            "source": recent.source.model_copy(update={"fetched_at": oldest_fetched_at}),
+        }
+    )
+    event = usgs_event().model_copy(
+        update={"quality": usgs_event().quality.model_copy(update={"freshness_seconds": 0})}
+    )
+
+    values = build(
+        weather=[recent, older], disasters=[event], recommendation_at=recommendation_at
+    ).values
+
+    assert values["critical_evidence_freshness_seconds"] == 108_000
+
+
+def test_answered_empty_source_uses_reported_freshness() -> None:
+    weather_quality = bangkok_weather().quality.model_copy(update={"freshness_seconds": 73})
+    disaster_quality = usgs_event().quality.model_copy(update={"freshness_seconds": 41})
+
+    values = build(
+        weather=[],
+        disasters=[],
+        source_quality={"weather": weather_quality, "disaster": disaster_quality},
+    ).values
+
+    assert values["critical_evidence_freshness_seconds"] == 73
+
+
+def test_unavailable_critical_source_has_unknown_freshness() -> None:
+    disaster_quality = usgs_event().quality.model_copy(update={"freshness_seconds": 41})
+
+    values = build(
+        weather=None,
+        disasters=[],
+        source_quality={"weather": bangkok_weather().quality, "disaster": disaster_quality},
+    ).values
+
+    assert values["critical_evidence_freshness_seconds"] is None
 
 
 def test_evidence_fetched_after_recommendation_is_excluded() -> None:
