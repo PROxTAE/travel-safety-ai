@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,11 +52,13 @@ async def save_fallback_route_evaluations(
     records = [
         RouteEvaluation(
             snapshot_id=snapshot_id,
-            route_id=route.route_id,
+            route_id=cast(UUID, route.route_id),
             policy_version=policy_version,
-            exposure_score=route.exposure.score,
+            exposure_score=route.exposure.score if route.exposure is not None else None,
             usable=route.route_id not in unusable,
-            hard_constraints=list(route.exposure.hard_constraint_codes),
+            hard_constraints=(
+                list(route.exposure.hard_constraint_codes) if route.exposure is not None else []
+            ),
             tradeoffs_json={"ranking_status": "UNAVAILABLE"},
             source_ids=[str(source.source_id) for source in route.sources],
             input_hash=input_hash,

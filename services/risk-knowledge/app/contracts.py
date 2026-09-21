@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Literal, Self
+from typing import Annotated, Any, Literal, Self
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -45,9 +45,31 @@ class Severity(StrEnum):
     UNKNOWN = "UNKNOWN"
 
 
+RecordId = Annotated[
+    str,
+    Field(
+        min_length=1,
+        max_length=256,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:,+@/=-]*$",
+    ),
+]
+SnapshotRecordId = Annotated[UUID | RecordId, Field(union_mode="left_to_right")]
+
+
+class QualityConflict(StrictModel):
+    field_path: str = Field(max_length=256)
+    source_ids: list[RecordId] = Field(min_length=2)
+    resolution: (
+        Literal["HIGHEST_AUTHORITY", "MOST_RECENT", "MOST_CONSERVATIVE", "UNRESOLVED"] | None
+    ) = None
+
+
 class DataQuality(StrictModel):
     status: DataStatus
     score: float | None = Field(ge=0, le=1)
+    score_version: str | None = Field(
+        pattern=r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$"
+    )
     flags: list[
         Literal[
             "MISSING",
@@ -61,17 +83,24 @@ class DataQuality(StrictModel):
     coverage: float | None = Field(ge=0, le=1)
     completeness: float | None = Field(ge=0, le=1)
     freshness_seconds: int | None = Field(ge=0)
-    conflicts: list[str]
+    conflicts: list[QualityConflict]
     notes: list[str]
+
+    @model_validator(mode="after")
+    def score_and_version_are_paired(self) -> Self:
+        if (self.score is None) != (self.score_version is None):
+            raise ValueError("score and score_version must both be null or both be set")
+        return self
 
 
 class SourceProvenance(StrictModel):
-    source_id: UUID
+    source_id: SnapshotRecordId
     provider: str
     provider_record_id: str | None
     authority: Literal["OFFICIAL", "INTERGOVERNMENTAL", "LICENSED_PROVIDER", "COMMUNITY", "UNKNOWN"]
     source_url: HttpUrl
     license: str
+    attribution: str | None = Field(default=None, max_length=512)
     observed_at: datetime | None
     published_at: datetime | None
     fetched_at: datetime
@@ -93,7 +122,7 @@ class RouteExposure(StrictModel):
 class RouteCandidate(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    route_id: UUID
+    route_id: SnapshotRecordId
     provider_route_id: str
     label: Literal["ORIGINAL", "RECOMMENDED", "FASTEST", "LOWEST_RISK", "ALTERNATIVE"]
     mode: Literal["FLIGHT", "TRAIN", "BUS", "CAR", "WALK", "BICYCLE", "MULTIMODAL"]
@@ -102,10 +131,16 @@ class RouteCandidate(BaseModel):
     distance_m: float = Field(ge=0)
     duration_seconds: float = Field(ge=0)
     transfers: int = Field(ge=0)
-    exposure: RouteExposure
+    exposure: RouteExposure | None
     risk_level: RiskLevel
     quality: DataQuality
     sources: list[SourceProvenance]
+
+    @model_validator(mode="after")
+    def unevaluated_route_is_unknown(self) -> Self:
+        if self.exposure is None and self.risk_level is not RiskLevel.UNKNOWN:
+            raise ValueError("a route with null exposure must have UNKNOWN risk_level")
+        return self
 
 
 class OfficialAlert(BaseModel):
@@ -165,8 +200,8 @@ class IntegratedTravelContext(BaseModel):
     official_alerts: list[OfficialAlert]
     features: dict[str, float | int | bool | str | None]
     quality_summary: DataQuality
-    conflict_summary: list[str]
-    source_ids: list[UUID]
+    conflict_summary: list[QualityConflict]
+    source_ids: list[RecordId]
     created_at: datetime
     content_hash: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     supersedes_snapshot_id: UUID | None = None
@@ -176,8 +211,9 @@ def validate_route_selection(snapshot: IntegratedTravelContext, route_ids: list[
     if len(route_ids) != len(set(route_ids)):
         raise ValueError("route_ids must not contain duplicates")
 
-    candidates = {route.route_id for route in snapshot.route_candidates}
-    if set(route_ids) - candidates:
+    candidates: set[UUID | str] = {route.route_id for route in snapshot.route_candidates}
+    requested: set[UUID | str] = set(route_ids)
+    if requested - candidates:
         raise ValueError("route_ids must all exist in snapshot.route_candidates")
 
 

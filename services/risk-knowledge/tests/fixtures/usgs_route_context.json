@@ -43,6 +43,7 @@
       "quality": {
         "status": "PARTIAL",
         "score": 0.7,
+        "score_version": "1.0.0",
         "flags": ["INCOMPLETE"],
         "coverage": 0.8,
         "completeness": 0.7,
@@ -58,6 +59,7 @@
           "authority": "OFFICIAL",
           "source_url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000tiib",
           "license": "USGS public domain",
+          "attribution": null,
           "observed_at": "2026-09-19T07:44:25.478Z",
           "published_at": "2026-09-19T08:02:59.040Z",
           "fetched_at": "2026-09-19T09:21:51Z",
@@ -94,6 +96,7 @@
   "quality_summary": {
     "status": "PARTIAL",
     "score": 0.7,
+    "score_version": "1.0.0",
     "flags": ["INCOMPLETE"],
     "coverage": 0.8,
     "completeness": 0.7,

@@ -9,6 +9,12 @@
       "format": "uuid",
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
     },
+    "RecordId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:,+@/=-]*$"
+    },
     "Timestamp": {
       "type": "string",
       "format": "date-time"
@@ -67,16 +73,46 @@
     "DataQuality": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "score", "flags", "coverage", "completeness", "freshness_seconds", "conflicts", "notes"],
+      "required": ["status", "score", "score_version", "flags", "coverage", "completeness", "freshness_seconds", "conflicts", "notes"],
       "properties": {
         "status": { "$ref": "#/$defs/DataStatus" },
         "score": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "score_version": {
+          "type": ["string", "null"],
+          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$"
+        },
         "flags": { "type": "array", "items": { "$ref": "#/$defs/QualityFlag" }, "uniqueItems": true },
         "coverage": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
         "completeness": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
         "freshness_seconds": { "type": ["integer", "null"], "minimum": 0 },
-        "conflicts": { "type": "array", "items": { "type": "string", "maxLength": 500 }, "maxItems": 100 },
+        "conflicts": { "type": "array", "items": { "$ref": "#/$defs/QualityConflict" }, "maxItems": 100 },
         "notes": { "type": "array", "items": { "type": "string", "maxLength": 500 }, "maxItems": 100 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "score": { "type": "number" } },
+            "required": ["score"]
+          },
+          "then": { "properties": { "score_version": { "type": "string" } } },
+          "else": { "properties": { "score_version": { "type": "null" } } }
+        }
+      ]
+    },
+    "QualityConflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_path", "source_ids"],
+      "properties": {
+        "field_path": { "type": "string", "maxLength": 256 },
+        "source_ids": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/RecordId" }
+        },
+        "resolution": {
+          "enum": ["HIGHEST_AUTHORITY", "MOST_RECENT", "MOST_CONSERVATIVE", "UNRESOLVED", null]
+        }
       }
     },
     "SourceProvenance": {
@@ -97,12 +133,13 @@
         "schema_version"
       ],
       "properties": {
-        "source_id": { "$ref": "#/$defs/Uuid" },
+        "source_id": { "$ref": "#/$defs/RecordId" },
         "provider": { "type": "string", "minLength": 1, "maxLength": 100 },
         "provider_record_id": { "type": ["string", "null"], "maxLength": 500 },
         "authority": { "$ref": "#/$defs/SourceAuthority" },
         "source_url": { "type": "string", "format": "uri", "pattern": "^https://" },
         "license": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "attribution": { "type": ["string", "null"], "maxLength": 512 },
         "observed_at": { "anyOf": [{ "$ref": "#/$defs/Timestamp" }, { "type": "null" }] },
         "published_at": { "anyOf": [{ "$ref": "#/$defs/Timestamp" }, { "type": "null" }] },
         "fetched_at": { "$ref": "#/$defs/Timestamp" },
@@ -177,7 +214,7 @@
         "sources"
       ],
       "properties": {
-        "route_id": { "$ref": "#/$defs/Uuid" },
+        "route_id": { "$ref": "#/$defs/RecordId" },
         "provider_route_id": { "type": "string", "minLength": 1, "maxLength": 500 },
         "label": { "enum": ["ORIGINAL", "RECOMMENDED", "FASTEST", "LOWEST_RISK", "ALTERNATIVE"] },
         "mode": { "enum": ["FLIGHT", "TRAIN", "BUS", "CAR", "WALK", "BICYCLE", "MULTIMODAL"] },
@@ -186,11 +223,25 @@
         "distance_m": { "type": "number", "minimum": 0 },
         "duration_seconds": { "type": "number", "minimum": 0 },
         "transfers": { "type": "integer", "minimum": 0 },
-        "exposure": { "$ref": "#/$defs/RouteExposure" },
+        "exposure": {
+          "oneOf": [
+            { "$ref": "#/$defs/RouteExposure" },
+            { "type": "null" }
+          ]
+        },
         "risk_level": { "$ref": "#/$defs/RiskLevel" },
         "quality": { "$ref": "#/$defs/DataQuality" },
         "sources": { "type": "array", "items": { "$ref": "#/$defs/SourceProvenance" } }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "exposure": { "type": "null" } },
+            "required": ["exposure"]
+          },
+          "then": { "properties": { "risk_level": { "const": "UNKNOWN" } } }
+        }
+      ]
     },
     "OfficialAlert": {
       "type": "object",
@@ -268,8 +319,8 @@
           "additionalProperties": { "type": ["number", "integer", "boolean", "string", "null"] }
         },
         "quality_summary": { "$ref": "#/$defs/DataQuality" },
-        "conflict_summary": { "type": "array", "items": { "type": "string", "maxLength": 500 } },
-        "source_ids": { "type": "array", "items": { "$ref": "#/$defs/Uuid" }, "uniqueItems": true },
+        "conflict_summary": { "type": "array", "items": { "$ref": "#/$defs/QualityConflict" } },
+        "source_ids": { "type": "array", "items": { "$ref": "#/$defs/RecordId" }, "uniqueItems": true },
         "created_at": { "$ref": "#/$defs/Timestamp" },
         "content_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
         "supersedes_snapshot_id": { "anyOf": [{ "$ref": "#/$defs/Uuid" }, { "type": "null" }] }
