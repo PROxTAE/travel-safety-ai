@@ -361,3 +361,162 @@ def test_the_public_contract_declares_every_run_route_this_service_serves() -> N
     assert "post" in spec["paths"]["/api/v1/trips/{trip_id}/assessments"]
     assert set(spec["paths"]["/api/v1/runs/{request_id}"]) >= {"get", "delete"}
     assert "get" in spec["paths"]["/api/v1/runs/{request_id}/events"]
+
+
+# --- phase 6: remaining facades -------------------------------------------------------------------
+
+
+def test_conversation_fields_match_the_contract() -> None:
+    from app.schemas.conversation import ConversationModel
+
+    contract = set(_schema("conversation.schema.json")["properties"])
+
+    assert set(ConversationModel.model_fields) == contract
+
+
+def test_conversation_requires_what_the_contract_requires() -> None:
+    from app.schemas.conversation import ConversationModel
+
+    required = set(_schema("conversation.schema.json")["required"])
+    non_optional = {
+        name for name, field in ConversationModel.model_fields.items() if field.is_required()
+    }
+
+    missing = required - non_optional
+    assert not missing, f"optional here but required by the contract: {sorted(missing)}"
+
+
+def test_safety_event_fields_match_the_contract() -> None:
+    from app.schemas.safety import SafetyEventModel
+
+    contract = set(_schema("safety-event.schema.json")["properties"])
+
+    assert set(SafetyEventModel.model_fields) == contract
+
+
+def test_safety_event_requires_what_the_contract_requires() -> None:
+    from app.schemas.safety import SafetyEventModel
+
+    required = set(_schema("safety-event.schema.json")["required"])
+    non_optional = {
+        name for name, field in SafetyEventModel.model_fields.items() if field.is_required()
+    }
+
+    missing = required - non_optional
+    assert not missing, f"optional here but required by the contract: {sorted(missing)}"
+
+
+def test_official_contact_fields_match_the_contract() -> None:
+    from app.schemas.emergency import OfficialContactModel
+
+    contract = set(_schema("official-contact.schema.json")["properties"])
+
+    assert set(OfficialContactModel.model_fields) == contract
+
+
+def test_official_contact_requires_what_the_contract_requires() -> None:
+    from app.schemas.emergency import OfficialContactModel
+
+    required = set(_schema("official-contact.schema.json")["required"])
+    non_optional = {
+        name for name, field in OfficialContactModel.model_fields.items() if field.is_required()
+    }
+
+    missing = required - non_optional
+    assert not missing, f"optional here but required by the contract: {sorted(missing)}"
+
+
+def test_emergency_poi_fields_match_the_contract() -> None:
+    from app.schemas.emergency import EmergencyPoiModel
+
+    contract = set(_schema("emergency-poi.schema.json")["properties"])
+
+    assert set(EmergencyPoiModel.model_fields) == contract
+
+
+def test_emergency_poi_requires_what_the_contract_requires() -> None:
+    from app.schemas.emergency import EmergencyPoiModel
+
+    required = set(_schema("emergency-poi.schema.json")["required"])
+    non_optional = {
+        name for name, field in EmergencyPoiModel.model_fields.items() if field.is_required()
+    }
+
+    missing = required - non_optional
+    assert not missing, f"optional here but required by the contract: {sorted(missing)}"
+
+
+def test_feedback_event_fields_match_the_contract() -> None:
+    from app.schemas.feedback import FeedbackEventModel
+
+    contract = set(_schema("feedback-event.schema.json")["properties"])
+
+    assert set(FeedbackEventModel.model_fields) == contract
+
+
+def test_feedback_event_requires_what_the_contract_requires() -> None:
+    from app.schemas.feedback import FeedbackEventModel
+
+    required = set(_schema("feedback-event.schema.json")["required"])
+    non_optional = {
+        name for name, field in FeedbackEventModel.model_fields.items() if field.is_required()
+    }
+
+    missing = required - non_optional
+    assert not missing, f"optional here but required by the contract: {sorted(missing)}"
+
+
+def test_alert_subscription_fields_match_the_contract() -> None:
+    from app.schemas.feedback import AlertSubscriptionModel
+
+    contract = set(_schema("alert-subscription.schema.json")["properties"])
+
+    assert set(AlertSubscriptionModel.model_fields) == contract
+
+
+def test_alert_subscription_requires_what_the_contract_requires() -> None:
+    from app.schemas.feedback import AlertSubscriptionModel
+
+    required = set(_schema("alert-subscription.schema.json")["required"])
+    non_optional = {
+        name for name, field in AlertSubscriptionModel.model_fields.items() if field.is_required()
+    }
+
+    missing = required - non_optional
+    assert not missing, f"optional here but required by the contract: {sorted(missing)}"
+
+
+def test_phase6_enums_match_the_contract() -> None:
+    from typing import get_args
+
+    from app.schemas.emergency import EmergencyPoiType, EmergencyServiceType, SourceAuthority
+    from app.schemas.feedback import DeliveryChannel, FeedbackCategory, SubscriptionStatus
+    from app.schemas.safety import SafetyLayer
+
+    enums = _schema("enums.schema.json")["$defs"]
+
+    assert set(get_args(SafetyLayer)) == set(enums["SafetyLayer"]["enum"])
+    assert set(get_args(EmergencyServiceType)) == set(enums["EmergencyServiceType"]["enum"])
+    poi_schema = _schema("emergency-poi.schema.json")
+    assert set(get_args(EmergencyPoiType)) == set(poi_schema["properties"]["poi_type"]["enum"])
+    assert set(get_args(SourceAuthority)) == set(enums["SourceAuthority"]["enum"])
+    assert set(get_args(FeedbackCategory)) == set(enums["FeedbackCategory"]["enum"])
+    assert set(get_args(DeliveryChannel)) == set(enums["DeliveryChannel"]["enum"])
+    assert set(get_args(SubscriptionStatus)) == set(enums["SubscriptionStatus"]["enum"])
+
+
+def test_the_public_contract_declares_every_phase6_route_this_service_serves() -> None:
+    import yaml
+
+    spec = yaml.safe_load((CONTRACTS / "openapi" / "public-api.yaml").read_text(encoding="utf-8"))
+
+    assert "get" in spec["paths"]["/api/v1/recommendations/{recommendation_id}"]
+    assert "post" in spec["paths"]["/api/v1/trips/{trip_id}/apply-route"]
+    assert "get" in spec["paths"]["/api/v1/conversations"]
+    assert "post" in spec["paths"]["/api/v1/conversations/{conversation_id}/messages"]
+    assert "get" in spec["paths"]["/api/v1/safety/events"]
+    assert "get" in spec["paths"]["/api/v1/emergency/contacts"]
+    assert "get" in spec["paths"]["/api/v1/emergency/nearby"]
+    assert "post" in spec["paths"]["/api/v1/feedback"]
+    assert "post" in spec["paths"]["/api/v1/alert-subscriptions"]
+    assert "delete" in spec["paths"]["/api/v1/alert-subscriptions/{subscription_id}"]

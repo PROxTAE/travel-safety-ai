@@ -30,6 +30,11 @@ import httpx
 
 from app.errors.exceptions import DependencyTimeout, DependencyUnavailable
 from app.observability.logging import get_logger
+from app.observability.metrics import (
+    downstream_request_duration_seconds,
+    downstream_request_errors_total,
+)
+from app.security.outbound import validate_outbound_url
 from app.settings import Settings
 
 logger = get_logger(__name__)
@@ -109,6 +114,8 @@ class AgentClient:
         so a retry at the HTTP layer cannot start a second assessment for one accepted request.
         """
         self._require_credential()
+        url = f"{self._base}{RUNS_PATH}"
+        validate_outbound_url(url, self._settings)
 
         headers = {**self._headers, "Idempotency-Key": request_id}
         timeout = httpx.Timeout(
@@ -118,11 +125,18 @@ class AgentClient:
             pool=self._settings.downstream_connect_timeout_seconds,
         )
 
+        import time
+
+        start_time = time.monotonic()
         try:
-            response = await self._client.post(
-                f"{self._base}{RUNS_PATH}", json=payload, headers=headers, timeout=timeout
-            )
+            response = await self._client.post(url, json=payload, headers=headers, timeout=timeout)
+            downstream_request_duration_seconds.labels(
+                dependency=DEPENDENCY, operation="create_run"
+            ).observe(time.monotonic() - start_time)
         except httpx.TimeoutException as exc:
+            downstream_request_errors_total.labels(
+                dependency=DEPENDENCY, error_kind="timeout"
+            ).inc()
             logger.warning(
                 "dependency_timeout",
                 event_type="dependency",
@@ -133,6 +147,9 @@ class AgentClient:
                 DEPENDENCY, message="Safety assessment did not start in time."
             ) from exc
         except httpx.HTTPError as exc:
+            downstream_request_errors_total.labels(
+                dependency=DEPENDENCY, error_kind="http_error"
+            ).inc()
             # The exception text can carry the internal host and port. It goes to the log, where an
             # operator needs it, and never into the response.
             logger.warning(
@@ -147,6 +164,9 @@ class AgentClient:
             ) from exc
 
         if response.status_code >= 500:
+            downstream_request_errors_total.labels(
+                dependency=DEPENDENCY, error_kind=f"status_{response.status_code}"
+            ).inc()
             logger.warning(
                 "dependency_error_status",
                 event_type="dependency",
@@ -177,14 +197,28 @@ class AgentClient:
         """
         self._require_credential()
         path = f"{RUNS_PATH}/{agent_run_id}"
+        url = f"{self._base}{path}"
+        validate_outbound_url(url, self._settings)
 
+        import time
+
+        start_time = time.monotonic()
         try:
-            response = await self._client.get(f"{self._base}{path}", headers=self._headers)
+            response = await self._client.get(url, headers=self._headers)
+            downstream_request_duration_seconds.labels(
+                dependency=DEPENDENCY, operation="get_run"
+            ).observe(time.monotonic() - start_time)
         except httpx.TimeoutException as exc:
+            downstream_request_errors_total.labels(
+                dependency=DEPENDENCY, error_kind="timeout"
+            ).inc()
             raise DependencyTimeout(
                 DEPENDENCY, message="Safety assessment did not answer in time."
             ) from exc
         except httpx.HTTPError as exc:
+            downstream_request_errors_total.labels(
+                dependency=DEPENDENCY, error_kind="http_error"
+            ).inc()
             logger.warning(
                 "dependency_unreachable",
                 event_type="dependency",
@@ -198,6 +232,18 @@ class AgentClient:
 
         if response.status_code == 404:
             return None
+        if response.status_code >= 500:
+            downstream_request_errors_total.labels(
+                dependency=DEPENDENCY, error_kind=f"status_{response.status_code}"
+            ).inc()
+            logger.warning(
+                "dependency_error_status",
+                event_type="dependency",
+                dependency=DEPENDENCY,
+                status=response.status_code,
+                path=path,
+            )
+            raise DependencyUnavailable(DEPENDENCY, message="Safety assessment is unavailable.")
         if response.status_code >= 400:
             logger.warning(
                 "dependency_error_status",
@@ -220,6 +266,9 @@ class AgentClient:
         """
         self._require_credential()
         path = f"{RUNS_PATH}/{agent_run_id}/cancel"
+        url = f"{self._base}{path}"
+        validate_outbound_url(url, self._settings)
+
         timeout = httpx.Timeout(
             connect=self._settings.downstream_connect_timeout_seconds,
             read=self._settings.agent_cancel_timeout_seconds,
@@ -227,14 +276,23 @@ class AgentClient:
             pool=self._settings.downstream_connect_timeout_seconds,
         )
 
+        import time
+
+        start_time = time.monotonic()
         try:
             response = await self._client.post(
-                f"{self._base}{path}",
+                url,
                 json={"reason": reason},
                 headers=self._headers,
                 timeout=timeout,
             )
+            downstream_request_duration_seconds.labels(
+                dependency=DEPENDENCY, operation="cancel_run"
+            ).observe(time.monotonic() - start_time)
         except httpx.HTTPError as exc:
+            downstream_request_errors_total.labels(
+                dependency=DEPENDENCY, error_kind="http_error"
+            ).inc()
             logger.warning(
                 "cancel_not_propagated",
                 event_type="dependency",

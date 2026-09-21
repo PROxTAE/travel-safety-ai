@@ -1,0 +1,133 @@
+schema_version: 1.0.0
+contract_version: 1.0.0
+status: PROPOSED_FOR_MODULE_05_AND_06_APPROVAL
+prediction_unit: route_candidate_departure_window_snapshot
+coordinate_order: longitude_latitude
+time_basis: UTC
+null_policy:
+  rule: never_replace_missing_provider_values_with_zero
+  model_behavior: route_assessment_must_be_UNKNOWN_when_any_critical_feature_is_null
+  flags_required: [MISSING, INCOMPLETE]
+  imputation:
+    allowed: false
+    exception: training_pipeline_only_within_fold_and_documented_in_model_card
+features:
+  - name: route_distance_m
+    type: float
+    unit: metre
+    nullable: false
+    minimum: 0
+    meaning: Total provider route length for the candidate geometry.
+    lineage: route_candidates[].distance_m
+  - name: route_duration_seconds
+    type: float
+    unit: second
+    nullable: false
+    minimum: 0
+    meaning: Provider travel duration for the departure window before incident delay adjustment.
+    lineage: route_candidates[].duration_seconds
+  - name: route_transfer_count
+    type: integer
+    unit: count
+    nullable: false
+    minimum: 0
+    meaning: Number of transfers required by the candidate.
+    lineage: route_candidates[].transfers
+  - name: corridor_official_closure_active
+    type: boolean
+    unit: none
+    nullable: true
+    critical: true
+    meaning: An active official closure intersects this route corridor and travel window.
+    lineage: official_alerts + spatial_temporal_join_v1
+  - name: corridor_official_evacuation_active
+    type: boolean
+    unit: none
+    nullable: true
+    critical: false
+    meaning: An active official evacuation or no-go order intersects this route corridor and travel window.
+    lineage: official_alerts + spatial_temporal_join_v1
+  - name: corridor_extreme_alert_active
+    type: boolean
+    unit: none
+    nullable: true
+    critical: true
+    meaning: An active official EXTREME alert intersects this route corridor and travel window.
+    lineage: official_alerts + spatial_temporal_join_v1
+  - name: hazard_intersection_fraction
+    type: float
+    unit: ratio
+    nullable: true
+    minimum: 0
+    maximum: 1
+    critical: true
+    meaning: Fraction of route length inside active hazard geometries during segment traversal.
+    lineage: disaster_events + spatial_temporal_join_v1
+  - name: max_weather_severity_ordinal
+    type: integer
+    unit: ordinal
+    nullable: true
+    minimum: 0
+    maximum: 5
+    critical: true
+    enum_mapping:
+      INFO: 0
+      MINOR: 1
+      MODERATE: 2
+      SEVERE: 3
+      EXTREME: 4
+      UNKNOWN: 5
+    meaning: Maximum canonical weather severity overlapping any route segment travel time.
+    lineage: weather + segment_time_join_v1
+  - name: max_precipitation_probability
+    type: float
+    unit: ratio
+    nullable: true
+    minimum: 0
+    maximum: 1
+    meaning: Maximum forecast precipitation probability across overlapping route samples.
+    lineage: weather[].precipitation_probability
+  - name: max_wind_gust_kmh
+    type: float
+    unit: kilometre_per_hour
+    nullable: true
+    minimum: 0
+    meaning: Maximum forecast wind gust across overlapping route samples.
+    lineage: weather[].wind_gust_kmh
+  - name: transport_disruption_severity
+    type: integer
+    unit: ordinal
+    nullable: true
+    minimum: 0
+    maximum: 4
+    critical_for_modes: [FLIGHT, TRAIN, BUS, MULTIMODAL]
+    enum_mapping:
+      ON_TIME: 0
+      DELAYED: 1
+      DISRUPTED: 2
+      CANCELLED: 3
+      UNKNOWN: 4
+    meaning: Most severe canonical transport status applicable to the route.
+    lineage: transport + route_service_join_v1
+  - name: critical_evidence_coverage
+    type: float
+    unit: ratio
+    nullable: false
+    minimum: 0
+    maximum: 1
+    critical: true
+    meaning: Weighted spatial and temporal coverage of evidence required for the selected mode.
+    lineage: quality_summary.coverage
+  - name: critical_evidence_freshness_seconds
+    type: integer
+    unit: second
+    nullable: true
+    minimum: 0
+    critical: true
+    meaning: Age of the oldest still-required critical observation at snapshot creation.
+    lineage: quality_summary + source provenance timestamps
+compatibility:
+  unknown_feature: reject
+  missing_noncritical_feature: accept_null_with_flag
+  missing_critical_feature: return_UNKNOWN_degraded
+  version_mismatch: reject_with_FEATURE_SCHEMA_UNSUPPORTED

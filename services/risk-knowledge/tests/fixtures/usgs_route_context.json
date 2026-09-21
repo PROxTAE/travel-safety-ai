@@ -1,0 +1,108 @@
+{
+  "_fixture_provenance": {
+    "source_url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000tiib",
+    "feed_url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson",
+    "source_record_id": "us7000tiib",
+    "captured_at": "2026-09-19T09:21:51Z",
+    "license": "USGS-authored data are public domain; see https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits",
+    "redaction_note": "Retains only event identifier, magnitude-derived context, coordinates, timestamps, and public source metadata. No personal data.",
+    "canonical_selected_record_sha256": "sha256:7cbe392399381d90805bdb16e7a1c6c7be14afa098d992966fafbce3fa76de56"
+  },
+  "snapshot_id": "10000000-0000-4000-8000-000000000001",
+  "request_id": "10000000-0000-4000-8000-000000000002",
+  "trip_id": "10000000-0000-4000-8000-000000000003",
+  "schema_version": "1.0.0",
+  "feature_schema_version": "1.0.0",
+  "travel_window": {
+    "starts_at": "2026-09-20T01:00:00Z",
+    "ends_at": "2026-09-20T03:00:00Z"
+  },
+  "route_candidates": [
+    {
+      "route_id": "20000000-0000-4000-8000-000000000001",
+      "provider_route_id": "fixture-route-us7000tiib",
+      "label": "ORIGINAL",
+      "mode": "CAR",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[138.6, -2.7], [138.8, -2.5]]
+      },
+      "segments": [],
+      "distance_m": 32000,
+      "duration_seconds": 2400,
+      "transfers": 0,
+      "exposure": {
+        "score": null,
+        "hazard_event_ids": ["us7000tiib"],
+        "weather_window_ids": [],
+        "closed": false,
+        "hard_constraint_codes": []
+      },
+      "risk_level": "UNKNOWN",
+      "quality": {
+        "status": "PARTIAL",
+        "score": 0.7,
+        "flags": ["INCOMPLETE"],
+        "coverage": 0.8,
+        "completeness": 0.7,
+        "freshness_seconds": 3346,
+        "conflicts": [],
+        "notes": ["Captured provider event alone is insufficient for a current route decision."]
+      },
+      "sources": [
+        {
+          "source_id": "30000000-0000-4000-8000-000000000001",
+          "provider": "USGS",
+          "provider_record_id": "us7000tiib",
+          "authority": "OFFICIAL",
+          "source_url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000tiib",
+          "license": "USGS public domain",
+          "observed_at": "2026-09-19T07:44:25.478Z",
+          "published_at": "2026-09-19T08:02:59.040Z",
+          "fetched_at": "2026-09-19T09:21:51Z",
+          "expires_at": "2026-09-19T09:31:51Z",
+          "content_hash": "sha256:7cbe392399381d90805bdb16e7a1c6c7be14afa098d992966fafbce3fa76de56",
+          "schema_version": "1.0.0"
+        }
+      ]
+    }
+  ],
+  "route_corridor_geojson": {
+    "type": "Polygon",
+    "coordinates": [[[138.55, -2.75], [138.85, -2.75], [138.85, -2.45], [138.55, -2.45], [138.55, -2.75]]]
+  },
+  "weather": [],
+  "transport": [],
+  "disaster_events": [{"event_id": "us7000tiib", "magnitude": 4.8}],
+  "official_alerts": [],
+  "features": {
+    "route_distance_m": 32000,
+    "route_duration_seconds": 2400,
+    "route_transfer_count": 0,
+    "corridor_official_closure_active": false,
+    "corridor_official_evacuation_active": false,
+    "corridor_extreme_alert_active": false,
+    "hazard_intersection_fraction": null,
+    "max_weather_severity_ordinal": null,
+    "max_precipitation_probability": null,
+    "max_wind_gust_kmh": null,
+    "transport_disruption_severity": null,
+    "critical_evidence_coverage": 0.8,
+    "critical_evidence_freshness_seconds": 3346
+  },
+  "quality_summary": {
+    "status": "PARTIAL",
+    "score": 0.7,
+    "flags": ["INCOMPLETE"],
+    "coverage": 0.8,
+    "completeness": 0.7,
+    "freshness_seconds": 3346,
+    "conflicts": [],
+    "notes": ["Weather and transport evidence intentionally absent in this deterministic fixture."]
+  },
+  "conflict_summary": [],
+  "source_ids": ["30000000-0000-4000-8000-000000000001"],
+  "created_at": "2026-09-19T09:21:51Z",
+  "content_hash": "sha256:7cbe392399381d90805bdb16e7a1c6c7be14afa098d992966fafbce3fa76de56",
+  "supersedes_snapshot_id": null
+}

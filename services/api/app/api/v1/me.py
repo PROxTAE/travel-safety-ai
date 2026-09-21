@@ -27,11 +27,17 @@ from app.schemas.emergency import EmergencyProfileBody, EmergencyProfileResponse
 from app.schemas.envelope import DataResponse
 from app.schemas.user import ConsentRecordModel, UpdateProfileRequest, UserProfileModel
 from app.security.envelope import DecryptionFailed
+from app.security.rate_limit import rate_limit
 from app.services.encryption import require_cipher
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/v1", tags=["identity"])
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["identity"],
+    dependencies=[Depends(rate_limit("me"))],
+)
+
 
 #: The scope a browser session must carry to touch anything under `/api/v1`.
 TRAVEL_SCOPE = "travel"

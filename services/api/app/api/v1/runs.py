@@ -24,7 +24,7 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Header, Path, Request, Response
+from fastapi import APIRouter, Depends, Header, Path, Request, Response
 from fastapi.responses import StreamingResponse
 
 from app.api.responses import data_response
@@ -36,15 +36,22 @@ from app.db.engine import session_scope
 from app.domain import run as machine
 from app.errors.exceptions import Conflict, NotFound
 from app.observability.logging import get_logger
+from app.observability.metrics import active_sse_connections
 from app.repositories import requests as requests_repo
 from app.schemas.envelope import DataResponse
 from app.schemas.run import TERMINAL_EVENTS, RunStateModel
+from app.security.rate_limit import rate_limit
 from app.services import run_events
 from app.services import runs as orchestrator
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api/v1/runs", tags=["assessments"])
+router = APIRouter(
+    prefix="/api/v1/runs",
+    tags=["assessments"],
+    dependencies=[Depends(rate_limit("runs"))],
+)
+
 
 RequestIdPath = Annotated[uuid.UUID, Path(description="The run to follow.")]
 
@@ -213,6 +220,7 @@ async def _events(
         )
         return
 
+    active_sse_connections.inc()
     started = datetime.now(UTC)
     last_id = resume_from
     block_ms = max(250, int(settings.sse_heartbeat_seconds * 1000))
@@ -261,6 +269,7 @@ async def _events(
                 if event_type in TERMINAL_EVENTS:
                     return
     finally:
+        active_sse_connections.dec()
         with contextlib.suppress(Exception):
             await redis.decr(counter)
 

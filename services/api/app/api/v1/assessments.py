@@ -23,7 +23,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Header, Path, Request, Response, status
+from fastapi import APIRouter, Depends, Header, Path, Request, Response, status
 from sqlalchemy.exc import IntegrityError
 
 from app.api.responses import data_response
@@ -44,6 +44,7 @@ from app.repositories import (
 )
 from app.schemas.envelope import DataResponse
 from app.schemas.run import CreateAssessmentRequest, RunRefModel
+from app.security.rate_limit import rate_limit
 from app.services import runs as orchestrator
 
 logger = get_logger(__name__)
@@ -64,6 +65,7 @@ FALLBACK_LOCALE = "en-US"
     status_code=status.HTTP_202_ACCEPTED,
     response_model=DataResponse[RunRefModel],
     summary="Start a safety assessment for this trip",
+    dependencies=[Depends(rate_limit("assessments_create"))],
 )
 async def create_assessment(
     request: Request,

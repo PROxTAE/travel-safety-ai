@@ -1,0 +1,50 @@
+policy_version: 1.0.0
+status: PENDING_MODULE_05_06_07_APPROVAL
+prediction_unit: route_segment_traversal_interval
+hard_constraints:
+  - code: OFFICIAL_CLOSURE
+    condition: active_official_closure_intersects_segment_and_travel_time
+    result: UNUSABLE
+    override_allowed: false
+  - code: OFFICIAL_NO_GO
+    condition: active_official_no_go_geometry_intersects_segment_and_travel_time
+    result: UNUSABLE
+    override_allowed: false
+  - code: EVACUATION_DIRECTION_CONFLICT
+    condition: route_traverses_against_active_official_evacuation_direction
+    result: UNUSABLE
+    override_allowed: false
+exposure_formula:
+  description: Sum segment hazard contributions, normalized by route length and capped to [0,1].
+  segment_contribution: severity_weight * temporal_overlap_ratio * spatial_exposure_ratio * source_confidence
+  spatial_exposure:
+    polygon: intersected_segment_length / segment_length
+    point: distance_decay_within_configured_hazard_radius
+  temporal_overlap: overlapping_seconds / segment_traversal_seconds
+  missing_required_input: exposure_unknown
+  coefficients:
+    severity_weights: null
+    hazard_radii_m: null
+    distance_decay_function: null
+ranking:
+  strategy: lexicographic
+  order:
+    - hard_constraint_usable_descending
+    - risk_level_ascending
+    - exposure_score_ascending
+    - duration_seconds_ascending
+    - distance_m_ascending
+    - route_id_ascending
+  user_preferences_apply_after_safety: true
+  pending_numeric_coefficients_behavior: enforce_hard_constraints_but_return_ranking_unavailable
+labels:
+  RECOMMENDED: first_usable_route_after_approved_ranking
+  FASTEST: minimum_duration_among_usable_routes
+  LOWEST_RISK: minimum_exposure_among_usable_routes
+  ORIGINAL: provider_original_route
+  ALTERNATIVE: other_usable_route
+invariants:
+  - An unusable route is never labelled RECOMMENDED, FASTEST, or LOWEST_RISK.
+  - Missing exposure is never treated as zero exposure.
+  - A preference cannot override a hard constraint.
+  - Ties are deterministic and finish with canonical route_id ordering.
