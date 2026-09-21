@@ -28,6 +28,7 @@ from app.pipeline.features import (
     FeaturePolicy,
     FeatureVector,
     build_features,
+    before_cutoff,
     feature_schema,
 )
 
@@ -84,8 +85,17 @@ def build(
     for name, records in (("weather", weather), ("disaster", disasters), ("transport", transport)):
         if records:
             sources[name] = records[0].quality
+    fetched_at: dict[str, datetime | None] = {}
+    for name, records in (
+        ("weather", before_cutoff(weather, recommendation_at)),
+        ("disaster", before_cutoff(disasters, recommendation_at)),
+        ("transport", before_cutoff(transport, recommendation_at)),
+    ):
+        if records is not None:
+            timestamps = [record.source.fetched_at for record in records if record.source.fetched_at]
+            fetched_at[name] = min(timestamps) if timestamps else None
     inputs = FeatureInputs(
-        route, samples, recommendation_at, weather, disasters, transport, sources
+        route, samples, recommendation_at, weather, disasters, transport, sources, fetched_at
     )
     return build_features(inputs, POLICY)
 
@@ -191,9 +201,14 @@ def test_stale_realtime_feed_is_unknown_disruption_for_transit() -> None:
 
 
 def test_freshness_is_oldest_critical_source_age() -> None:
-    values = build(weather=[bangkok_weather()], disasters=[usgs_event()]).values
-    ages = [bangkok_weather().quality.freshness_seconds, usgs_event().quality.freshness_seconds]
-    assert values["critical_evidence_freshness_seconds"] == max(a for a in ages if a is not None)
+    event = usgs_event()
+    values = build(weather=[bangkok_weather()], disasters=[event]).values
+    assert event.quality.freshness_seconds is not None
+    assert event.source.fetched_at is not None
+    elapsed = 2_128  # ceil(18:00:00 - 17:24:32.094906)
+    assert values["critical_evidence_freshness_seconds"] == (
+        event.quality.freshness_seconds + elapsed
+    )
 
 
 def test_freshness_includes_time_between_fetch_and_snapshot() -> None:

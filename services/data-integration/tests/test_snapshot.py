@@ -59,7 +59,19 @@ def snapshot(
     quake = DisasterEvent.model_validate(record("m04-usgs-event.json") | {"official": official})
     sources = {"route": route.quality, "weather": weather[0].quality} if gate_sources else {}
     features = build_features(
-        FeatureInputs(route, samples, created_at, weather, [quake], None, sources),
+        FeatureInputs(
+            route,
+            samples,
+            created_at,
+            weather,
+            [quake],
+            None,
+            sources,
+            {
+                "weather": weather[0].source.fetched_at,
+                "disaster": quake.source.fetched_at,
+            },
+        ),
         FeaturePolicy(2000, 1200, 300),
     )
     quality = summarize_quality(
