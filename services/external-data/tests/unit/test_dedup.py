@@ -55,9 +55,7 @@ def test_a_shared_cross_reference_id_groups_two_sources() -> None:
     """GDACS carries the GLIDE number; USGS carries its network ids. When one
     appears in the other, that is the same real-world event."""
     usgs = _event(provider="usgs_earthquake", record_id="us7000", cross_ids=["ak123"])
-    gdacs = _event(
-        provider="gdacs", record_id="1562260", cross_ids=["us7000", "EQ-2026-000168"]
-    )
+    gdacs = _event(provider="gdacs", record_id="1562260", cross_ids=["us7000", "EQ-2026-000168"])
 
     groups = find_duplicate_groups([usgs, gdacs])
 
@@ -164,12 +162,8 @@ def test_just_inside_and_just_outside_the_distance_threshold() -> None:
     """One degree of latitude is about 111 km, so this brackets the boundary
     rather than guessing at it."""
     origin = _event(provider="usgs_earthquake", record_id="a", latitude=0.0)
-    inside = _event(
-        provider="gdacs", record_id="b", latitude=(PROXIMITY_KM - 20) / 111.0
-    )
-    outside = _event(
-        provider="gdacs", record_id="c", latitude=(PROXIMITY_KM + 40) / 111.0
-    )
+    inside = _event(provider="gdacs", record_id="b", latitude=(PROXIMITY_KM - 20) / 111.0)
+    outside = _event(provider="gdacs", record_id="c", latitude=(PROXIMITY_KM + 40) / 111.0)
 
     assert find_duplicate_groups([origin, inside])
     assert find_duplicate_groups([origin, outside]) == []
@@ -178,9 +172,7 @@ def test_just_inside_and_just_outside_the_distance_threshold() -> None:
 def test_an_empty_cross_reference_is_not_a_match() -> None:
     """Two events that both carry a blank id are not thereby the same event."""
     first = _event(provider="usgs_earthquake", record_id="a", cross_ids=["", "  "])
-    second = _event(
-        provider="gdacs", record_id="b", cross_ids=["", "  "], latitude=40.0
-    )
+    second = _event(provider="gdacs", record_id="b", cross_ids=["", "  "], latitude=40.0)
     assert find_duplicate_groups([first, second]) == []
 
 
@@ -222,9 +214,7 @@ def test_a_shared_episode_number_does_not_group_anything() -> None:
     """An episode index is a position inside one event, and every storm has an
     episode 3."""
     first = _event(provider="gdacs", record_id="a", cross_ids=["episode:3"])
-    second = _event(
-        provider="nasa_eonet", record_id="b", latitude=60.0, cross_ids=["episode:3"]
-    )
+    second = _event(provider="nasa_eonet", record_id="b", latitude=60.0, cross_ids=["episode:3"])
     assert find_duplicate_groups([first, second]) == []
 
 

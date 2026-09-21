@@ -67,8 +67,7 @@ CAPTURES = [
     (
         "usgs_significant_month",
         "usgs/significant_month.json",
-        "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/"
-        "significant_month.geojson",
+        "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/" "significant_month.geojson",
         "US Government public domain (USGS)",
         "public earthquake catalogue; no credential, no PII",
     ),
@@ -99,9 +98,7 @@ UA = "travel-safety-ai/0.0 (module-04 fixture capture; contact: team lead)"
 
 
 def capture(url: str) -> tuple[bytes, int, str]:
-    req = urllib.request.Request(
-        url, headers={"User-Agent": UA, "Accept": "application/json"}
-    )
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=40) as resp:
         return resp.read(), resp.status, resp.headers.get("Content-Type", "")
 
@@ -155,9 +152,7 @@ def main() -> int:
             "content_hash": "sha256:" + hashlib.sha256(raw).hexdigest(),
             "license": license_,
             "redaction": redaction,
-            "capture_method": (
-                "single live GET, stored pretty-printed (UTF-8, 2-space indent)"
-            ),
+            "capture_method": ("single live GET, stored pretty-printed (UTF-8, 2-space indent)"),
         }
         print(f"ok   {name:38s} {len(raw):>7d}B -> {rel}")
 

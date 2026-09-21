@@ -169,9 +169,7 @@ async def providers_health(request: Request, _: InternalAuth) -> dict[str, Any]:
 
         if resolved.effective_status is not ProviderStatus.ACTIVE:
             state = (
-                HealthState.NOT_CONFIGURED
-                if resolved.missing_credentials
-                else HealthState.UNKNOWN
+                HealthState.NOT_CONFIGURED if resolved.missing_credentials else HealthState.UNKNOWN
             )
             quota = None
         else:
@@ -522,20 +520,16 @@ async def context_query(
     return success(
         {
             "weather": [
-                record.model_dump(mode="json")
-                for record in result.records(ProviderKind.WEATHER)
+                record.model_dump(mode="json") for record in result.records(ProviderKind.WEATHER)
             ],
             "disaster_events": [
-                record.model_dump(mode="json")
-                for record in result.records(ProviderKind.DISASTER)
+                record.model_dump(mode="json") for record in result.records(ProviderKind.DISASTER)
             ],
             "routes": [
-                record.model_dump(mode="json")
-                for record in result.records(ProviderKind.ROUTE)
+                record.model_dump(mode="json") for record in result.records(ProviderKind.ROUTE)
             ],
             "transport": [
-                record.model_dump(mode="json")
-                for record in result.records(ProviderKind.TRANSIT)
+                record.model_dump(mode="json") for record in result.records(ProviderKind.TRANSIT)
             ],
             "places": [
                 record.model_dump(mode="json")
@@ -600,9 +594,7 @@ def _places_anchor(body: ContextQueryRequest) -> tuple[float, float] | None:
     return None
 
 
-def _disaster_call(
-    adapters: AdapterRegistry, body: ContextQueryRequest
-) -> CapabilityCall | str:
+def _disaster_call(adapters: AdapterRegistry, body: ContextQueryRequest) -> CapabilityCall | str:
     available = adapters.all_for_kind(ProviderKind.DISASTER)
     if not available:
         return adapters.blocked_reason(ProviderKind.DISASTER)
@@ -710,10 +702,7 @@ def _capability_call(
 
     anchor = _places_anchor(body)
     if anchor is None:
-        return (
-            "emergency places were requested but there is no coordinate "
-            "to search around"
-        )
+        return "emergency places were requested but there is no coordinate " "to search around"
     places_query = NearbyPlacesQuery(
         longitude=anchor[0],
         latitude=anchor[1],
@@ -729,9 +718,7 @@ def _capability_call(
     return places
 
 
-def _health_snapshot(
-    adapters: AdapterRegistry, registry: ResolvedRegistry
-) -> list[dict[str, Any]]:
+def _health_snapshot(adapters: AdapterRegistry, registry: ResolvedRegistry) -> list[dict[str, Any]]:
     """Registry-level health for the capabilities this endpoint covers.
 
     Included in the response on purpose: a consumer deciding whether to show a
@@ -749,8 +736,7 @@ def _health_snapshot(
                     "capability": str(kind),
                     "effective_status": str(resolved.effective_status),
                     "health": str(report.state) if report is not None else "UNKNOWN",
-                    "reason": resolved.reason
-                    or (report.reason if report is not None else None),
+                    "reason": resolved.reason or (report.reason if report is not None else None),
                 }
             )
     return snapshot

@@ -198,9 +198,7 @@ def parse_schedule(
         )
 
     if orphan_stop_times:
-        log.warning(
-            "gtfs_schedule_orphan_stop_times", feed=feed_id, count=orphan_stop_times
-        )
+        log.warning("gtfs_schedule_orphan_stop_times", feed=feed_id, count=orphan_stop_times)
 
     by_suffix: dict[str, list[ScheduledTrip]] = {}
     for trip in trips.values():
@@ -249,9 +247,7 @@ class GtfsAdapter(ProviderAdapter[TransitQuery, TransportStatus]):
     # ------------------------------------------------------------ coverage
     def coverage(self, query: TransitQuery) -> CoverageDecision:
         if not self.feeds:
-            return CoverageDecision(
-                False, "no agency feed is registered for this provider"
-            )
+            return CoverageDecision(False, "no agency feed is registered for this provider")
         if not self._feeds_for(query):
             names = ", ".join(str(f.get("feed_id")) for f in self.feeds)
             return CoverageDecision(
@@ -345,9 +341,7 @@ class GtfsAdapter(ProviderAdapter[TransitQuery, TransportStatus]):
         fetched_at = datetime.fromtimestamp(response.fetched_at, tz=UTC)
 
         header_ts = int(getattr(model.header, "timestamp", 0) or 0)
-        feed_built_at = (
-            datetime.fromtimestamp(header_ts, tz=UTC) if header_ts else None
-        )
+        feed_built_at = datetime.fromtimestamp(header_ts, tz=UTC) if header_ts else None
 
         records: list[TransportStatus] = []
         for entity in model.entity:
@@ -363,9 +357,7 @@ class GtfsAdapter(ProviderAdapter[TransitQuery, TransportStatus]):
 
             stop_updates = list(update.stop_time_update)
             if query.stop_ids:
-                stop_updates = [
-                    s for s in stop_updates if s.stop_id in set(query.stop_ids)
-                ]
+                stop_updates = [s for s in stop_updates if s.stop_id in set(query.stop_ids)]
                 if not stop_updates:
                     continue
             if not stop_updates:
@@ -419,24 +411,18 @@ class GtfsAdapter(ProviderAdapter[TransitQuery, TransportStatus]):
 
         delay_minutes: int | None = None
         if scheduled_arrival is not None and estimated_arrival is not None:
-            delay_minutes = round(
-                (estimated_arrival - scheduled_arrival).total_seconds() / 60
-            )
+            delay_minutes = round((estimated_arrival - scheduled_arrival).total_seconds() / 60)
 
         status, cancellation = _status(relationship, delay_minutes)
 
         route = (schedule.routes.get(update.trip.route_id) if schedule else None) or {}
-        mode = _MODE_BY_ROUTE_TYPE.get(
-            str(route.get("route_type", "")), _mode_from_feed(feed)
-        )
+        mode = _MODE_BY_ROUTE_TYPE.get(str(route.get("route_type", "")), _mode_from_feed(feed))
 
         return TransportStatus(
             id=f"{feed_id}:{update.trip.trip_id}",
             mode=mode,
             operator=(schedule.agency_name if schedule else feed.get("agency")),
-            service_number=(
-                route.get("route_short_name") or update.trip.route_id or None
-            ),
+            service_number=(route.get("route_short_name") or update.trip.route_id or None),
             origin_stop=_stop_ref(schedule, first.stop_id),
             destination_stop=_stop_ref(schedule, last.stop_id),
             scheduled_departure=scheduled_departure,
@@ -542,9 +528,7 @@ class GtfsAdapter(ProviderAdapter[TransitQuery, TransportStatus]):
         try:
             return await self.load_schedule(feed, deadline_seconds=deadline_seconds)
         except ProviderError as error:
-            log.warning(
-                "gtfs_schedule_unavailable", feed=feed_id, error_code=str(error.code)
-            )
+            log.warning("gtfs_schedule_unavailable", feed=feed_id, error_code=str(error.code))
             return cached
 
     async def query(
@@ -570,9 +554,7 @@ class GtfsAdapter(ProviderAdapter[TransitQuery, TransportStatus]):
 # --------------------------------------------------------------- helpers
 
 
-def _bbox_overlaps(
-    query: tuple[float, float, float, float], feed_bbox: Any
-) -> bool:
+def _bbox_overlaps(query: tuple[float, float, float, float], feed_bbox: Any) -> bool:
     if not feed_bbox or len(feed_bbox) < 4:
         # A feed that declares no area cannot be ruled out, and claiming it
         # covers everywhere would be the global claim the plan forbids. Treat it
@@ -588,9 +570,7 @@ def _bbox_overlaps(
     )
 
 
-def _pick_scheduled(
-    schedule: Schedule | None, suffix: str, route_id: str
-) -> ScheduledTrip | None:
+def _pick_scheduled(schedule: Schedule | None, suffix: str, route_id: str) -> ScheduledTrip | None:
     if schedule is None or not suffix:
         return None
     candidates = schedule.trips_by_suffix.get(suffix)
@@ -677,12 +657,10 @@ def _scheduled_time(
             hours, minutes, seconds = (int(p) for p in parts)
         except ValueError:
             return None
-        local_midnight = datetime(
-            service_day.year, service_day.month, service_day.day, tzinfo=zone
-        )
-        return (local_midnight + timedelta(
-            hours=hours, minutes=minutes, seconds=seconds
-        )).astimezone(UTC)
+        local_midnight = datetime(service_day.year, service_day.month, service_day.day, tzinfo=zone)
+        return (
+            local_midnight + timedelta(hours=hours, minutes=minutes, seconds=seconds)
+        ).astimezone(UTC)
     return None
 
 
@@ -767,9 +745,7 @@ def _quality(
     if feed_built_at is None:
         flags.append(QualityFlag.MISSING)
         notes.append("the realtime feed carried no header timestamp")
-        return DataQuality(
-            status=DataStatus.PARTIAL, flags=sorted(set(flags)), notes=notes
-        )
+        return DataQuality(status=DataStatus.PARTIAL, flags=sorted(set(flags)), notes=notes)
 
     age_seconds = max(0, int((fetched_at - feed_built_at).total_seconds()))
     quality = DataQuality.from_age(

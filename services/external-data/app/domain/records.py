@@ -273,7 +273,11 @@ class RouteCandidate(BaseModel):
     risk_level: RiskLevel = RiskLevel.UNKNOWN
 
     quality: DataQuality
-    source: SourceProvenance
+    # Plural here and singular on every other record, which is deliberate: a
+    # route survives being stitched. Module 05 joins legs from several providers
+    # into one itinerary and each leg's provenance has to survive that join. A
+    # raw route from one provider carries a single-element list.
+    sources: list[SourceProvenance] = Field(default_factory=list)
 
     # Bounding box of the whole geometry, in GeoJSON order
     # [min_lon, min_lat, max_lon, max_lat]. Module 05 uses it to pre-filter
@@ -293,8 +297,17 @@ class EmergencyPlace(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    place_id: str
-    place_type: PlaceType
+    # Named to match `emergency-poi.schema.json`. Note this is *not* the same
+    # field as `LocationRef.place_id`, which the contract still calls place_id:
+    # one identifies a geocoded place, the other a point of interest.
+    poi_id: str
+    poi_type: PlaceType
+    # Required by the contract and nullable on purpose. Two of nineteen real
+    # hospitals near Victory Monument carry no name tag in OpenStreetMap, one of
+    # them 335 m away - closer than several that do. A non-nullable name leaves
+    # only two options and both are wrong: drop the record and hide the nearest
+    # hospital from someone who needs it, or invent a label the provider never
+    # said.
     name: str | None = None
     location: GeoPoint
     # Straight-line metres from the query point as reported by the provider -

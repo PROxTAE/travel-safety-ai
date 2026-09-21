@@ -20,8 +20,10 @@ from app.observability.context import correlation_id_var, request_id_var
 # Redaction happens on the rendered value, so it also catches secrets that
 # arrive inside an exception message or a provider URL.
 _PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"(?i)(api[_-]?key|apikey|token|secret|password|authorization)=[^&\s\"']+"),
-     r"\1=[REDACTED]"),
+    (
+        re.compile(r"(?i)(api[_-]?key|apikey|token|secret|password|authorization)=[^&\s\"']+"),
+        r"\1=[REDACTED]",
+    ),
     (re.compile(r"(?i)bearer\s+[A-Za-z0-9._\-]{8,}"), "Bearer [REDACTED]"),
     (re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+"), "[EMAIL]"),
     (re.compile(r"(?<![\d.])\+?\d[\d\s-]{7,}\d(?![\d.])"), "[PHONE]"),
@@ -36,15 +38,12 @@ _COORD_PRECISION = 1
 # "2026-09-19" is ten digits joined by dashes. Timestamps are the field we log
 # most often, so they are lifted out before redaction runs and restored after.
 _ISO_DATETIME = re.compile(
-    r"\d{4}-\d{2}-\d{2}"
-    r"(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?"
+    r"\d{4}-\d{2}-\d{2}" r"(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?"
 )
 # Same trap, same shape: a uuid4 is runs of hex digits joined by dashes, so the
 # phone pattern eats roughly one in four of them — and those are exactly the
 # request_id and correlation_id values the observability contract depends on.
-_UUID = re.compile(
-    r"(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b"
-)
+_UUID = re.compile(r"(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b")
 
 _PLACEHOLDER = "\x00keep{}\x00"
 

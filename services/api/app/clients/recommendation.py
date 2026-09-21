@@ -26,7 +26,12 @@ from pydantic import ValidationError
 
 from app.errors.exceptions import DependencyTimeout, DependencyUnavailable
 from app.observability.logging import get_logger
+from app.observability.metrics import (
+    downstream_request_duration_seconds,
+    downstream_request_errors_total,
+)
 from app.schemas.recommendation import RecommendationResponseModel
+from app.security.outbound import validate_outbound_url
 from app.settings import Settings
 
 logger = get_logger(__name__)
@@ -95,13 +100,28 @@ class RecommendationClient:
             raise DependencyUnavailable(DEPENDENCY, message="The assessment result is unavailable.")
 
         path = f"{RECOMMENDATIONS_PATH}/{recommendation_id}"
+        url = f"{self._base}{path}"
+        validate_outbound_url(url, self._settings)
+
+        import time
+
+        start_time = time.monotonic()
         try:
-            response = await self._client.get(f"{self._base}{path}", headers=self._headers)
+            response = await self._client.get(url, headers=self._headers)
+            downstream_request_duration_seconds.labels(
+                dependency=DEPENDENCY, operation="fetch_recommendation"
+            ).observe(time.monotonic() - start_time)
         except httpx.TimeoutException as exc:
+            downstream_request_errors_total.labels(
+                dependency=DEPENDENCY, error_kind="timeout"
+            ).inc()
             raise DependencyTimeout(
                 DEPENDENCY, message="The assessment result did not arrive in time."
             ) from exc
         except httpx.HTTPError as exc:
+            downstream_request_errors_total.labels(
+                dependency=DEPENDENCY, error_kind="http_error"
+            ).inc()
             logger.warning(
                 "dependency_unreachable",
                 event_type="dependency",
@@ -119,6 +139,19 @@ class RecommendationClient:
             raise RecommendationInvalid(
                 "module 08 does not have the recommendation the agent named"
             )
+
+        if response.status_code >= 500:
+            downstream_request_errors_total.labels(
+                dependency=DEPENDENCY, error_kind=f"status_{response.status_code}"
+            ).inc()
+            logger.warning(
+                "dependency_error_status",
+                event_type="dependency",
+                dependency=DEPENDENCY,
+                status=response.status_code,
+                path=path,
+            )
+            raise DependencyUnavailable(DEPENDENCY, message="The assessment result is unavailable.")
 
         if response.status_code >= 400:
             logger.warning(

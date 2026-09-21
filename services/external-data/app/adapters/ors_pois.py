@@ -142,17 +142,13 @@ class OrsPoisAdapter(ProviderAdapter[NearbyPlacesQuery, EmergencyPlace]):
         ]
         if unknown:
             names = ", ".join(str(place_type) for place_type in unknown)
-            return CoverageDecision(
-                False, f"this provider has no category for: {names}"
-            )
+            return CoverageDecision(False, f"this provider has no category for: {names}")
         return CoverageDecision(True)
 
     # -------------------------------------------------------------- request
     def build_request(self, query: NearbyPlacesQuery) -> ProviderRequest:
         place_types = tuple(query.place_types) or DEFAULT_PLACE_TYPES
-        category_ids = sorted(
-            CATEGORY_BY_PLACE_TYPE[place_type] for place_type in place_types
-        )
+        category_ids = sorted(CATEGORY_BY_PLACE_TYPE[place_type] for place_type in place_types)
         body: dict[str, Any] = {
             "request": "pois",
             "geometry": {
@@ -239,14 +235,12 @@ class OrsPoisAdapter(ProviderAdapter[NearbyPlacesQuery, EmergencyPlace]):
 
             places.append(
                 EmergencyPlace(
-                    place_id=f"{self.provider_id}:osm:{osm_id}"
+                    poi_id=f"{self.provider_id}:osm:{osm_id}"
                     if osm_id is not None
                     else f"{self.provider_id}:{coordinates[0]:.6f},{coordinates[1]:.6f}",
-                    place_type=place_type,
+                    poi_type=place_type,
                     name=_text(tags.get("name")),
-                    location=GeoPoint(
-                        coordinates=(float(coordinates[0]), float(coordinates[1]))
-                    ),
+                    location=GeoPoint(coordinates=(float(coordinates[0]), float(coordinates[1]))),
                     distance_m=properties.distance,
                     address=_address(tags),
                     phone=_text(tags.get("phone") or tags.get("contact:phone")),

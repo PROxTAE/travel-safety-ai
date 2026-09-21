@@ -40,9 +40,7 @@ def _transport(**defaults_kwargs: object) -> ProviderTransport:
 
 @respx.mock
 async def test_successful_request_returns_payload_and_fetch_time() -> None:
-    respx.get(GEOCODE_URL).mock(
-        return_value=httpx.Response(200, json={"results": [{"id": 1}]})
-    )
+    respx.get(GEOCODE_URL).mock(return_value=httpx.Response(200, json={"results": [{"id": 1}]}))
     transport = _transport()
     response = await transport.request(_provider(), "/v1/search", params={"name": "X"})
 
@@ -109,9 +107,7 @@ async def test_timeout_maps_to_provider_timeout_and_is_retried() -> None:
 
 @respx.mock
 async def test_non_json_body_maps_to_schema_changed() -> None:
-    respx.get(GEOCODE_URL).mock(
-        return_value=httpx.Response(200, text="<html>maintenance</html>")
-    )
+    respx.get(GEOCODE_URL).mock(return_value=httpx.Response(200, text="<html>maintenance</html>"))
     transport = _transport()
 
     with pytest.raises(ProviderError) as excinfo:
@@ -180,9 +176,7 @@ async def test_relative_path_resolves_against_the_configured_base() -> None:
 
 async def test_non_callable_provider_is_never_requested() -> None:
     transport = _transport()
-    entry = next(
-        p for p in load_registry(REGISTRY_PATH).providers if p.id == "openrouteservice"
-    )
+    entry = next(p for p in load_registry(REGISTRY_PATH).providers if p.id == "openrouteservice")
     blocked = ResolvedProvider(
         entry=entry,
         effective_status=ProviderStatus.PENDING_CREDENTIAL,

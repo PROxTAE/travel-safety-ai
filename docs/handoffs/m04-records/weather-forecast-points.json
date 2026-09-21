@@ -1,0 +1,166 @@
+{
+  "_note": "Every measurement is nullable on purpose: a value the provider did not supply is null plus a quality flag, never 0 - which would read as 'no rain' rather than 'unknown'.",
+  "_generated_from": "real captured provider responses in services/external-data/tests/fixtures/real-sanitized/",
+  "_warning": "Sample output, not a contract. packages/contracts is the contract. Timestamps are from generation time and will look stale.",
+  "records": [
+    {
+      "id": "open_meteo_forecast:13.743409:100.495865:2026-09-19T00:00:00+00:00",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          100.495865,
+          13.743409
+        ]
+      },
+      "valid_at": "2026-09-19T00:00:00Z",
+      "temperature_c": 25.5,
+      "apparent_temperature_c": 31.3,
+      "precipitation_mm": 0.2,
+      "precipitation_probability": 39,
+      "snowfall_cm": 0.0,
+      "wind_speed_kmh": 8.5,
+      "wind_gust_kmh": 19.8,
+      "visibility_m": 4380.0,
+      "weather_code": 51,
+      "severity": "UNKNOWN",
+      "quality": {
+        "status": "FRESH",
+        "score": null,
+        "score_version": null,
+        "flags": [
+          "MISSING"
+        ],
+        "coverage": 1.0,
+        "completeness": null,
+        "freshness_seconds": 0,
+        "conflicts": [],
+        "notes": [
+          "forecast is model output; the provider supplies no observation time",
+          "returned coordinate is the model grid cell, 1.6 km from the requested point"
+        ]
+      },
+      "source": {
+        "source_id": "open_meteo_forecast:13.743409,100.495865@2026-09-19T00:00:00+00:00",
+        "provider": "open_meteo_forecast",
+        "provider_record_id": "13.743409,100.495865@2026-09-19T00:00:00+00:00",
+        "authority": "LICENSED_PROVIDER",
+        "source_url": "https://example.invalid/captured",
+        "license": "CC-BY-4.0",
+        "observed_at": null,
+        "published_at": null,
+        "fetched_at": "2026-09-20T17:24:32.107949Z",
+        "expires_at": "2026-09-20T17:39:32.107949Z",
+        "content_hash": "sha256:e4ff1c2cf7dccff3c38404d5f5790b30b5bac4df102fd032df73c45bad0b3322",
+        "schema_version": "1.0.0"
+      },
+      "eta_offset_seconds": null,
+      "sample_id": "origin"
+    },
+    {
+      "id": "open_meteo_forecast:13.743409:100.495865:2026-09-19T01:00:00+00:00",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          100.495865,
+          13.743409
+        ]
+      },
+      "valid_at": "2026-09-19T01:00:00Z",
+      "temperature_c": 26.3,
+      "apparent_temperature_c": 32.6,
+      "precipitation_mm": 0.4,
+      "precipitation_probability": 46,
+      "snowfall_cm": 0.0,
+      "wind_speed_kmh": 7.2,
+      "wind_gust_kmh": 22.0,
+      "visibility_m": 5880.0,
+      "weather_code": 51,
+      "severity": "UNKNOWN",
+      "quality": {
+        "status": "FRESH",
+        "score": null,
+        "score_version": null,
+        "flags": [
+          "MISSING"
+        ],
+        "coverage": 1.0,
+        "completeness": null,
+        "freshness_seconds": 0,
+        "conflicts": [],
+        "notes": [
+          "forecast is model output; the provider supplies no observation time",
+          "returned coordinate is the model grid cell, 1.6 km from the requested point"
+        ]
+      },
+      "source": {
+        "source_id": "open_meteo_forecast:13.743409,100.495865@2026-09-19T01:00:00+00:00",
+        "provider": "open_meteo_forecast",
+        "provider_record_id": "13.743409,100.495865@2026-09-19T01:00:00+00:00",
+        "authority": "LICENSED_PROVIDER",
+        "source_url": "https://example.invalid/captured",
+        "license": "CC-BY-4.0",
+        "observed_at": null,
+        "published_at": null,
+        "fetched_at": "2026-09-20T17:24:32.107949Z",
+        "expires_at": "2026-09-20T17:39:32.107949Z",
+        "content_hash": "sha256:928685fc3fa1abfd8af39587bc0b6bd47f5ba23e600e9944c3ab5c34c8d27d87",
+        "schema_version": "1.0.0"
+      },
+      "eta_offset_seconds": null,
+      "sample_id": "origin"
+    },
+    {
+      "id": "open_meteo_forecast:13.743409:100.495865:2026-09-19T02:00:00+00:00",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          100.495865,
+          13.743409
+        ]
+      },
+      "valid_at": "2026-09-19T02:00:00Z",
+      "temperature_c": 27.8,
+      "apparent_temperature_c": 33.8,
+      "precipitation_mm": 0.1,
+      "precipitation_probability": 63,
+      "snowfall_cm": 0.0,
+      "wind_speed_kmh": 8.3,
+      "wind_gust_kmh": 23.4,
+      "visibility_m": 10260.0,
+      "weather_code": 51,
+      "severity": "UNKNOWN",
+      "quality": {
+        "status": "FRESH",
+        "score": null,
+        "score_version": null,
+        "flags": [
+          "MISSING"
+        ],
+        "coverage": 1.0,
+        "completeness": null,
+        "freshness_seconds": 0,
+        "conflicts": [],
+        "notes": [
+          "forecast is model output; the provider supplies no observation time",
+          "returned coordinate is the model grid cell, 1.6 km from the requested point"
+        ]
+      },
+      "source": {
+        "source_id": "open_meteo_forecast:13.743409,100.495865@2026-09-19T02:00:00+00:00",
+        "provider": "open_meteo_forecast",
+        "provider_record_id": "13.743409,100.495865@2026-09-19T02:00:00+00:00",
+        "authority": "LICENSED_PROVIDER",
+        "source_url": "https://example.invalid/captured",
+        "license": "CC-BY-4.0",
+        "observed_at": null,
+        "published_at": null,
+        "fetched_at": "2026-09-20T17:24:32.107949Z",
+        "expires_at": "2026-09-20T17:39:32.107949Z",
+        "content_hash": "sha256:9a9111d473f88d7c32a8cb567b0ad884c8f1213711c60173b40bb5f84676332b",
+        "schema_version": "1.0.0"
+      },
+      "eta_offset_seconds": null,
+      "sample_id": "origin"
+    }
+  ]
+}

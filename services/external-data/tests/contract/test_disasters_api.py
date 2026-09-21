@@ -64,9 +64,7 @@ class _FailingAdapter:
     provider_id = "nasa_eonet"
 
     async def query(self, query: Any, **kwargs: Any) -> list[Any]:
-        raise ProviderError(
-            ProviderErrorCode.PROVIDER_OUTAGE, self.provider_id, message="down"
-        )
+        raise ProviderError(ProviderErrorCode.PROVIDER_OUTAGE, self.provider_id, message="down")
 
 
 @respx.mock
@@ -193,9 +191,7 @@ def test_a_hazard_no_source_covers_is_unsupported_coverage(
     client: TestClient,
 ) -> None:
     _mock_all()
-    response = client.post(
-        PATH, json={"event_types": ["TRANSPORT_CLOSURE"]}, headers=AUTH
-    )
+    response = client.post(PATH, json={"event_types": ["TRANSPORT_CLOSURE"]}, headers=AUTH)
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "UNSUPPORTED_COVERAGE"
@@ -229,9 +225,7 @@ def test_rejects_an_inverted_bbox(client: TestClient) -> None:
 
 
 def test_rejects_an_out_of_range_bbox(client: TestClient) -> None:
-    assert (
-        client.post(PATH, json={"bbox": [0, 0, 200, 10]}, headers=AUTH).status_code == 422
-    )
+    assert client.post(PATH, json={"bbox": [0, 0, 200, 10]}, headers=AUTH).status_code == 422
 
 
 def test_rejects_a_naive_timestamp(client: TestClient) -> None:

@@ -154,9 +154,7 @@ class OpenMeteoWeatherAdapter(ProviderAdapter[WeatherQuery, WeatherForecastPoint
             cache_key_fields={
                 # Bucket coordinates so two requests a few metres apart share a
                 # cache entry - the provider snaps to a grid anyway.
-                "points": [
-                    [round(s.latitude, 2), round(s.longitude, 2)] for s in selected
-                ],
+                "points": [[round(s.latitude, 2), round(s.longitude, 2)] for s in selected],
                 "hours": _window_bucket(query),
                 # What gets cached is the *normalised* records, which ETA
                 # selection has already narrowed to one hour per sample and
@@ -164,9 +162,7 @@ class OpenMeteoWeatherAdapter(ProviderAdapter[WeatherQuery, WeatherForecastPoint
                 # part of the key, or a later traveller with a different ETA
                 # gets the first traveller's hour back under their own name.
                 "etas": [
-                    s.eta.astimezone(UTC)
-                    .replace(minute=0, second=0, microsecond=0)
-                    .isoformat()
+                    s.eta.astimezone(UTC).replace(minute=0, second=0, microsecond=0).isoformat()
                     if s.eta
                     else None
                     for s in selected
@@ -239,9 +235,7 @@ class OpenMeteoWeatherAdapter(ProviderAdapter[WeatherQuery, WeatherForecastPoint
 
             for index in _indices_for(sample, query, times):
                 eta_offset = (
-                    int((times[index] - sample.eta).total_seconds())
-                    if sample.eta
-                    else None
+                    int((times[index] - sample.eta).total_seconds()) if sample.eta else None
                 )
                 points.append(
                     WeatherForecastPoint(
@@ -365,9 +359,7 @@ def _measurements(forecast: OpenMeteoForecast, index: int) -> dict[str, object]:
     }
 
 
-def _indices_for(
-    sample: CoordinateSample, query: WeatherQuery, times: list[datetime]
-) -> list[int]:
+def _indices_for(sample: CoordinateSample, query: WeatherQuery, times: list[datetime]) -> list[int]:
     if not times:
         return []
 
@@ -441,10 +433,7 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     radius_km = 6371.0088
     d_lat = radians(lat2 - lat1)
     d_lon = radians(lon2 - lon1)
-    a = (
-        sin(d_lat / 2) ** 2
-        + cos(radians(lat1)) * cos(radians(lat2)) * sin(d_lon / 2) ** 2
-    )
+    a = sin(d_lat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(d_lon / 2) ** 2
     return 2 * radius_km * asin(sqrt(a))
 
 

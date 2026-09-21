@@ -222,9 +222,7 @@ class _RecordingHealth:
 async def test_a_successful_call_records_an_up_observation() -> None:
     """This is what turns the health endpoint from a restatement of config into
     a report of reality."""
-    respx.get(GEOCODE_URL_PATH).mock(
-        return_value=httpx.Response(200, json=load_fixture(FIXTURE))
-    )
+    respx.get(GEOCODE_URL_PATH).mock(return_value=httpx.Response(200, json=load_fixture(FIXTURE)))
     recorder = _RecordingHealth()
     adapter = _adapter_with(recorder)
 
@@ -266,9 +264,7 @@ async def test_an_auth_failure_records_not_configured_not_down() -> None:
 async def test_a_failing_recorder_does_not_fail_the_request() -> None:
     """The observation is a side effect. Data that already arrived must still
     reach the caller when the database is unavailable."""
-    respx.get(GEOCODE_URL_PATH).mock(
-        return_value=httpx.Response(200, json=load_fixture(FIXTURE))
-    )
+    respx.get(GEOCODE_URL_PATH).mock(return_value=httpx.Response(200, json=load_fixture(FIXTURE)))
     adapter = _adapter_with(_RecordingHealth(fail=True))
 
     assert await adapter.query(GeocodeQuery(name="Bangkok"))

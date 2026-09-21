@@ -44,9 +44,7 @@ def _gatherer(max_concurrency: int = 4) -> ContextGatherer:
     return ContextGatherer(_FakeAdapters(), max_concurrency=max_concurrency)  # type: ignore[arg-type]
 
 
-def _answers(
-    records: list[Any], providers: list[str], *, delay: float = 0.0
-) -> CapabilityCall:
+def _answers(records: list[Any], providers: list[str], *, delay: float = 0.0) -> CapabilityCall:
     async def call(budget: float) -> tuple[list[Any], list[str]]:
         if delay:
             await asyncio.sleep(delay)
@@ -97,8 +95,7 @@ async def test_capabilities_run_concurrently_not_one_after_another() -> None:
 
     assert elapsed < 0.6, f"took {elapsed:.2f}s; capabilities are running in series"
     assert all(
-        capability.outcome is Outcome.ANSWERED
-        for capability in result.capabilities.values()
+        capability.outcome is Outcome.ANSWERED for capability in result.capabilities.values()
     )
 
 
@@ -184,8 +181,7 @@ async def test_a_capability_queued_behind_others_does_not_get_a_fresh_budget() -
 
     assert elapsed < 2.0, f"took {elapsed:.2f}s; the second capability restarted the clock"
     assert all(
-        capability.outcome is Outcome.TIMED_OUT
-        for capability in result.capabilities.values()
+        capability.outcome is Outcome.TIMED_OUT for capability in result.capabilities.values()
     )
 
 
@@ -223,7 +219,7 @@ async def test_a_capability_that_was_not_asked_is_still_named() -> None:
 
 
 async def test_outside_coverage_is_not_a_degradation() -> None:
-    """"This source publishes nothing about that" is not a failure.
+    """ "This source publishes nothing about that" is not a failure.
 
     Counting it as degraded would mark the list on nearly every request, and a
     field that is always set stops carrying information.

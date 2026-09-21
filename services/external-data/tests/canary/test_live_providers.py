@@ -68,16 +68,13 @@ _LIVE_CACHE: dict[str, list[Any]] = {}
 # rather than fail: a machine with no openrouteservice account is a normal state
 # for a teammate running the tests, and a canary that always fails gets ignored.
 _ORS_KEY = os.environ.get("ORS_API_KEY") or ""
-_needs_ors = pytest.mark.skipif(
-    not _ORS_KEY, reason="ORS_API_KEY is not set in this environment"
-)
+_needs_ors = pytest.mark.skipif(not _ORS_KEY, reason="ORS_API_KEY is not set in this environment")
 
 
 async def _once(key: str, fetch: Callable[[], Awaitable[list[Any]]]) -> list[Any]:
     if key not in _LIVE_CACHE:
         _LIVE_CACHE[key] = await fetch()
     return _LIVE_CACHE[key]
-
 
 
 def _adapter(provider_id: str, adapter_class: type):  # type: ignore[type-arg]
@@ -176,9 +173,7 @@ async def test_live_forecast_units_have_not_drifted(
 ) -> None:
     """We pin units in the request. If the provider stops honouring that, the
     adapter records it - and this canary is where the team finds out."""
-    points = await weather.query(
-        WeatherQuery(samples=[CoordinateSample(13.7563, 100.5018)])
-    )
+    points = await weather.query(WeatherQuery(samples=[CoordinateSample(13.7563, 100.5018)]))
 
     drift = [note for note in points[0].quality.notes if "expected" in note]
     assert drift == [], f"unit drift detected: {drift}"
@@ -189,16 +184,12 @@ async def test_live_forecast_is_plausible_for_the_tropics(
 ) -> None:
     """A weak sanity bound, not a weather assertion. It catches a unit swap -
     Bangkok at 27 °F, or wind reported in m/s and read as km/h."""
-    points = await weather.query(
-        WeatherQuery(samples=[CoordinateSample(13.7563, 100.5018)])
-    )
+    points = await weather.query(WeatherQuery(samples=[CoordinateSample(13.7563, 100.5018)]))
 
     temperatures = [p.temperature_c for p in points if p.temperature_c is not None]
     assert temperatures
     assert all(5.0 <= value <= 50.0 for value in temperatures)
-    assert all(
-        p.wind_speed_kmh is None or 0.0 <= p.wind_speed_kmh <= 250.0 for p in points
-    )
+    assert all(p.wind_speed_kmh is None or 0.0 <= p.wind_speed_kmh <= 250.0 for p in points)
     assert all(
         p.precipitation_probability is None or 0 <= p.precipitation_probability <= 100
         for p in points
@@ -340,9 +331,7 @@ async def test_live_eonet_bbox_is_honoured_by_the_provider(
 
 def _usgs_week(usgs: UsgsAdapter) -> Callable[[], Awaitable[list[Any]]]:
     """A fixed window, so the two USGS canaries really do ask one question."""
-    start = datetime.now(UTC).replace(minute=0, second=0, microsecond=0) - timedelta(
-        days=7
-    )
+    start = datetime.now(UTC).replace(minute=0, second=0, microsecond=0) - timedelta(days=7)
     return lambda: usgs.query(DisasterQuery(start=start))
 
 
@@ -520,8 +509,7 @@ async def test_live_gtfs_joins_some_trips_to_the_timetable(
     matched = [s for s in statuses if s.scheduled_arrival is not None]
 
     assert matched, (
-        "no live trip matched the published timetable - the trip-id join has "
-        "most likely drifted"
+        "no live trip matched the published timetable - the trip-id join has " "most likely drifted"
     )
 
 

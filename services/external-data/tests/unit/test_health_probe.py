@@ -23,9 +23,7 @@ from app.transport.http import ProviderTransport
 from tests.conftest import REGISTRY_PATH
 
 GEOCODE_PROBE = "https://geocoding-api.open-meteo.com/v1/search"
-USGS_PROBE = (
-    "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_day.geojson"
-)
+USGS_PROBE = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_day.geojson"
 
 
 class _Recorder:
@@ -47,17 +45,13 @@ def _probe(
     defaults.retry.initial_backoff_seconds = 0.001
     transport = ProviderTransport(defaults)
     return (
-        ProviderHealthProbe(
-            registry, transport, recorder, interval_seconds=interval
-        ),
+        ProviderHealthProbe(registry, transport, recorder, interval_seconds=interval),
         transport,
     )
 
 
 def _state_for(recorder: _Recorder, provider_id: str) -> HealthState:
-    return next(
-        call["state"] for call in recorder.calls if call["provider_id"] == provider_id
-    )
+    return next(call["state"] for call in recorder.calls if call["provider_id"] == provider_id)
 
 
 # ------------------------------------------------------------------- targets
@@ -149,9 +143,7 @@ async def test_an_unexpected_status_is_degraded_not_up() -> None:
 
     assert results["open_meteo_geocoding"] is HealthState.DEGRADED
     reason = next(
-        call["reason"]
-        for call in recorder.calls
-        if call["provider_id"] == "open_meteo_geocoding"
+        call["reason"] for call in recorder.calls if call["provider_id"] == "open_meteo_geocoding"
     )
     assert "expected HTTP 200" in reason
     await transport.aclose()

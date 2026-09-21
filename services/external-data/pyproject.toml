@@ -40,6 +40,12 @@ dev = [
     "ruff==0.8.6",
     "mypy==1.14.1",
     "types-PyYAML==6.0.12.20241230",
+    # Phase 7: validate what this module actually emits against the frozen
+    # contract in packages/contracts. Twice now the schema and the producer
+    # have drifted apart and nobody found out until someone validated by hand.
+    "jsonschema==4.23.0",
+    "referencing==0.35.1",
+    "pytest-cov==6.0.0",
 ]
 
 [build-system]

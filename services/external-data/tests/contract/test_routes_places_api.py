@@ -27,9 +27,7 @@ from tests.conftest import TEST_TOKEN, load_fixture
 AUTH = {"Authorization": f"Bearer {TEST_TOKEN}"}
 ROUTES = "/internal/v1/routes/query"
 PLACES = "/internal/v1/places/nearby"
-DIRECTIONS_URL = (
-    "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
-)
+DIRECTIONS_URL = "https://api.openrouteservice.org/v2/directions/driving-car/geojson"
 POIS_URL = "https://api.openrouteservice.org/pois"
 
 BANGKOK = [100.5383, 13.7649]
@@ -64,9 +62,7 @@ def test_routes_without_a_credential_are_unsupported_not_a_crash(
 ) -> None:
     """An unconfigured provider must reach the caller as an honest unavailable
     state, naming what is missing - not as a 500."""
-    response = client.post(
-        ROUTES, headers=AUTH, json={"waypoints": [BANGKOK, AYUTTHAYA]}
-    )
+    response = client.post(ROUTES, headers=AUTH, json={"waypoints": [BANGKOK, AYUTTHAYA]})
     assert response.status_code == 422
     body = response.json()
     assert body["error"]["code"] == "UNSUPPORTED_COVERAGE"
@@ -78,9 +74,7 @@ def test_places_without_a_credential_are_unsupported_not_an_empty_list(
 ) -> None:
     """The dangerous failure mode: returning `[]` here reads as "no hospital
     nearby" when the truth is "we never asked"."""
-    response = client.post(
-        PLACES, headers=AUTH, json={"longitude": 100.5383, "latitude": 13.7649}
-    )
+    response = client.post(PLACES, headers=AUTH, json={"longitude": 100.5383, "latitude": 13.7649})
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "UNSUPPORTED_COVERAGE"
 
@@ -141,12 +135,13 @@ def test_every_route_carries_provenance_and_quality(keyed_client: TestClient) ->
             200, json=load_fixture("openrouteservice/directions_bkk_ayutthaya.json")
         )
     )
-    response = keyed_client.post(
-        ROUTES, headers=AUTH, json={"waypoints": [BANGKOK, AYUTTHAYA]}
-    )
+    response = keyed_client.post(ROUTES, headers=AUTH, json={"waypoints": [BANGKOK, AYUTTHAYA]})
     for route in response.json()["data"]["routes"]:
-        assert route["source"]["provider"] == "openrouteservice"
-        assert route["source"]["license"]
+        # Plural on a route: it has to survive module 05 stitching legs from
+        # several providers into one itinerary.
+        assert len(route["sources"]) == 1
+        assert route["sources"][0]["provider"] == "openrouteservice"
+        assert route["sources"][0]["license"]
         assert route["quality"]["status"]
 
 
@@ -159,9 +154,7 @@ def test_a_coordinate_off_the_road_network_is_coverage_not_an_outage(
             404, json=load_fixture("openrouteservice/directions_no_route.json")
         )
     )
-    response = keyed_client.post(
-        ROUTES, headers=AUTH, json={"waypoints": [BANGKOK, AYUTTHAYA]}
-    )
+    response = keyed_client.post(ROUTES, headers=AUTH, json={"waypoints": [BANGKOK, AYUTTHAYA]})
     assert response.status_code == 422
     body = response.json()
     assert body["error"]["code"] == "UNSUPPORTED_COVERAGE"
@@ -186,9 +179,7 @@ def test_too_many_alternatives_is_a_field_error(keyed_client: TestClient) -> Non
     assert response.status_code == 422
     body = response.json()
     assert body["error"]["code"] == "VALIDATION_ERROR"
-    assert any(
-        error["path"].endswith("alternatives") for error in body["error"]["field_errors"]
-    )
+    assert any(error["path"].endswith("alternatives") for error in body["error"]["field_errors"])
 
 
 def test_a_mode_the_provider_cannot_route_is_unsupported(
@@ -245,9 +236,7 @@ def test_nothing_tagged_nearby_is_an_empty_list_and_still_a_success(
     payload = load_fixture("openrouteservice/pois_emergency_bangkok.json")
     payload["features"] = []
     respx.post(POIS_URL).mock(return_value=httpx.Response(200, json=payload))
-    response = keyed_client.post(
-        PLACES, headers=AUTH, json={"longitude": 0.0, "latitude": 0.0}
-    )
+    response = keyed_client.post(PLACES, headers=AUTH, json={"longitude": 0.0, "latitude": 0.0})
     assert response.status_code == 200
     assert response.json()["data"]["places"] == []
 

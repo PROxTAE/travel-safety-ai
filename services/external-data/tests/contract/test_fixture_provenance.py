@@ -77,9 +77,7 @@ def test_a_captured_error_says_why_it_was_captured(entry: dict[str, Any]) -> Non
     if status == 200:
         return
     assert 400 <= status < 600, f"{entry['fixture_id']} has an implausible status"
-    assert entry.get("note"), (
-        f"{entry['fixture_id']} captured HTTP {status} without explaining why"
-    )
+    assert entry.get("note"), f"{entry['fixture_id']} captured HTTP {status} without explaining why"
 
 
 @pytest.mark.parametrize("entry", _manifest()["fixtures"], ids=lambda e: e["fixture_id"])
@@ -139,9 +137,7 @@ def test_fixtures_are_not_loadable_from_the_runtime_package() -> None:
         docstrings = {
             ast.get_docstring(node, clean=False)
             for node in ast.walk(tree)
-            if isinstance(
-                node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef
-            )
+            if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef)
         }
         for node in ast.walk(tree):
             if (

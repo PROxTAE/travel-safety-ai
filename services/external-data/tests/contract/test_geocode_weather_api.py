@@ -71,12 +71,8 @@ def test_geocode_response_carries_attribution(client: TestClient) -> None:
 def test_geocode_no_match_is_an_empty_success_not_an_error(
     client: TestClient,
 ) -> None:
-    respx.get(GEOCODE_URL).mock(
-        return_value=httpx.Response(200, json={"generationtime_ms": 0.1})
-    )
-    response = client.post(
-        GEOCODE_PATH, json={"query": "zzzzzzzzzz"}, headers=AUTH
-    )
+    respx.get(GEOCODE_URL).mock(return_value=httpx.Response(200, json={"generationtime_ms": 0.1}))
+    response = client.post(GEOCODE_PATH, json={"query": "zzzzzzzzzz"}, headers=AUTH)
     assert response.status_code == 200
     assert response.json()["data"]["results"] == []
 
@@ -98,17 +94,13 @@ def test_geocode_rejects_an_empty_query(client: TestClient) -> None:
 def test_geocode_rejects_an_unknown_field(client: TestClient) -> None:
     """Silently dropping an unexpected field leaves the caller wondering why
     their filter did nothing."""
-    response = client.post(
-        GEOCODE_PATH, json={"query": "Bangkok", "radius": 10}, headers=AUTH
-    )
+    response = client.post(GEOCODE_PATH, json={"query": "Bangkok", "radius": 10}, headers=AUTH)
     assert response.status_code == 422
 
 
 @respx.mock
 def test_provider_rate_limit_surfaces_as_429(client: TestClient) -> None:
-    respx.get(GEOCODE_URL).mock(
-        return_value=httpx.Response(429, headers={"Retry-After": "0"})
-    )
+    respx.get(GEOCODE_URL).mock(return_value=httpx.Response(429, headers={"Retry-After": "0"}))
     response = client.post(GEOCODE_PATH, json={"query": "Bangkok"}, headers=AUTH)
 
     assert response.status_code == 429
@@ -129,9 +121,7 @@ def test_provider_outage_never_names_the_provider(client: TestClient) -> None:
 
 @respx.mock
 def test_malformed_provider_body_is_not_served_as_data(client: TestClient) -> None:
-    respx.get(GEOCODE_URL).mock(
-        return_value=httpx.Response(200, text="<html>maintenance</html>")
-    )
+    respx.get(GEOCODE_URL).mock(return_value=httpx.Response(200, text="<html>maintenance</html>"))
     response = client.post(GEOCODE_PATH, json={"query": "Bangkok"}, headers=AUTH)
     assert response.status_code == 503
     assert "data" not in response.json()
@@ -218,11 +208,7 @@ def test_weather_rejects_a_naive_eta(client: TestClient) -> None:
     a forecast ends up seven hours out."""
     response = client.post(
         WEATHER_PATH,
-        json={
-            "samples": [
-                {"latitude": 13.7, "longitude": 100.5, "eta": "2026-09-19T08:00:00"}
-            ]
-        },
+        json={"samples": [{"latitude": 13.7, "longitude": 100.5, "eta": "2026-09-19T08:00:00"}]},
         headers=AUTH,
     )
     assert response.status_code == 422
@@ -265,10 +251,7 @@ def test_capability_works_without_redis(client: TestClient) -> None:
             200, json=load_fixture("open_meteo_geocoding/search_bangkok.json")
         )
     )
-    assert (
-        client.post(GEOCODE_PATH, json={"query": "Bangkok"}, headers=AUTH).status_code
-        == 200
-    )
+    assert client.post(GEOCODE_PATH, json={"query": "Bangkok"}, headers=AUTH).status_code == 200
 
 
 def response_text(body: dict[str, object]) -> str:
