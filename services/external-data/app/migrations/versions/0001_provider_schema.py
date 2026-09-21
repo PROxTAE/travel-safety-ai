@@ -74,9 +74,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("'{}'::jsonb"),
         ),
-        sa.ForeignKeyConstraint(
-            ["provider_id"], [f"{SCHEMA}.providers.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["provider_id"], [f"{SCHEMA}.providers.id"], ondelete="CASCADE"),
         schema=SCHEMA,
     )
     op.create_index(
@@ -85,9 +83,7 @@ def upgrade() -> None:
         ["provider_id", "fetched_at"],
         schema=SCHEMA,
     )
-    op.create_index(
-        "ix_fetch_log_fetched_at", "fetch_log", ["fetched_at"], schema=SCHEMA
-    )
+    op.create_index("ix_fetch_log_fetched_at", "fetch_log", ["fetched_at"], schema=SCHEMA)
 
     op.create_table(
         "health",
@@ -97,9 +93,7 @@ def upgrade() -> None:
         sa.Column("quota_remaining", sa.Integer(), nullable=True),
         sa.Column("checked_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("reason", sa.Text(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["provider_id"], [f"{SCHEMA}.providers.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["provider_id"], [f"{SCHEMA}.providers.id"], ondelete="CASCADE"),
         schema=SCHEMA,
     )
 
@@ -107,9 +101,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table("health", schema=SCHEMA)
     op.drop_index("ix_fetch_log_fetched_at", table_name="fetch_log", schema=SCHEMA)
-    op.drop_index(
-        "ix_fetch_log_provider_fetched_at", table_name="fetch_log", schema=SCHEMA
-    )
+    op.drop_index("ix_fetch_log_provider_fetched_at", table_name="fetch_log", schema=SCHEMA)
     op.drop_table("fetch_log", schema=SCHEMA)
     op.drop_table("providers", schema=SCHEMA)
     # The schema itself is left in place: dropping it would also remove the

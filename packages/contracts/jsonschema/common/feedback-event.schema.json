@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FeedbackEvent",
+  "description": "Explicit feedback on a recommendation, kept separate from behavioural telemetry. UNSAFE feedback opens a safety review record; nothing here retrains a model automatically.",
+  "type": "object",
+  "required": ["feedback_id", "recommendation_id", "category", "created_at", "review_status"],
+  "properties": {
+    "feedback_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "recommendation_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "category": { "$ref": "enums.schema.json#/$defs/FeedbackCategory" },
+    "text_redacted": {
+      "description": "Free text after redaction of phone numbers, e-mail addresses and precise coordinates.",
+      "type": ["string", "null"],
+      "maxLength": 2000
+    },
+    "review_status": {
+      "type": "string",
+      "enum": ["NEW", "TRIAGED", "IN_REVIEW", "RESOLVED", "DISMISSED"]
+    },
+    "safety_review_id": {
+      "description": "Set when the category is UNSAFE and a safety review record was created.",
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    },
+    "created_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" }
+  }
+}

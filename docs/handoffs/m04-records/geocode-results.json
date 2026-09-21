@@ -1,0 +1,148 @@
+{
+  "_note": "LocationRef plus the provenance and quality that ride alongside it.",
+  "_generated_from": "real captured provider responses in services/external-data/tests/fixtures/real-sanitized/",
+  "_warning": "Sample output, not a contract. packages/contracts is the contract. Timestamps are from generation time and will look stale.",
+  "records": [
+    {
+      "location": {
+        "place_id": "open_meteo_geocoding:1609350",
+        "display_name": "Bangkok, Thailand",
+        "coordinates": {
+          "type": "Point",
+          "coordinates": [
+            100.50144,
+            13.75398
+          ]
+        },
+        "country_code": "TH",
+        "admin1": "Bangkok",
+        "timezone": "Asia/Bangkok",
+        "provider": "open_meteo_geocoding",
+        "confirmed_by_user": false
+      },
+      "quality": {
+        "status": "FRESH",
+        "score": null,
+        "score_version": null,
+        "flags": [
+          "MISSING"
+        ],
+        "coverage": null,
+        "completeness": 1.0,
+        "freshness_seconds": null,
+        "conflicts": [],
+        "notes": [
+          "provider supplies no observation time: this is a static place-name index, not an observation"
+        ]
+      },
+      "source": {
+        "source_id": "open_meteo_geocoding:1609350",
+        "provider": "open_meteo_geocoding",
+        "provider_record_id": "1609350",
+        "authority": "LICENSED_PROVIDER",
+        "source_url": "https://example.invalid/captured",
+        "license": "CC-BY-4.0",
+        "observed_at": null,
+        "published_at": null,
+        "fetched_at": "2026-09-20T17:24:32.103949Z",
+        "expires_at": "2026-09-21T17:24:32.103949Z",
+        "content_hash": "sha256:70977dda361c341605c04cd2480eedc9761c9da363e09052af417269307c66db",
+        "schema_version": "1.0.0"
+      }
+    },
+    {
+      "location": {
+        "place_id": "open_meteo_geocoding:1648060",
+        "display_name": "Brenggolo, East Java, Indonesia",
+        "coordinates": {
+          "type": "Point",
+          "coordinates": [
+            112.13333,
+            -7.85
+          ]
+        },
+        "country_code": "ID",
+        "admin1": "East Java",
+        "timezone": "Asia/Jakarta",
+        "provider": "open_meteo_geocoding",
+        "confirmed_by_user": false
+      },
+      "quality": {
+        "status": "FRESH",
+        "score": null,
+        "score_version": null,
+        "flags": [
+          "MISSING"
+        ],
+        "coverage": null,
+        "completeness": 1.0,
+        "freshness_seconds": null,
+        "conflicts": [],
+        "notes": [
+          "provider supplies no observation time: this is a static place-name index, not an observation"
+        ]
+      },
+      "source": {
+        "source_id": "open_meteo_geocoding:1648060",
+        "provider": "open_meteo_geocoding",
+        "provider_record_id": "1648060",
+        "authority": "LICENSED_PROVIDER",
+        "source_url": "https://example.invalid/captured",
+        "license": "CC-BY-4.0",
+        "observed_at": null,
+        "published_at": null,
+        "fetched_at": "2026-09-20T17:24:32.103949Z",
+        "expires_at": "2026-09-21T17:24:32.103949Z",
+        "content_hash": "sha256:efca914762242fbd1cd67d6a4f088827d8f2a006909410e4abef73e23c32ccbf",
+        "schema_version": "1.0.0"
+      }
+    },
+    {
+      "location": {
+        "place_id": "open_meteo_geocoding:1970024",
+        "display_name": "Bangkok, East Java, Indonesia",
+        "coordinates": {
+          "type": "Point",
+          "coordinates": [
+            112.5128,
+            -7.0969
+          ]
+        },
+        "country_code": "ID",
+        "admin1": "East Java",
+        "timezone": "Asia/Jakarta",
+        "provider": "open_meteo_geocoding",
+        "confirmed_by_user": false
+      },
+      "quality": {
+        "status": "FRESH",
+        "score": null,
+        "score_version": null,
+        "flags": [
+          "MISSING"
+        ],
+        "coverage": null,
+        "completeness": 1.0,
+        "freshness_seconds": null,
+        "conflicts": [],
+        "notes": [
+          "provider supplies no observation time: this is a static place-name index, not an observation"
+        ]
+      },
+      "source": {
+        "source_id": "open_meteo_geocoding:1970024",
+        "provider": "open_meteo_geocoding",
+        "provider_record_id": "1970024",
+        "authority": "LICENSED_PROVIDER",
+        "source_url": "https://example.invalid/captured",
+        "license": "CC-BY-4.0",
+        "observed_at": null,
+        "published_at": null,
+        "fetched_at": "2026-09-20T17:24:32.103949Z",
+        "expires_at": "2026-09-21T17:24:32.103949Z",
+        "content_hash": "sha256:2219acbeae357d5b52f582d4f234287f363da0c21e2a1c35fd8a81a00942ee06",
+        "schema_version": "1.0.0"
+      }
+    }
+  ]
+}

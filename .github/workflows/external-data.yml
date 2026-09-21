@@ -1,0 +1,187 @@
+name: external-data
+
+# Gate on services/external-data (module 04). Everything downstream reads what this module
+# produces, so a regression here is a regression in the evidence every later module reasons
+# about - and the dangerous failures are silent ones: a record that looks fine and says the
+# wrong thing.
+#
+# The job is ordered so a failure names what broke: lint and types, then the fast suite, then
+# the checks that exist because something already went wrong once - contract drift, a leaked
+# credential, an invented status - and finally a Docker build that proves the image is
+# reproducible and non-root.
+#
+# Live provider calls are NOT run here. They are marked `canary` and excluded: a third-party
+# outage must not turn every open pull request red, and a free-tier quota is not something to
+# spend on every push.
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - 'feat/**'
+      - 'fix/**'
+      - 'test/**'
+      - 'refactor/**'
+      - 'contract/**'
+
+defaults:
+  run:
+    working-directory: services/external-data
+
+jobs:
+  external-data:
+    name: external-data
+    runs-on: ubuntu-latest
+    steps:
+      - name: ดึงโค้ดออกมา
+        uses: actions/checkout@v4
+
+      - name: ข้ามงานถ้าสาขานี้ยังไม่มี services/external-data
+        id: present
+        working-directory: .
+        run: |
+          if [ -f services/external-data/pyproject.toml ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "ยังไม่มี services/external-data ในสาขานี้ ข้าม"
+          fi
+
+      - name: ติดตั้ง uv
+        if: steps.present.outputs.run == 'true'
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: services/external-data/uv.lock
+
+      - name: ติดตั้ง dependency จาก lockfile
+        if: steps.present.outputs.run == 'true'
+        run: uv sync --frozen
+
+      - name: ruff (lint + format)
+        if: steps.present.outputs.run == 'true'
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: mypy (strict)
+        if: steps.present.outputs.run == 'true'
+        run: uv run mypy app
+
+      # Canary tests hit real providers and are excluded by the pytest config already; naming
+      # the marker here as well means a future change to that config cannot quietly start
+      # spending quota on every push.
+      - name: unit + contract tests
+        if: steps.present.outputs.run == 'true'
+        run: uv run pytest -m "not canary" --cov=app --cov-report=term-missing
+
+      # This one exists because the schema and this producer have drifted apart twice, and both
+      # times nobody found out until someone validated real records by hand. It runs real
+      # captured responses through the real adapters and validates the output against
+      # packages/contracts.
+      - name: contract drift (ของจริงเทียบ packages/contracts)
+        if: steps.present.outputs.run == 'true'
+        run: uv run pytest tests/contract/test_canonical_contract.py -v
+
+      - name: ไม่มี credential หรือ PII หลุด
+        if: steps.present.outputs.run == 'true'
+        run: uv run pytest tests/contract/test_no_secrets_escape.py -v
+
+      # Nothing in this repository may contain a working provider key. `.env` is gitignored,
+      # but a key pasted into a fixture, a test or a comment would not be.
+      - name: secret scan (ทั้ง module)
+        if: steps.present.outputs.run == 'true'
+        working-directory: .
+        run: |
+          # An openrouteservice key and a JWT are both base64 JSON and start `eyJ`.
+          if grep -rnE "eyJ[A-Za-z0-9+/=_-]{30,}" services/external-data --include="*.py" --include="*.yaml" --include="*.yml" --include="*.json" --include="*.md"; then
+            echo "::error::พบสิ่งที่มีรูปร่างเหมือน API key ในโค้ดหรือ fixture"
+            exit 1
+          fi
+          if git ls-files | grep -E "^services/external-data/\.env$"; then
+            echo "::error::.env ถูก track อยู่ใน git"
+            exit 1
+          fi
+          echo "ไม่พบ credential ในไฟล์ที่ commit"
+
+      # Runbook § 3: a switch that serves invented data is forbidden. The one time it is left
+      # on is the time it matters.
+      - name: ไม่มี runtime mock switch
+        if: steps.present.outputs.run == 'true'
+        run: |
+          if grep -rnE "(USE_MOCK|MOCK_MODE|mockMode|fakeRecommendation|hardcodedWeather|sampleCurrentData)" app; then
+            echo "::error::พบ mock switch ใน runtime code"
+            exit 1
+          fi
+          echo "ไม่พบ runtime mock switch"
+
+      # The safety invariant of this module, checked as a grep as well as in tests: nothing here
+      # may decide that something is safe. `severity` and `risk_level` are UNKNOWN by design,
+      # and `exposure` is null, because judging danger belongs to modules 06 and 07.
+      - name: ไม่มีการตัดสิน risk ใน module 04
+        if: steps.present.outputs.run == 'true'
+        run: |
+          if grep -rnE "risk_level\s*=\s*RiskLevel\.(LOW|MEDIUM|HIGH)" app; then
+            echo "::error::module 04 กำลังตัดสิน risk_level ซึ่งเป็นงานของ module 07"
+            exit 1
+          fi
+          if grep -rnE "severity\s*=\s*Severity\.(INFO|MINOR|MODERATE|SEVERE|EXTREME)" app; then
+            echo "::error::module 04 กำลังตัดสิน severity ซึ่งเป็นงานของ module 06/07"
+            exit 1
+          fi
+          echo "module 04 ไม่ได้ตัดสิน risk"
+
+      # Every provider must carry its licence and attribution, because serving the data without
+      # them is a licence breach, not a missing nicety.
+      - name: ทุก provider ที่ ACTIVE มี licence และ attribution
+        if: steps.present.outputs.run == 'true'
+        run: |
+          uv run python - <<'PY'
+          import pathlib, sys
+          from app.providers.registry import load_registry
+
+          problems = []
+          for entry in load_registry(pathlib.Path("config/providers.yaml")).providers:
+              if str(entry.status) != "ACTIVE":
+                  continue
+              if not entry.license.spdx_or_name:
+                  problems.append(f"{entry.id}: ไม่มี licence")
+              if entry.attribution.required and not entry.attribution.text:
+                  problems.append(f"{entry.id}: ต้องมี attribution แต่ไม่มีข้อความ")
+          if problems:
+              print("\n".join(f"::error::{p}" for p in problems))
+              sys.exit(1)
+          print("provider ที่ ACTIVE มี licence และ attribution ครบ")
+          PY
+
+      - name: build image
+        if: steps.present.outputs.run == 'true'
+        working-directory: .
+        run: docker build -t sta-external-data:ci ./services/external-data
+
+      - name: ตรวจว่า image ไม่ได้รันด้วย root และไม่มีไฟล์ที่ไม่ควรอยู่
+        if: steps.present.outputs.run == 'true'
+        working-directory: .
+        run: |
+          uid=$(docker run --rm --entrypoint python sta-external-data:ci -c "import os; print(os.getuid())")
+          if [ "$uid" = "0" ]; then
+            echo "::error::image รันด้วย root"
+            exit 1
+          fi
+          echo "image รันด้วย uid $uid"
+
+          for path in /app/.env /app/tests /app/.git /app/.venv/bin/uv; do
+            if docker run --rm --entrypoint sh sta-external-data:ci -c "test -e $path"; then
+              echo "::error::image ไม่ควรมี $path"
+              exit 1
+            fi
+          done
+          echo "ไม่มีไฟล์ต้องห้ามใน image"
+
+      # The registry is the governance record. A provider marked ACTIVE that the running
+      # environment cannot satisfy must degrade to PENDING_CREDENTIAL rather than fail at call
+      # time - and a credential appearing must never promote a provider on its own.
+      - name: registry gate ยังทำงาน
+        if: steps.present.outputs.run == 'true'
+        run: uv run pytest tests/unit/test_registry.py -v

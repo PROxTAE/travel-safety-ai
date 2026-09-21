@@ -1,0 +1,1801 @@
+openapi: 3.1.0
+
+info:
+  title: Smart Travel Assistant — Public API
+  version: 1.0.0
+  summary: The only HTTP surface a browser is allowed to talk to.
+  description: |
+    Public trust boundary for the Smart Travel Assistant (module 02). The browser reaches
+    `web` and `api` and nothing else: internal services are not routable from outside the
+    Docker network, so every capability a user has is expressed here.
+
+    Rules that hold for every operation in this document:
+
+    - Authentication is an OIDC access token issued by Keycloak, verified against JWKS
+      (issuer, audience, signature, expiry, not-before). `/health/*` is the only exception.
+    - Ownership is resolved from the token, never from a body field. A request that names
+      another user's resource gets 404, not 403, so that ids cannot be probed.
+    - Times are ISO-8601 with an explicit offset. Coordinates are GeoJSON `[longitude, latitude]`.
+    - Every mutating request accepts `Idempotency-Key`. Replaying a key with the same payload
+      returns the original result; replaying it with a different payload is `IDEMPOTENCY_CONFLICT`.
+    - Every response carries `meta.request_id`, `meta.contract_version` and `meta.generated_at`,
+      and lists any dependency that degraded while producing it.
+    - Anything safety-relevant carries its source, freshness and quality. When a provider or
+      credential is missing the response says so explicitly; it never substitutes a plausible value.
+    - Error bodies are stable, user-safe and free of stack traces, SQL and provider credentials.
+
+    Entity schemas live in `packages/contracts/jsonschema/common/` and are referenced from here,
+    so producer and consumers generate from one source. Response objects stay open to additive
+    change; request bodies are closed and reject unknown fields.
+  contact:
+    name: Module 02 — API and backend
+    url: https://github.com/PROxTAE/travel-safety-ai/blob/main/IMPLEMENTATION_PLANS/02_API_BACKEND_IMPLEMENTATION.md
+  license:
+    name: Proprietary — internal project
+
+servers:
+  - url: http://localhost:8000
+    description: Local development (compose.dev.yaml host port)
+  - url: http://api:8000
+    description: Internal Docker network name
+
+tags:
+  - name: health
+    description: Liveness and readiness. Unauthenticated, never cached.
+  - name: identity
+    description: The caller's own profile, consent and emergency profile.
+  - name: locations
+    description: Geocoding proxied to the external-data service.
+  - name: trips
+    description: Trip lifecycle with optimistic concurrency.
+  - name: assessments
+    description: Starting assessment runs and following their progress.
+  - name: recommendations
+    description: Finished assessment results and route application.
+  - name: safety
+    description: Map-oriented hazard queries.
+  - name: conversations
+    description: Assistant threads and follow-up questions.
+  - name: emergency
+    description: Verified emergency contacts and nearby facilities.
+  - name: feedback
+    description: Explicit feedback and alert subscriptions.
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health/live:
+    get:
+      tags: [health]
+      operationId: healthLive
+      summary: Process liveness
+      description: |
+        True whenever the process itself is running. It deliberately touches no dependency:
+        a database outage must not restart a healthy container.
+      security: []
+      responses:
+        '200':
+          description: Process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthLiveResponse'
+
+  /health/ready:
+    get:
+      tags: [health]
+      operationId: healthReady
+      summary: Dependency readiness
+      description: |
+        Checks the dependencies this service cannot serve traffic without — PostgreSQL, Redis and
+        the OIDC discovery document — each under a short bounded timeout. Returns 503 when any
+        required dependency is down, so the container is taken out of rotation instead of
+        answering requests it cannot honour. Optional dependencies are reported but do not fail
+        readiness.
+      security: []
+      responses:
+        '200':
+          description: All required dependencies are reachable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthReadyResponse'
+        '503':
+          description: At least one required dependency is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthReadyResponse'
+
+  /api/v1/me:
+    get:
+      tags: [identity]
+      operationId: getMe
+      summary: Get the caller's profile and consent summary
+      description: |
+        Resolves the OIDC subject to an internal user, creating the profile on first sight.
+        The emergency profile is not included here: it is fetched separately so that the
+        common path never decrypts medical data.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+      responses:
+        '200':
+          description: The caller's profile.
+          headers:
+            Cache-Control:
+              schema: { type: string }
+              description: Always `private, no-store`. This response is never shared across users.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+              examples:
+                profile:
+                  $ref: '#/components/examples/UserProfileExample'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+
+    patch:
+      tags: [identity]
+      operationId: updateMe
+      summary: Update locale, timezone or home country
+      description: |
+        Changes presentation preferences only. Identity itself lives in Keycloak and is not
+        editable here, and consent is recorded through `/api/v1/consents` so that each decision
+        keeps its own policy version.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/me/emergency-profile:
+    get:
+      tags: [identity]
+      operationId: getEmergencyProfile
+      summary: Read the caller's emergency profile
+      description: |
+        Decrypts and returns the profile to its owner only. Requires an active
+        `EMERGENCY_PROFILE` consent; if that consent was revoked the stored payload is
+        retained under the retention policy but is not returned.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+      responses:
+        '200':
+          description: The decrypted profile.
+          headers:
+            Cache-Control:
+              schema: { type: string }
+              description: Always `private, no-store`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmergencyProfileResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [identity]
+      operationId: putEmergencyProfile
+      summary: Create or replace the caller's emergency profile
+      description: |
+        Replaces the whole profile. The payload is sealed with the current application key
+        version before it reaches the database, and never appears in logs, metrics or traces.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmergencyProfileUpsertRequest'
+      responses:
+        '200':
+          description: Stored profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmergencyProfileResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: |
+            `EMERGENCY_PROFILE` consent has not been granted. The profile is not stored.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+
+  /api/v1/consents:
+    post:
+      tags: [identity]
+      operationId: recordConsent
+      summary: Grant or revoke a consent
+      description: |
+        Appends a consent decision against a specific policy version. Revoking writes a new
+        record rather than deleting the old one, so what was agreed and when stays auditable.
+        Revoking `LOCATION_LIVE` also cancels any subscription that depends on it.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsentRequest'
+      responses:
+        '201':
+          description: Consent recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/locations/search:
+    get:
+      tags: [locations]
+      operationId: searchLocations
+      summary: Search places with a real geocoding provider
+      description: |
+        Proxies to the external-data service, which calls the configured geocoding provider.
+        The API never talks to a provider directly and never accepts a provider URL from the
+        client. Results carry the provider that produced them; the user must still confirm the
+        pin before the location can be used in an assessment.
+
+        When no geocoding provider is configured or reachable, this returns 503 with
+        `DEPENDENCY_UNAVAILABLE` rather than an empty list, so the UI can distinguish
+        "nothing matched" from "search is down".
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - name: q
+          in: query
+          required: true
+          description: Free-text place query.
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 200
+        - name: locale
+          in: query
+          required: false
+          description: Preferred result language. Defaults to the caller's profile locale.
+          schema:
+            $ref: '../jsonschema/common/primitives.schema.json#/$defs/Locale'
+        - name: country_code
+          in: query
+          required: false
+          schema:
+            $ref: '../jsonschema/common/primitives.schema.json#/$defs/CountryCode'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+      responses:
+        '200':
+          description: Matching places, best first. An empty list means the provider matched nothing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationSearchResponse'
+              examples:
+                matches:
+                  $ref: '#/components/examples/LocationSearchExample'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+        '504': { $ref: '#/components/responses/DependencyTimeout' }
+
+  /api/v1/trips:
+    get:
+      tags: [trips]
+      operationId: listTrips
+      summary: List the caller's trips
+      description: |
+        Every query is filtered by the owner resolved from the token, at the repository layer
+        rather than in the handler, so an ownership check can never be forgotten. Soft-deleted
+        trips are excluded unless `status=DELETED` is requested explicitly.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '../jsonschema/common/enums.schema.json#/$defs/TripStatus'
+      responses:
+        '200':
+          description: Trips owned by the caller, newest departure first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripListResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [trips]
+      operationId: createTrip
+      summary: Create a trip
+      description: |
+        Both endpoints must be confirmed locations. Departure time is validated against the
+        configured backdating allowance and the travel modes against provider coverage for the
+        region: a mode with no real data source is rejected here rather than silently assessed.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTripRequest'
+            examples:
+              trip:
+                $ref: '#/components/examples/CreateTripExample'
+      responses:
+        '201':
+          description: Trip created at revision 1.
+          headers:
+            ETag:
+              schema: { type: string }
+              description: Weak ETag carrying the trip revision, e.g. `W/"1"`.
+            Location:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422':
+          description: |
+            The request is well-formed but cannot be served: for example a travel mode with no
+            provider coverage in that region (`UNSUPPORTED_COVERAGE`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/trips/{trip_id}:
+    parameters:
+      - $ref: '#/components/parameters/TripId'
+    get:
+      tags: [trips]
+      operationId: getTrip
+      summary: Get one trip
+      description: |
+        Returns the trip with an `ETag` carrying its revision. Clients send that value back in
+        `If-Match` when updating.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+      responses:
+        '200':
+          description: The trip.
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [trips]
+      operationId: updateTrip
+      summary: Update a trip
+      description: |
+        Requires `If-Match` with the revision the client last read. A stale revision is rejected
+        with 412 so that a second tab cannot overwrite a change it never saw. Changing anything
+        that affects the journey invalidates the current assessment: the client must start a new
+        one rather than keep showing the old result.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTripRequest'
+      responses:
+        '200':
+          description: Updated trip at the next revision.
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TripResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '428': { $ref: '#/components/responses/PreconditionRequired' }
+    delete:
+      tags: [trips]
+      operationId: deleteTrip
+      summary: Soft-delete a trip
+      description: |
+        Marks the trip deleted immediately and schedules the purge of its child data. The
+        response reports the deletion status so the UI can tell the user that removal is in
+        progress rather than implying it already finished everywhere.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+      responses:
+        '200':
+          description: Deletion accepted, with its current status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletionStatusResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/trips/{trip_id}/assessments:
+    parameters:
+      - $ref: '#/components/parameters/TripId'
+    post:
+      tags: [assessments]
+      operationId: createAssessment
+      summary: Start a safety assessment for this trip
+      description: |
+        Accepts the work and returns immediately: the assessment itself runs asynchronously and
+        is followed over SSE or by polling. The request row is committed before the agent is
+        called, so a run is never lost because a downstream call failed.
+
+        `Idempotency-Key` is strongly recommended. The same key with the same payload returns the
+        original run; the same key with a different payload is `IDEMPOTENCY_CONFLICT`.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAssessmentRequest'
+      responses:
+        '202':
+          description: Run accepted.
+          headers:
+            Location:
+              schema: { type: string }
+              description: Polling URL for the run.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunRefResponse'
+              examples:
+                accepted:
+                  $ref: '#/components/examples/RunRefExample'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422':
+          description: |
+            The trip cannot be assessed as it stands — for example an endpoint the user never
+            confirmed, or a mode without coverage.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+
+  /api/v1/runs/{request_id}:
+    parameters:
+      - $ref: '#/components/parameters/RequestIdPath'
+    get:
+      tags: [assessments]
+      operationId: getRun
+      summary: Poll an assessment run
+      description: The fallback for clients that cannot hold an SSE connection open.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+      responses:
+        '200':
+          description: Current run state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunStateResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [assessments]
+      operationId: cancelRun
+      summary: Cancel an assessment run
+      description: |
+        Propagates cancellation to the agent and downstream services. The audit trail of what
+        already ran is kept; only the work still outstanding is abandoned.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+      responses:
+        '200':
+          description: Cancellation recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunStateResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The run already reached a terminal state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/v1/runs/{request_id}/events:
+    parameters:
+      - $ref: '#/components/parameters/RequestIdPath'
+    get:
+      tags: [assessments]
+      operationId: streamRunEvents
+      summary: Follow an assessment run over SSE
+      description: |
+        Server-sent events for one run. Ownership is checked before the stream opens.
+
+        Each event has a monotonic `id`; a client that reconnects with `Last-Event-ID` resumes
+        after the last event it saw, so a dropped connection never loses the terminal event.
+        `heartbeat` keeps intermediaries from closing an idle stream. The server closes the
+        stream after `run.completed`, `run.failed` or cancellation.
+
+        Event names and payloads:
+
+        | event | payload |
+        | --- | --- |
+        | `run.accepted` | `SseRunAccepted` |
+        | `run.progress` | `SseRunProgress` |
+        | `run.needs_input` | `SseRunNeedsInput` |
+        | `run.degraded` | `SseRunDegraded` |
+        | `run.completed` | `SseRunCompleted` |
+        | `run.failed` | `SseRunFailed` |
+        | `heartbeat` | `SseHeartbeat` |
+
+        No event carries a raw provider body, a prompt, chain-of-thought, an access token or
+        personal data. The number of concurrent streams per user and per IP is capped.
+      parameters:
+        - $ref: '#/components/parameters/ContractVersion'
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: Resume point from a previous connection.
+          schema:
+            type: string
+            maxLength: 64
+      responses:
+        '200':
+          description: |
+            An open `text/event-stream`. Sent with `Cache-Control: no-cache` and
+            `X-Accel-Buffering: no` so no proxy buffers the progress events.
+          headers:
+            Cache-Control:
+              schema: { type: string }
+            X-Accel-Buffering:
+              schema: { type: string }
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE frames; see the payload schemas listed above.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429':
+          description: Too many concurrent streams for this user or IP.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/v1/recommendations/{recommendation_id}:
+    parameters:
+      - name: recommendation_id
+        in: path
+        required: true
+        schema:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+    get:
+      tags: [recommendations]
+      operationId: getRecommendation
+      summary: Get a finished assessment result
+      description: |
+        The API revalidates the stored response against the contract schema before returning it.
+        A result that no longer validates is reported as an error rather than rendered, because a
+        malformed safety answer is worse than a missing one.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+      responses:
+        '200':
+          description: The recommendation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationResponseEnvelope'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '502':
+          description: The stored response failed contract validation and was withheld.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/v1/trips/{trip_id}/apply-route:
+    parameters:
+      - $ref: '#/components/parameters/TripId'
+    post:
+      tags: [recommendations]
+      operationId: applyRoute
+      summary: Apply a route to the trip
+      description: |
+        Records the chosen route on a new trip revision, keeps the previous selection for audit,
+        and starts a fresh assessment — the old score is never carried over to a changed journey.
+
+        A route the server knows to be closed is refused even when the client sends an
+        acknowledgement: accepting a risky-but-open route is the user's call, entering a closed
+        one is not.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyRouteRequest'
+      responses:
+        '202':
+          description: Route applied; a new assessment was started for the new revision.
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplyRouteResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '412': { $ref: '#/components/responses/PreconditionFailed' }
+        '422':
+          description: |
+            The route is closed by an official source, or the acknowledgement required for a
+            MEDIUM/HIGH route is missing (`POLICY_VALIDATION_FAILED`).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/v1/safety/events:
+    get:
+      tags: [safety]
+      operationId: listSafetyEvents
+      summary: Hazards inside a viewport for the safety map
+      description: |
+        Serves the map layers. The bounding box and time window are bounded server-side so a
+        client cannot ask for the whole planet; oversized requests are rejected rather than
+        truncated silently.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - name: bbox
+          in: query
+          required: true
+          description: '`west,south,east,north` in degrees. Maximum span is configured server-side.'
+          schema:
+            type: string
+            pattern: '^-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?,-?\d+(\.\d+)?$'
+        - name: at
+          in: query
+          required: false
+          description: |
+            Instant to evaluate, defaulting to now. Drives the Now / +6h / +12h switch.
+          schema:
+            $ref: '../jsonschema/common/primitives.schema.json#/$defs/Timestamp'
+        - name: layers
+          in: query
+          required: false
+          description: Layers to include. All layers when omitted.
+          schema:
+            type: array
+            maxItems: 4
+            uniqueItems: true
+            items:
+              $ref: '../jsonschema/common/enums.schema.json#/$defs/SafetyLayer'
+          style: form
+          explode: false
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Hazards intersecting the viewport and instant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SafetyEventListResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+
+  /api/v1/conversations:
+    get:
+      tags: [conversations]
+      operationId: listConversations
+      summary: List the caller's recent assistant threads
+      description: |
+        Powers the recent-chats panel. Summaries only: message bodies are fetched per thread, so
+        the list view never carries the full transcript.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Conversations, most recently updated first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/v1/conversations/{conversation_id}/messages:
+    parameters:
+      - name: conversation_id
+        in: path
+        required: true
+        schema:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+    post:
+      tags: [conversations]
+      operationId: postConversationMessage
+      summary: Ask a follow-up question
+      description: |
+        Continues an existing thread and starts a new run. The thread keeps its id, but evidence
+        is not reused past its freshness window: a question about current conditions triggers a
+        fresh fetch. The question text is untrusted input and is never treated as an instruction.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationMessageRequest'
+      responses:
+        '202':
+          description: Follow-up accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunRefResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/feedback:
+    post:
+      tags: [feedback]
+      operationId: createFeedback
+      summary: Submit explicit feedback on a recommendation
+      description: |
+        Explicit feedback is stored apart from behavioural telemetry. `UNSAFE` opens a safety
+        review record. Nothing here changes a model or a threshold at runtime.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackRequest'
+      responses:
+        '201':
+          description: Feedback stored.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+
+  /api/v1/alert-subscriptions:
+    post:
+      tags: [feedback]
+      operationId: createAlertSubscription
+      summary: Opt in to live alerts for a trip
+      description: |
+        Requires an active `ALERT_NOTIFICATION` consent, whose id is recorded on the
+        subscription; revoking that consent cancels it.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAlertSubscriptionRequest'
+      responses:
+        '201':
+          description: Subscription created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertSubscriptionResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: The required consent is missing or revoked.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+
+  /api/v1/alert-subscriptions/{subscription_id}:
+    parameters:
+      - name: subscription_id
+        in: path
+        required: true
+        schema:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+    delete:
+      tags: [feedback]
+      operationId: deleteAlertSubscription
+      summary: Opt out of live alerts
+      description: |
+        Cancels the subscription and stops delivery immediately. The delivery log is retained for
+        audit; only future notifications are affected.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+      responses:
+        '204':
+          description: Subscription cancelled. Delivery stops immediately.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/emergency/contacts:
+    get:
+      tags: [emergency]
+      operationId: getEmergencyContacts
+      summary: Verified emergency numbers for a location
+      description: |
+        Returns reviewed, dated numbers for the country or subdivision containing the point.
+        Numbers are never inferred from a neighbouring country and never produced by a language
+        model. When the directory has no current entry for that country the response is an empty
+        list with an explicit limitation, so the UI shows "not available" instead of a number
+        that might not answer.
+
+        Coordinates are rounded to the configured precision before use and are not written to
+        access logs.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/Latitude'
+        - $ref: '#/components/parameters/Longitude'
+        - name: locale
+          in: query
+          required: false
+          schema:
+            $ref: '../jsonschema/common/primitives.schema.json#/$defs/Locale'
+      responses:
+        '200':
+          description: |
+            Verified contacts. An empty list means the directory has no current entry for that
+            country, which the client must show as unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficialContactListResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+
+  /api/v1/emergency/nearby:
+    get:
+      tags: [emergency]
+      operationId: getEmergencyNearby
+      summary: Nearby hospitals, police stations or embassies
+      description: |
+        Looks up facilities through the configured places provider. Requires an active location
+        consent (`LOCATION_ONCE` or `LOCATION_LIVE`); without one the request is refused rather
+        than served from a cached position.
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/ContractVersion'
+        - $ref: '#/components/parameters/Latitude'
+        - $ref: '#/components/parameters/Longitude'
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [HOSPITAL, CLINIC, PHARMACY, POLICE, FIRE_STATION, EMBASSY, CONSULATE, SHELTER]
+        - name: radius_m
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 100
+            maximum: 50000
+            default: 5000
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Facilities found, nearest first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmergencyPoiListResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: No active location consent.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503': { $ref: '#/components/responses/DependencyUnavailable' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        OIDC access token issued by the project's Keycloak realm. Verified against the realm's
+        JWKS: issuer, audience, signature, expiry and not-before are all checked, and an
+        unverifiable token is rejected with 401 — never decoded unsigned as a fallback.
+
+  parameters:
+    RequestId:
+      name: X-Request-ID
+      in: header
+      required: false
+      description: |
+        Client-supplied correlation handle. The server generates one when absent and always
+        echoes the value it used in `meta.request_id`.
+      schema:
+        $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+    ContractVersion:
+      name: X-Contract-Version
+      in: header
+      required: false
+      description: Major contract version the client was built against. Currently `1`.
+      schema:
+        type: string
+        pattern: '^[0-9]+$'
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: |
+        Client-generated key that makes a retry safe. The same key with the same payload returns
+        the original result; the same key with a different payload is rejected with
+        `IDEMPOTENCY_CONFLICT`. Keys expire after the configured retention window.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: The ETag (trip revision) the client last read.
+      schema:
+        type: string
+        maxLength: 64
+    TripId:
+      name: trip_id
+      in: path
+      required: true
+      schema:
+        $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+    RequestIdPath:
+      name: request_id
+      in: path
+      required: true
+      schema:
+        $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque cursor from a previous page. Not to be constructed by the client.
+      schema:
+        type: string
+        maxLength: 512
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Latitude:
+      name: lat
+      in: query
+      required: true
+      schema:
+        type: number
+        minimum: -90
+        maximum: 90
+    Longitude:
+      name: lon
+      in: query
+      required: true
+      schema:
+        type: number
+        minimum: -180
+        maximum: 180
+
+  schemas:
+    ResponseMeta:
+      $ref: '../jsonschema/common/envelope.schema.json#/$defs/ResponseMeta'
+    PageMeta:
+      $ref: '../jsonschema/common/envelope.schema.json#/$defs/PageMeta'
+    ErrorResponse:
+      $ref: '../jsonschema/common/envelope.schema.json#/$defs/ErrorResponse'
+
+    UserProfile:
+      $ref: '../jsonschema/common/user-profile.schema.json'
+    ConsentRecord:
+      $ref: '../jsonschema/common/consent-record.schema.json'
+    EmergencyProfile:
+      $ref: '../jsonschema/common/emergency-profile.schema.json'
+    LocationRef:
+      $ref: '../jsonschema/common/location-ref.schema.json'
+    TravelPreference:
+      $ref: '../jsonschema/common/travel-preference.schema.json'
+    Trip:
+      $ref: '../jsonschema/common/trip.schema.json'
+    RunRef:
+      $ref: '../jsonschema/common/run-ref.schema.json'
+    RunState:
+      $ref: '../jsonschema/common/run-state.schema.json'
+    RecommendationResponse:
+      $ref: '../jsonschema/common/recommendation-response.schema.json'
+    SafetyEvent:
+      $ref: '../jsonschema/common/safety-event.schema.json'
+    Conversation:
+      $ref: '../jsonschema/common/conversation.schema.json'
+    FeedbackEvent:
+      $ref: '../jsonschema/common/feedback-event.schema.json'
+    AlertSubscription:
+      $ref: '../jsonschema/common/alert-subscription.schema.json'
+    OfficialContact:
+      $ref: '../jsonschema/common/official-contact.schema.json'
+    EmergencyPoi:
+      $ref: '../jsonschema/common/emergency-poi.schema.json'
+
+    # Reached only through the entities above, but named here so the generated clients expose
+    # them as first-class types rather than anonymous inline shapes.
+    DataQuality:
+      $ref: '../jsonschema/common/data-quality.schema.json'
+    SourceProvenance:
+      $ref: '../jsonschema/common/source-provenance.schema.json'
+    RouteCandidate:
+      $ref: '../jsonschema/common/route-candidate.schema.json'
+    DisasterEvent:
+      $ref: '../jsonschema/common/disaster-event.schema.json'
+
+    SseRunAccepted:
+      $ref: '../jsonschema/common/sse-events.schema.json#/$defs/RunAccepted'
+    SseRunProgress:
+      $ref: '../jsonschema/common/sse-events.schema.json#/$defs/RunProgress'
+    SseRunNeedsInput:
+      $ref: '../jsonschema/common/sse-events.schema.json#/$defs/RunNeedsInput'
+    SseRunDegraded:
+      $ref: '../jsonschema/common/sse-events.schema.json#/$defs/RunDegraded'
+    SseRunCompleted:
+      $ref: '../jsonschema/common/sse-events.schema.json#/$defs/RunCompleted'
+    SseRunFailed:
+      $ref: '../jsonschema/common/sse-events.schema.json#/$defs/RunFailed'
+    SseHeartbeat:
+      $ref: '../jsonschema/common/sse-events.schema.json#/$defs/Heartbeat'
+
+    HealthLiveResponse:
+      type: object
+      required: [status, service, version]
+      properties:
+        status:
+          type: string
+          enum: [alive]
+        service:
+          type: string
+        version:
+          type: string
+
+    HealthReadyResponse:
+      type: object
+      required: [status, checks, checked_at]
+      properties:
+        status:
+          type: string
+          enum: [ready, not_ready]
+        checks:
+          type: array
+          items:
+            type: object
+            required: [name, required, status, duration_ms]
+            properties:
+              name:
+                type: string
+                description: 'Dependency key, for example postgres, redis, oidc, agent.'
+              required:
+                type: boolean
+                description: Whether a failure here makes the service unready.
+              status:
+                type: string
+                enum: [up, down, degraded, skipped]
+              duration_ms:
+                type: number
+              detail:
+                type: [string, 'null']
+                description: Short, user-safe reason. Never a connection string or credential.
+        checked_at:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Timestamp'
+
+    UserProfileResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: '#/components/schemas/UserProfile'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    UpdateProfileRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        locale:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Locale'
+        timezone:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Timezone'
+        home_country_code:
+          oneOf:
+            - $ref: '../jsonschema/common/primitives.schema.json#/$defs/CountryCode'
+            - type: 'null'
+
+    EmergencyProfileResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: '#/components/schemas/EmergencyProfile'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    EmergencyProfileUpsertRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        blood_type:
+          type: [string, 'null']
+          enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', UNKNOWN, null]
+        allergies:
+          type: array
+          maxItems: 32
+          items: { type: string, maxLength: 128 }
+        medical_notes:
+          type: [string, 'null']
+          maxLength: 2000
+        medications:
+          type: array
+          maxItems: 32
+          items: { type: string, maxLength: 128 }
+        contacts:
+          type: array
+          maxItems: 8
+          items:
+            $ref: '../jsonschema/common/emergency-profile.schema.json#/$defs/EmergencyContactPerson'
+        insurance:
+          oneOf:
+            - $ref: '../jsonschema/common/emergency-profile.schema.json#/$defs/InsuranceRef'
+            - type: 'null'
+
+    ConsentRequest:
+      type: object
+      additionalProperties: false
+      required: [type, granted, policy_version]
+      properties:
+        type:
+          $ref: '../jsonschema/common/enums.schema.json#/$defs/ConsentType'
+        granted:
+          type: boolean
+        policy_version:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/SemVer'
+        expires_at:
+          description: |
+            Requested expiry for a scoped grant such as a live-location session. The server caps
+            it at the configured maximum.
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/NullableTimestamp'
+
+    ConsentResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: '#/components/schemas/ConsentRecord'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    LocationSearchResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocationRef'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    CreateTripRequest:
+      type: object
+      additionalProperties: false
+      required: [origin, destination, departure_time, timezone, travel_modes]
+      properties:
+        title:
+          type: [string, 'null']
+          maxLength: 256
+        origin:
+          $ref: '#/components/schemas/LocationRef'
+        destination:
+          $ref: '#/components/schemas/LocationRef'
+        departure_time:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Timestamp'
+        return_time:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/NullableTimestamp'
+        timezone:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Timezone'
+        travel_modes:
+          type: array
+          minItems: 1
+          maxItems: 7
+          uniqueItems: true
+          items:
+            $ref: '../jsonschema/common/enums.schema.json#/$defs/TravelMode'
+        preferences:
+          $ref: '#/components/schemas/TravelPreference'
+
+    UpdateTripRequest:
+      type: object
+      additionalProperties: false
+      description: Only the supplied fields change. Every change increments the trip revision.
+      properties:
+        title:
+          type: [string, 'null']
+          maxLength: 256
+        origin:
+          $ref: '#/components/schemas/LocationRef'
+        destination:
+          $ref: '#/components/schemas/LocationRef'
+        departure_time:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Timestamp'
+        return_time:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/NullableTimestamp'
+        timezone:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Timezone'
+        travel_modes:
+          type: array
+          minItems: 1
+          maxItems: 7
+          uniqueItems: true
+          items:
+            $ref: '../jsonschema/common/enums.schema.json#/$defs/TravelMode'
+        preferences:
+          $ref: '#/components/schemas/TravelPreference'
+        status:
+          $ref: '../jsonschema/common/enums.schema.json#/$defs/TripStatus'
+
+    TripResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: '#/components/schemas/Trip'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    TripListResponse:
+      type: object
+      required: [data, meta, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Trip'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+
+    DeletionStatusResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [resource_id, status, requested_at]
+          properties:
+            resource_id:
+              $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+            status:
+              $ref: '../jsonschema/common/enums.schema.json#/$defs/DeletionStatus'
+            requested_at:
+              $ref: '../jsonschema/common/primitives.schema.json#/$defs/Timestamp'
+            completed_at:
+              $ref: '../jsonschema/common/primitives.schema.json#/$defs/NullableTimestamp'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    CreateAssessmentRequest:
+      type: object
+      additionalProperties: false
+      description: |
+        Everything here is optional: the journey itself comes from the stored trip, so a client
+        cannot assess one trip while claiming another.
+      properties:
+        question:
+          type: [string, 'null']
+          maxLength: 2000
+        conversation_id:
+          description: Continue an existing thread instead of starting a new one.
+          oneOf:
+            - $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+            - type: 'null'
+        locale:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Locale'
+        live_location_consent_id:
+          oneOf:
+            - $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+            - type: 'null'
+        avoid_areas:
+          description: |
+            Areas the traveller asked to avoid, drawn on the safety map. Advisory input to route
+            evaluation, not a way to hide an official warning.
+          type: array
+          maxItems: 8
+          items:
+            $ref: '../jsonschema/common/geojson.schema.json#/$defs/Polygon'
+
+    RunRefResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: '#/components/schemas/RunRef'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    RunStateResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: '#/components/schemas/RunState'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    RecommendationResponseEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: '#/components/schemas/RecommendationResponse'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    ApplyRouteRequest:
+      type: object
+      additionalProperties: false
+      required: [recommendation_id, route_id]
+      properties:
+        recommendation_id:
+          description: The recommendation the route was offered in, so the choice is auditable.
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+        route_id:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+        risk_acknowledged:
+          description: |
+            Required when the chosen route is MEDIUM or HIGH. Records that the traveller was
+            shown the risk and accepted it. It never overrides a closure.
+          type: boolean
+          default: false
+
+    ApplyRouteResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [trip, run]
+          properties:
+            trip:
+              $ref: '#/components/schemas/Trip'
+            run:
+              $ref: '#/components/schemas/RunRef'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    SafetyEventListResponse:
+      type: object
+      required: [data, meta, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SafetyEvent'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+
+    ConversationListResponse:
+      type: object
+      required: [data, meta, page]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conversation'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+
+    ConversationMessageRequest:
+      type: object
+      additionalProperties: false
+      required: [question]
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        trip_id:
+          description: Trip this question is about, when the thread is not already bound to one.
+          oneOf:
+            - $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+            - type: 'null'
+        locale:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Locale'
+
+    FeedbackRequest:
+      type: object
+      additionalProperties: false
+      required: [recommendation_id, category]
+      properties:
+        recommendation_id:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+        category:
+          $ref: '../jsonschema/common/enums.schema.json#/$defs/FeedbackCategory'
+        text:
+          description: |
+            Free text. Redacted for phone numbers, e-mail addresses and precise coordinates
+            before storage.
+          type: [string, 'null']
+          maxLength: 2000
+
+    FeedbackResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: '#/components/schemas/FeedbackEvent'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    CreateAlertSubscriptionRequest:
+      type: object
+      additionalProperties: false
+      required: [trip_id, channel, consent_id]
+      properties:
+        trip_id:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+        channel:
+          $ref: '../jsonschema/common/enums.schema.json#/$defs/DeliveryChannel'
+        consent_id:
+          $ref: '../jsonschema/common/primitives.schema.json#/$defs/Uuid'
+        min_severity:
+          $ref: '../jsonschema/common/enums.schema.json#/$defs/Severity'
+
+    AlertSubscriptionResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: '#/components/schemas/AlertSubscription'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    OfficialContactListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/OfficialContact'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+    EmergencyPoiListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmergencyPoi'
+        meta:
+          $ref: '#/components/schemas/ResponseMeta'
+
+  responses:
+    ValidationError:
+      description: The request failed validation. `field_errors` names each rejected path.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            validation:
+              $ref: '#/components/examples/ValidationErrorExample'
+    Unauthorized:
+      description: No token, or a token that failed verification.
+      headers:
+        WWW-Authenticate:
+          schema: { type: string }
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Authenticated, but not permitted — typically a missing consent or scope.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: |
+        No such resource for this caller. Resources owned by another user are reported as not
+        found rather than forbidden, so that ids cannot be probed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    IdempotencyConflict:
+      description: The idempotency key was reused with a different payload.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    PreconditionFailed:
+      description: The `If-Match` revision is stale. Re-read the resource and retry.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    PreconditionRequired:
+      description: '`If-Match` is required for this operation and was not supplied.'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RateLimited:
+      description: Rate limit exceeded for this user, IP or endpoint bucket.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+          description: Seconds to wait before retrying.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    DependencyUnavailable:
+      description: |
+        A dependency this operation needs is unavailable. The response says which capability is
+        degraded; it never substitutes a plausible value for missing data.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    DependencyTimeout:
+      description: A dependency did not answer inside its timeout budget.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  examples:
+    UserProfileExample:
+      summary: Profile of the calling user
+      description: |
+        Structural example. Identifiers are synthetic; no real user data appears in this repository.
+      value:
+        data:
+          user_id: 6f1d8a4e-2c37-4b19-9a0e-7f5c1d2b3a40
+          display_name: null
+          locale: th-TH
+          timezone: Asia/Bangkok
+          home_country_code: TH
+          consents:
+            - consent_id: 0b9c2f51-4d6a-47e8-8b21-5c9e7a1f3d62
+              type: ANALYTICS
+              granted: false
+              policy_version: 1.0.0
+              granted_at: '2026-09-17T08:30:00Z'
+              revoked_at: '2026-09-18T02:10:00Z'
+              expires_at: null
+          has_emergency_profile: false
+          created_at: '2026-09-17T08:29:55Z'
+          updated_at: '2026-09-18T02:10:00Z'
+          deleted_at: null
+        meta:
+          request_id: 3f2a1b90-6d4c-4e58-9a7b-1c2d3e4f5a6b
+          correlation_id: 3f2a1b90-6d4c-4e58-9a7b-1c2d3e4f5a6b
+          contract_version: 1.0.0
+          generated_at: '2026-09-18T02:11:00Z'
+          degraded_services: []
+
+    LocationSearchExample:
+      summary: Geocoding results
+      description: |
+        Shape only. Coordinates and place ids are illustrative and are not treated as current
+        provider output anywhere in the running system.
+      value:
+        data:
+          - place_id: '1609350'
+            display_name: Bangkok, Thailand
+            coordinates:
+              type: Point
+              coordinates: [100.5018, 13.7563]
+            country_code: TH
+            admin1: Bangkok
+            timezone: Asia/Bangkok
+            provider: open_meteo
+            confirmed_by_user: false
+        meta:
+          request_id: 8c7b6a59-4d3e-42f1-b0a9-8e7d6c5b4a30
+          correlation_id: 8c7b6a59-4d3e-42f1-b0a9-8e7d6c5b4a30
+          contract_version: 1.0.0
+          generated_at: '2026-09-18T02:12:00Z'
+          degraded_services: []
+
+    CreateTripExample:
+      summary: Creating a trip from two confirmed locations
+      value:
+        title: Bangkok to Chiang Mai
+        origin:
+          place_id: '1609350'
+          display_name: Bangkok, Thailand
+          coordinates:
+            type: Point
+            coordinates: [100.5018, 13.7563]
+          country_code: TH
+          admin1: Bangkok
+          timezone: Asia/Bangkok
+          provider: open_meteo
+          confirmed_by_user: true
+        destination:
+          place_id: '1153671'
+          display_name: Chiang Mai, Thailand
+          coordinates:
+            type: Point
+            coordinates: [98.9817, 18.7883]
+          country_code: TH
+          admin1: Chiang Mai
+          timezone: Asia/Bangkok
+          provider: open_meteo
+          confirmed_by_user: true
+        departure_time: '2026-09-20T09:30:00+07:00'
+        return_time: null
+        timezone: Asia/Bangkok
+        travel_modes: [TRAIN]
+        preferences:
+          prefer_safer_route: true
+          prefer_lower_cost: false
+          prefer_lower_emissions: false
+          max_extra_duration_minutes: 90
+          avoid_tolls: false
+          accessibility: []
+
+    RunRefExample:
+      summary: Assessment accepted
+      value:
+        data:
+          request_id: b2c3d4e5-f6a7-4b89-9c0d-1e2f3a4b5c6d
+          trip_id: a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7
+          conversation_id: null
+          status: QUEUED
+          events_url: /api/v1/runs/b2c3d4e5-f6a7-4b89-9c0d-1e2f3a4b5c6d/events
+          poll_url: /api/v1/runs/b2c3d4e5-f6a7-4b89-9c0d-1e2f3a4b5c6d
+          submitted_at: '2026-09-18T02:15:00Z'
+        meta:
+          request_id: b2c3d4e5-f6a7-4b89-9c0d-1e2f3a4b5c6d
+          correlation_id: b2c3d4e5-f6a7-4b89-9c0d-1e2f3a4b5c6d
+          contract_version: 1.0.0
+          generated_at: '2026-09-18T02:15:00Z'
+          degraded_services: []
+
+    ValidationErrorExample:
+      summary: Rejected trip creation
+      value:
+        error:
+          code: VALIDATION_ERROR
+          message: The trip could not be created because some fields are invalid.
+          field_errors:
+            - path: destination.confirmed_by_user
+              code: NOT_CONFIRMED
+              message: Confirm the destination pin on the map before saving the trip.
+            - path: return_time
+              code: INCONSISTENT
+              message: Return time must be after departure time.
+          retryable: false
+          retry_after_seconds: null
+        meta:
+          request_id: 5a4b3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d
+          correlation_id: 5a4b3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d
+          contract_version: 1.0.0
+          generated_at: '2026-09-18T02:16:00Z'
+          degraded_services: []

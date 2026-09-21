@@ -72,8 +72,7 @@ class ProviderHealthProbe:
         return [
             provider
             for provider in self._registry.all()
-            if provider.effective_status is ProviderStatus.ACTIVE
-            and provider.entry.health.url
+            if provider.effective_status is ProviderStatus.ACTIVE and provider.entry.health.url
         ]
 
     async def probe_once(self) -> dict[str, HealthState]:
@@ -110,9 +109,7 @@ class ProviderHealthProbe:
                 provider=provider.id,
                 error_type=type(exc).__name__,
             )
-            await self._record(
-                provider, HealthState.DOWN, None, reason=type(exc).__name__
-            )
+            await self._record(provider, HealthState.DOWN, None, reason=type(exc).__name__)
             return HealthState.DOWN
 
         latency_ms = int((time.monotonic() - started) * 1000)

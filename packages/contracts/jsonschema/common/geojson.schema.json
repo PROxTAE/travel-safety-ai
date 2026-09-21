@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GeoJson",
+  "description": "Minimal RFC 7946 subset used across the system. Positions are ALWAYS [longitude, latitude] in WGS84; never swap the order.",
+  "$defs": {
+    "Position": {
+      "title": "Position",
+      "description": "[longitude, latitude] in WGS84. RFC 7946 also permits an elevation element; this contract does not carry one, because nothing in the system consumes altitude and an optional third element would make every generated type ambiguous.",
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        { "type": "number", "minimum": -180, "maximum": 180 },
+        { "type": "number", "minimum": -90, "maximum": 90 }
+      ],
+      "items": false
+    },
+    "BoundingBox": {
+      "title": "BoundingBox",
+      "description": "[west, south, east, north] in degrees.",
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "prefixItems": [
+        { "type": "number", "minimum": -180, "maximum": 180 },
+        { "type": "number", "minimum": -90, "maximum": 90 },
+        { "type": "number", "minimum": -180, "maximum": 180 },
+        { "type": "number", "minimum": -90, "maximum": 90 }
+      ],
+      "items": false
+    },
+    "Point": {
+      "title": "GeoJsonPoint",
+      "type": "object",
+      "required": ["type", "coordinates"],
+      "properties": {
+        "type": { "const": "Point" },
+        "coordinates": { "$ref": "#/$defs/Position" }
+      }
+    },
+    "LineString": {
+      "title": "GeoJsonLineString",
+      "type": "object",
+      "required": ["type", "coordinates"],
+      "properties": {
+        "type": { "const": "LineString" },
+        "coordinates": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/Position" }
+        }
+      }
+    },
+    "Polygon": {
+      "title": "GeoJsonPolygon",
+      "type": "object",
+      "required": ["type", "coordinates"],
+      "properties": {
+        "type": { "const": "Polygon" },
+        "coordinates": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "minItems": 4,
+            "items": { "$ref": "#/$defs/Position" }
+          }
+        }
+      }
+    },
+    "MultiPolygon": {
+      "title": "GeoJsonMultiPolygon",
+      "type": "object",
+      "required": ["type", "coordinates"],
+      "properties": {
+        "type": { "const": "MultiPolygon" },
+        "coordinates": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "array",
+              "minItems": 4,
+              "items": { "$ref": "#/$defs/Position" }
+            }
+          }
+        }
+      }
+    },
+    "Geometry": {
+      "title": "GeoJsonGeometry",
+      "description": "Any geometry a hazard, corridor or route may carry.",
+      "oneOf": [
+        { "$ref": "#/$defs/Point" },
+        { "$ref": "#/$defs/LineString" },
+        { "$ref": "#/$defs/Polygon" },
+        { "$ref": "#/$defs/MultiPolygon" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,147 @@
+{
+  "target": "jsonschema/common/recommendation-response.schema.json",
+  "kind": "structural",
+  "summary": "AVOID driven by an official closure while one provider was unreachable. This is the fixture consumers should build against first: it exercises a closed route, a degraded dependency, a limitation and a citation at the same time.",
+  "provenance": {
+    "redaction": "synthetic — identifiers, geometry and the alert text are invented. No captured provider content appears here; a real closure fixture belongs under real-sanitized/ with its own capture record."
+  },
+  "value": {
+    "recommendation_id": "c3d4e5f6-a7b8-4901-a2b3-c4d5e6f7a8b9",
+    "request_id": "b2c3d4e5-f6a7-4b89-9c0d-1e2f3a4b5c6d",
+    "trip_id": "a1b2c3d4-e5f6-4789-a0b1-c2d3e4f5a6b7",
+    "conversation_id": null,
+    "decision_id": "d4e5f6a7-b8c9-4012-b3c4-d5e6f7a8b9c0",
+    "snapshot_id": "e5f6a7b8-c9d0-4123-84c5-d6e7f8a9b0c1",
+    "status": "PARTIAL",
+    "action_code": "AVOID",
+    "risk_level": "HIGH",
+    "confidence": 0.82,
+    "short_summary": "An official closure covers part of this route during your travel window. Do not travel on it; wait for the authority to lift the closure or choose a different day.",
+    "immediate_actions": [
+      {
+        "text": "Do not start this journey while the closure is in force.",
+        "priority": 1,
+        "evidence_id": null
+      }
+    ],
+    "reasons": [
+      {
+        "code": "OFFICIAL_CLOSURE",
+        "text": "The issuing authority has closed a section of this corridor for the period that overlaps your departure.",
+        "severity": "SEVERE",
+        "source_ids": ["gdacs:TC1000123:2026-09-19T21:00:00Z"]
+      },
+      {
+        "code": "SPARSE_DATA_COVERAGE",
+        "text": "Real-time transport status was unavailable for this operator, so service times could not be confirmed.",
+        "severity": "INFO",
+        "source_ids": []
+      }
+    ],
+    "primary_route": {
+      "route_id": "a7b8c9d0-e1f2-4345-b6e7-f8a9b0c1d2e3",
+      "provider_route_id": null,
+      "label": "ORIGINAL",
+      "mode": "TRAIN",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [100.5014, 13.754],
+          [100.115, 14.353],
+          [99.8, 15.7],
+          [98.9817, 18.7883]
+        ]
+      },
+      "segments": [],
+      "distance_m": 751000,
+      "duration_seconds": 42600,
+      "transfers": 0,
+      "exposure": {
+        "score": 0.91,
+        "hazard_event_ids": ["b8c9d0e1-f2a3-4456-9708-a9b0c1d2e3f4"],
+        "weather_window_ids": [],
+        "closed": true,
+        "closure_source_ids": ["gdacs:TC1000123:2026-09-19T21:00:00Z"]
+      },
+      "risk_level": "HIGH",
+      "quality": {
+        "status": "PARTIAL",
+        "score": 0.61,
+        "flags": ["INCOMPLETE"],
+        "coverage": 0.7,
+        "completeness": 0.8,
+        "freshness_seconds": 240,
+        "conflicts": [],
+        "notes": ["Real-time transport feed was not reachable for this operator."],
+        "score_version": "1.0.0"
+      },
+      "sources": [
+        {
+          "source_id": "gdacs:TC1000123:2026-09-19T21:00:00Z",
+          "provider": "example_authority",
+          "provider_record_id": "CLOSURE-0001",
+          "authority": "OFFICIAL",
+          "source_url": "https://example.invalid/closures/0001",
+          "license": "Government open data",
+          "attribution": "Issuing authority closure notice",
+          "observed_at": "2026-09-19T07:50:00Z",
+          "published_at": "2026-09-19T07:52:00Z",
+          "fetched_at": "2026-09-19T08:14:30Z",
+          "expires_at": "2026-09-21T00:00:00Z",
+          "content_hash": "sha256:3b1f2c8d4a5e6f70819a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f70",
+          "schema_version": "1.0.0"
+        }
+      ]
+    },
+    "alternatives": [],
+    "alerts": [],
+    "emergency_instructions": [],
+    "official_contacts": [],
+    "sources": [
+      {
+        "source_id": "gdacs:TC1000123:2026-09-19T21:00:00Z",
+        "provider": "example_authority",
+        "provider_record_id": "CLOSURE-0001",
+        "authority": "OFFICIAL",
+        "source_url": "https://example.invalid/closures/0001",
+        "license": "Government open data",
+        "attribution": "Issuing authority closure notice",
+        "observed_at": "2026-09-19T07:50:00Z",
+        "published_at": "2026-09-19T07:52:00Z",
+        "fetched_at": "2026-09-19T08:14:30Z",
+        "expires_at": "2026-09-21T00:00:00Z",
+        "content_hash": "sha256:3b1f2c8d4a5e6f70819a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f70",
+        "schema_version": "1.0.0"
+      }
+    ],
+    "freshness": {
+      "observed_at": "2026-09-19T07:50:00Z",
+      "fetched_at": "2026-09-19T08:14:30Z",
+      "expires_at": "2026-09-19T08:24:30Z"
+    },
+    "limitations": [
+      {
+        "code": "PARTIAL_PROVIDER_COVERAGE",
+        "text": "Real-time transport status was unavailable, so scheduled times could not be confirmed against live data."
+      }
+    ],
+    "degraded_services": [
+      {
+        "service": "external-data.transit",
+        "reason": "NOT_CONFIGURED",
+        "since": "2026-09-19T08:13:02Z",
+        "retrying": false
+      }
+    ],
+    "versions": {
+      "contract": "1.0.0",
+      "policy": "1.0.0",
+      "prompt": null,
+      "llm_model": null,
+      "risk_model": "route-risk-baseline@1.0.0",
+      "knowledge_collection": null
+    },
+    "expires_at": "2026-09-19T08:24:30Z",
+    "created_at": "2026-09-19T08:14:35Z"
+  }
+}

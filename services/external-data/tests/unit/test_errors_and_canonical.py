@@ -19,9 +19,7 @@ from app.domain.errors import (
 
 @pytest.mark.parametrize("code", list(ProviderErrorCode))
 def test_every_provider_code_maps_to_an_api_code(code: ProviderErrorCode) -> None:
-    api_code, status, message, _ = map_provider_error(
-        ProviderError(code, "some_provider")
-    )
+    api_code, status, message, _ = map_provider_error(ProviderError(code, "some_provider"))
     assert isinstance(api_code, ApiErrorCode)
     assert 400 <= status < 600
     assert message

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AlertSubscription",
+  "description": "An opt-in to be told when a trip's situation materially changes. Every subscription points at the consent that authorises it; revoking that consent cancels the subscription. A cooldown suppresses repeat notifications, but a higher severity always breaks through.",
+  "type": "object",
+  "required": ["subscription_id", "trip_id", "channel", "consent_id", "status", "created_at"],
+  "properties": {
+    "subscription_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "trip_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "channel": { "$ref": "enums.schema.json#/$defs/DeliveryChannel" },
+    "consent_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "status": { "$ref": "enums.schema.json#/$defs/SubscriptionStatus" },
+    "min_severity": {
+      "description": "Lowest severity that may notify this subscriber.",
+      "$ref": "enums.schema.json#/$defs/Severity"
+    },
+    "cooldown_until": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "expires_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" },
+    "created_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+    "cancelled_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" }
+  }
+}

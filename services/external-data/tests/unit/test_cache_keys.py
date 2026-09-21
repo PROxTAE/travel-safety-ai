@@ -38,7 +38,8 @@ def test_locale_is_part_of_the_key() -> None:
 def test_schema_version_separates_keys() -> None:
     base = dict(env="test", provider_id="p", key_fields={"a": 1})
     assert build_key(schema_version="1.0.0", **base) != build_key(  # type: ignore[arg-type]
-        schema_version="2.0.0", **base  # type: ignore[arg-type]
+        schema_version="2.0.0",
+        **base,  # type: ignore[arg-type]
     )
 
 
@@ -47,7 +48,8 @@ def test_provider_separates_keys() -> None:
     their payload shapes and licences differ."""
     common = dict(env="test", schema_version="1.0.0", key_fields={"bbox": [1, 2, 3, 4]})
     assert build_key(provider_id="usgs_earthquake", **common) != build_key(  # type: ignore[arg-type]
-        provider_id="gdacs", **common  # type: ignore[arg-type]
+        provider_id="gdacs",
+        **common,  # type: ignore[arg-type]
     )
 
 

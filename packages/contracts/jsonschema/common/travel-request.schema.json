@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TravelRequest",
+  "description": "The normalised assessment request the public API hands to the agent. The API owns request_id and derives ownership from the access token; a client can never assert another user's trip.",
+  "type": "object",
+  "required": [
+    "request_id",
+    "trip_id",
+    "origin",
+    "destination",
+    "departure_time",
+    "travel_modes",
+    "locale",
+    "timezone"
+  ],
+  "properties": {
+    "request_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "trip_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "conversation_id": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    },
+    "origin": { "$ref": "location-ref.schema.json" },
+    "destination": { "$ref": "location-ref.schema.json" },
+    "departure_time": {
+      "description": "ISO-8601 with the offset the traveller selected. Must not be earlier than the configured backdating allowance.",
+      "$ref": "primitives.schema.json#/$defs/Timestamp"
+    },
+    "return_time": {
+      "description": "Must be strictly after departure_time when present.",
+      "$ref": "primitives.schema.json#/$defs/NullableTimestamp"
+    },
+    "travel_modes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 7,
+      "uniqueItems": true,
+      "items": { "$ref": "enums.schema.json#/$defs/TravelMode" }
+    },
+    "preferences": { "$ref": "travel-preference.schema.json" },
+    "question": {
+      "description": "Free text from the traveller. Control characters are normalised away before storage; the text is untrusted and is never treated as an instruction.",
+      "type": ["string", "null"],
+      "maxLength": 2000
+    },
+    "locale": { "$ref": "primitives.schema.json#/$defs/Locale" },
+    "timezone": { "$ref": "primitives.schema.json#/$defs/Timezone" },
+    "live_location_consent_id": {
+      "description": "Present only when the traveller granted LOCATION_LIVE for this run.",
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    }
+  }
+}

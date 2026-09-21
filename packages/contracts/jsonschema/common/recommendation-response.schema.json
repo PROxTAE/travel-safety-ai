@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RecommendationResponse",
+  "description": "The object the web app renders. Every displayed fact carries its source and freshness; when a dependency could not be reached the response says so in degraded_services and limitations rather than filling the gap. The public API revalidates this against the schema before it reaches the browser.",
+  "type": "object",
+  "required": [
+    "recommendation_id",
+    "request_id",
+    "trip_id",
+    "status",
+    "action_code",
+    "risk_level",
+    "confidence",
+    "short_summary",
+    "reasons",
+    "sources",
+    "freshness",
+    "limitations",
+    "degraded_services",
+    "versions",
+    "created_at"
+  ],
+  "properties": {
+    "recommendation_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "request_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "trip_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "conversation_id": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    },
+    "decision_id": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    },
+    "snapshot_id": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    },
+    "status": {
+      "description": "COMPLETED or PARTIAL. A PARTIAL result is still safe to show but must be labelled as incomplete in the UI.",
+      "$ref": "enums.schema.json#/$defs/RunStatus"
+    },
+    "action_code": { "$ref": "enums.schema.json#/$defs/ActionCode" },
+    "risk_level": { "$ref": "enums.schema.json#/$defs/RiskLevel" },
+    "confidence": { "$ref": "primitives.schema.json#/$defs/UnitInterval" },
+    "short_summary": { "type": "string", "maxLength": 1000 },
+    "immediate_actions": {
+      "type": "array",
+      "items": { "$ref": "decision-result.schema.json#/$defs/ImmediateAction" },
+      "default": []
+    },
+    "reasons": {
+      "type": "array",
+      "items": { "$ref": "decision-result.schema.json#/$defs/DecisionReason" }
+    },
+    "primary_route": {
+      "oneOf": [{ "$ref": "route-candidate.schema.json" }, { "type": "null" }]
+    },
+    "alternatives": {
+      "type": "array",
+      "items": { "$ref": "route-candidate.schema.json" },
+      "default": []
+    },
+    "alerts": {
+      "description": "Hazards and official alerts that intersect this journey.",
+      "type": "array",
+      "items": { "$ref": "disaster-event.schema.json" },
+      "default": []
+    },
+    "emergency_instructions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/EmergencyInstruction" },
+      "default": []
+    },
+    "official_contacts": {
+      "type": "array",
+      "items": { "$ref": "official-contact.schema.json" },
+      "default": []
+    },
+    "sources": {
+      "type": "array",
+      "items": { "$ref": "source-provenance.schema.json" }
+    },
+    "freshness": { "$ref": "#/$defs/Freshness" },
+    "limitations": {
+      "type": "array",
+      "items": { "$ref": "decision-result.schema.json#/$defs/Limitation" }
+    },
+    "degraded_services": {
+      "type": "array",
+      "items": { "$ref": "envelope.schema.json#/$defs/DegradedService" }
+    },
+    "versions": { "$ref": "#/$defs/ResponseVersions" },
+    "expires_at": {
+      "description": "After this instant the result must be re-assessed before being presented as current.",
+      "$ref": "primitives.schema.json#/$defs/NullableTimestamp"
+    },
+    "created_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" }
+  },
+  "$defs": {
+    "EmergencyInstruction": {
+      "title": "EmergencyInstruction",
+      "description": "Protective guidance quoted from an approved document, with its citation. Never generated free-hand.",
+      "type": "object",
+      "required": ["text", "evidence_id"],
+      "properties": {
+        "text": { "type": "string", "maxLength": 2000 },
+        "evidence_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        "hazard_type": {
+          "oneOf": [
+            { "$ref": "enums.schema.json#/$defs/DisasterEventType" },
+            { "type": "null" }
+          ]
+        },
+        "citation": { "$ref": "decision-result.schema.json#/$defs/Citation" }
+      }
+    },
+    "Freshness": {
+      "title": "Freshness",
+      "type": "object",
+      "required": ["fetched_at"],
+      "properties": {
+        "observed_at": {
+          "description": "Oldest observation time behind this answer, or null when no source publishes one.",
+          "$ref": "primitives.schema.json#/$defs/NullableTimestamp"
+        },
+        "fetched_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+        "expires_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" }
+      }
+    },
+    "ResponseVersions": {
+      "title": "ResponseVersions",
+      "type": "object",
+      "required": ["contract"],
+      "properties": {
+        "contract": { "$ref": "primitives.schema.json#/$defs/SemVer" },
+        "policy": { "type": ["string", "null"], "maxLength": 64 },
+        "prompt": { "type": ["string", "null"], "maxLength": 64 },
+        "llm_model": { "type": ["string", "null"], "maxLength": 128 },
+        "risk_model": { "type": ["string", "null"], "maxLength": 128 },
+        "knowledge_collection": { "type": ["string", "null"], "maxLength": 64 }
+      }
+    }
+  }
+}

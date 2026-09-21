@@ -33,9 +33,7 @@ BATCHED = "open_meteo_weather/forecast_batched.json"
 
 @pytest.fixture
 def adapter() -> OpenMeteoWeatherAdapter:
-    entry = next(
-        p for p in load_registry(REGISTRY_PATH).providers if p.id == "open_meteo_forecast"
-    )
+    entry = next(p for p in load_registry(REGISTRY_PATH).providers if p.id == "open_meteo_forecast")
     provider = ResolvedProvider(
         entry=entry,
         effective_status=ProviderStatus.ACTIVE,
@@ -55,9 +53,7 @@ def _response(payload: Any) -> ProviderResponse:
     )
 
 
-def _run(
-    adapter: OpenMeteoWeatherAdapter, payload: Any, query: WeatherQuery
-) -> list[Any]:
+def _run(adapter: OpenMeteoWeatherAdapter, payload: Any, query: WeatherQuery) -> list[Any]:
     response = _response(payload)
     return adapter.normalize(adapter.validate(response), response, query)
 
@@ -212,9 +208,7 @@ def test_a_far_eta_offset_is_flagged(adapter: OpenMeteoWeatherAdapter) -> None:
     """Half an hour either side is the honest limit of an hourly forecast."""
     raw = load_fixture(SINGLE)
     last = datetime.fromisoformat(raw["hourly"]["time"][-1]).replace(tzinfo=UTC)
-    points = _run(
-        adapter, raw, WeatherQuery(samples=[_sample(eta=last + timedelta(hours=6))])
-    )
+    points = _run(adapter, raw, WeatherQuery(samples=[_sample(eta=last + timedelta(hours=6))]))
 
     assert QualityFlag.INFERRED in points[0].quality.flags
     assert any("from the supplied ETA" in note for note in points[0].quality.notes)

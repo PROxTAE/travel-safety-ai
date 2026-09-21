@@ -13,6 +13,7 @@ will, which is the whole reason to keep tests that depend on the network.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -21,15 +22,33 @@ import pytest
 
 from app.adapters.eonet import EonetAdapter
 from app.adapters.gdacs import GdacsAdapter
+from app.adapters.gtfs import GtfsAdapter
 from app.adapters.open_meteo_geocoding import GeocodeQuery, OpenMeteoGeocodingAdapter
 from app.adapters.open_meteo_weather import (
     CoordinateSample,
     OpenMeteoWeatherAdapter,
     WeatherQuery,
 )
+from app.adapters.openrouteservice import OpenRouteServiceAdapter
+from app.adapters.ors_pois import OrsPoisAdapter
 from app.adapters.usgs import UsgsAdapter
-from app.domain.enums import DataStatus, EventType, ProviderStatus, Severity
-from app.domain.queries import DisasterQuery
+from app.domain.enums import (
+    DataStatus,
+    EventType,
+    PlaceType,
+    ProviderStatus,
+    RiskLevel,
+    Severity,
+    TransportStatusCode,
+    TravelMode,
+)
+from app.domain.errors import ProviderError, ProviderErrorCode
+from app.domain.queries import (
+    DisasterQuery,
+    NearbyPlacesQuery,
+    RouteQuery,
+    TransitQuery,
+)
 from app.providers.registry import Defaults, ResolvedProvider, load_registry
 from app.settings import get_settings
 from app.transport.http import ProviderTransport
@@ -44,12 +63,18 @@ pytestmark = pytest.mark.canary
 # unreachable.
 _LIVE_CACHE: dict[str, list[Any]] = {}
 
+# Read at import time, before the autouse fixture in conftest clears provider
+# credentials for the rest of the suite. Without a key the routing canaries skip
+# rather than fail: a machine with no openrouteservice account is a normal state
+# for a teammate running the tests, and a canary that always fails gets ignored.
+_ORS_KEY = os.environ.get("ORS_API_KEY") or ""
+_needs_ors = pytest.mark.skipif(not _ORS_KEY, reason="ORS_API_KEY is not set in this environment")
+
 
 async def _once(key: str, fetch: Callable[[], Awaitable[list[Any]]]) -> list[Any]:
     if key not in _LIVE_CACHE:
         _LIVE_CACHE[key] = await fetch()
     return _LIVE_CACHE[key]
-
 
 
 def _adapter(provider_id: str, adapter_class: type):  # type: ignore[type-arg]
@@ -148,9 +173,7 @@ async def test_live_forecast_units_have_not_drifted(
 ) -> None:
     """We pin units in the request. If the provider stops honouring that, the
     adapter records it - and this canary is where the team finds out."""
-    points = await weather.query(
-        WeatherQuery(samples=[CoordinateSample(13.7563, 100.5018)])
-    )
+    points = await weather.query(WeatherQuery(samples=[CoordinateSample(13.7563, 100.5018)]))
 
     drift = [note for note in points[0].quality.notes if "expected" in note]
     assert drift == [], f"unit drift detected: {drift}"
@@ -161,16 +184,12 @@ async def test_live_forecast_is_plausible_for_the_tropics(
 ) -> None:
     """A weak sanity bound, not a weather assertion. It catches a unit swap -
     Bangkok at 27 °F, or wind reported in m/s and read as km/h."""
-    points = await weather.query(
-        WeatherQuery(samples=[CoordinateSample(13.7563, 100.5018)])
-    )
+    points = await weather.query(WeatherQuery(samples=[CoordinateSample(13.7563, 100.5018)]))
 
     temperatures = [p.temperature_c for p in points if p.temperature_c is not None]
     assert temperatures
     assert all(5.0 <= value <= 50.0 for value in temperatures)
-    assert all(
-        p.wind_speed_kmh is None or 0.0 <= p.wind_speed_kmh <= 250.0 for p in points
-    )
+    assert all(p.wind_speed_kmh is None or 0.0 <= p.wind_speed_kmh <= 250.0 for p in points)
     assert all(
         p.precipitation_probability is None or 0 <= p.precipitation_probability <= 100
         for p in points
@@ -312,7 +331,233 @@ async def test_live_eonet_bbox_is_honoured_by_the_provider(
 
 def _usgs_week(usgs: UsgsAdapter) -> Callable[[], Awaitable[list[Any]]]:
     """A fixed window, so the two USGS canaries really do ask one question."""
-    start = datetime.now(UTC).replace(minute=0, second=0, microsecond=0) - timedelta(
-        days=7
-    )
+    start = datetime.now(UTC).replace(minute=0, second=0, microsecond=0) - timedelta(days=7)
     return lambda: usgs.query(DisasterQuery(start=start))
+
+
+# --------------------------------------------------------------------- ORS
+
+
+@pytest.fixture
+def ors(monkeypatch: pytest.MonkeyPatch) -> OpenRouteServiceAdapter:
+    monkeypatch.setenv("ORS_API_KEY", _ORS_KEY)
+    get_settings.cache_clear()
+    return _adapter("openrouteservice", OpenRouteServiceAdapter)
+
+
+@pytest.fixture
+def ors_pois(monkeypatch: pytest.MonkeyPatch) -> OrsPoisAdapter:
+    monkeypatch.setenv("ORS_API_KEY", _ORS_KEY)
+    get_settings.cache_clear()
+    return _adapter("ors_pois", OrsPoisAdapter)
+
+
+BANGKOK = (100.5383, 13.7649)
+AYUTTHAYA = (100.5878, 14.3532)
+
+
+def _bangkok_route(ors: OpenRouteServiceAdapter) -> Callable[[], Awaitable[list[Any]]]:
+    return lambda: ors.query(
+        RouteQuery(waypoints=[BANGKOK, AYUTTHAYA], mode=TravelMode.CAR, alternatives=2)
+    )
+
+
+@_needs_ors
+async def test_live_ors_returns_a_real_road_route(
+    ors: OpenRouteServiceAdapter,
+) -> None:
+    """Phase 4 exit: a real road route with geometry and turn instructions."""
+    routes = await _once("ors_bangkok", _bangkok_route(ors))
+
+    assert routes, "the provider returned no route at all"
+    route = routes[0]
+    # Bangkok to Ayutthaya is about 75 km by road. A value near 74 in the wrong
+    # unit would be metres, and near 74000 in kilometres - both are caught here.
+    assert 50_000 < route.distance_m < 150_000
+    assert route.duration_seconds > 600
+    assert len(route.geometry.coordinates) > 50
+    assert route.segments and route.segments[0].steps
+
+
+@_needs_ors
+async def test_live_ors_geometry_is_longitude_latitude(
+    ors: OpenRouteServiceAdapter,
+) -> None:
+    """Schema drift that a frozen fixture can never catch: if the provider ever
+    changed ordinate order, every route would silently land in Somalia."""
+    routes = await _once("ors_bangkok", _bangkok_route(ors))
+
+    for longitude, latitude in routes[0].geometry.coordinates[:200]:
+        assert 95.0 < longitude < 110.0
+        assert 5.0 < latitude < 22.0
+
+
+@_needs_ors
+async def test_live_ors_never_asserts_a_risk_level(
+    ors: OpenRouteServiceAdapter,
+) -> None:
+    """The safety invariant, checked against the live provider rather than a
+    fixture, so a future provider field cannot start populating it by accident."""
+    routes = await _once("ors_bangkok", _bangkok_route(ors))
+
+    for route in routes:
+        assert route.risk_level is RiskLevel.UNKNOWN
+        assert route.exposure is None
+
+
+@_needs_ors
+async def test_live_ors_reports_the_road_graph_age(
+    ors: OpenRouteServiceAdapter,
+) -> None:
+    """Freshness here is the age of the map, not of the request.
+
+    If the provider stops sending `graph_date` the record must say PARTIAL
+    rather than quietly claiming to be fresh, so the field is worth watching.
+    """
+    routes = await _once("ors_bangkok", _bangkok_route(ors))
+    quality = routes[0].quality
+
+    if routes[0].source.published_at is None:
+        assert quality.status is DataStatus.PARTIAL
+    else:
+        assert quality.freshness_seconds is not None
+        assert quality.freshness_seconds > 0
+    # A route is computed, never observed.
+    assert routes[0].source.observed_at is None
+
+
+@_needs_ors
+async def test_live_ors_finds_hospitals_near_victory_monument(
+    ors_pois: OrsPoisAdapter,
+) -> None:
+    """Phase 4 exit for the emergency directory.
+
+    Central Bangkok has several large hospitals within two kilometres. An empty
+    answer here means the category mapping has drifted - which is exactly how
+    this went wrong the first time, when a plausible-looking category id
+    returned restaurants.
+    """
+    places = await _once(
+        "ors_pois_bangkok",
+        lambda: ors_pois.query(
+            NearbyPlacesQuery(
+                longitude=BANGKOK[0],
+                latitude=BANGKOK[1],
+                radius_m=2000,
+                place_types=[PlaceType.HOSPITAL, PlaceType.POLICE],
+            )
+        ),
+    )
+
+    assert places, "no emergency places found in central Bangkok"
+    assert any(place.place_type is PlaceType.HOSPITAL for place in places)
+    assert all(
+        place.place_type in (PlaceType.HOSPITAL, PlaceType.POLICE, PlaceType.OTHER)
+        for place in places
+    )
+
+
+@_needs_ors
+async def test_live_ors_places_stay_inside_the_radius(
+    ors_pois: OrsPoisAdapter,
+) -> None:
+    places = await _once("ors_pois_bangkok", lambda: [])
+
+    for place in places:
+        if place.distance_m is not None:
+            # A little slack: the provider measures from the buffered geometry.
+            assert place.distance_m <= 2_500
+        assert place.source.source_url is not None
+
+
+# --------------------------------------------------------------------- GTFS
+
+
+@pytest.fixture
+def gtfs() -> GtfsAdapter:
+    return _adapter("gtfs_registry", GtfsAdapter)
+
+
+NEW_YORK_BBOX = (-74.1, 40.6, -73.8, 40.9)
+
+
+def _nyc_transit(gtfs: GtfsAdapter) -> Callable[[], Awaitable[list[Any]]]:
+    return lambda: gtfs.query(TransitQuery(bbox=NEW_YORK_BBOX, limit=80))
+
+
+async def test_live_gtfs_returns_running_trips(gtfs: GtfsAdapter) -> None:
+    """Phase 5 exit: at least one real GTFS-Realtime region must work."""
+    statuses = await _once("gtfs_nyc", _nyc_transit(gtfs))
+
+    assert statuses, "the agency feed reported no trips at all"
+    for status in statuses:
+        assert status.origin_stop.name
+        assert status.destination_stop.name
+
+
+async def test_live_gtfs_joins_some_trips_to_the_timetable(
+    gtfs: GtfsAdapter,
+) -> None:
+    """The check a frozen fixture cannot make.
+
+    The realtime and schedule feeds use different trip-id forms, and joining
+    them wrongly matches nothing while looking perfectly healthy - every record
+    is still valid, just UNKNOWN. If the agency changes either format, this is
+    what notices.
+    """
+    statuses = await _once("gtfs_nyc", _nyc_transit(gtfs))
+    matched = [s for s in statuses if s.scheduled_arrival is not None]
+
+    assert matched, (
+        "no live trip matched the published timetable - the trip-id join has " "most likely drifted"
+    )
+
+
+async def test_live_gtfs_delays_are_minutes_not_timezone_offsets(
+    gtfs: GtfsAdapter,
+) -> None:
+    """GTFS clock times are local to the agency. Reading them as UTC makes every
+    New York train exactly four hours late."""
+    statuses = await _once("gtfs_nyc", _nyc_transit(gtfs))
+
+    for status in statuses:
+        if status.delay_minutes is not None:
+            assert abs(status.delay_minutes) < 180, (
+                f"{status.id} is {status.delay_minutes} minutes off, which looks "
+                "like a timezone error rather than a delay"
+            )
+
+
+async def test_live_gtfs_never_claims_on_time_without_a_schedule(
+    gtfs: GtfsAdapter,
+) -> None:
+    """Contract § 3.6, checked against the live feed so that a future provider
+    field cannot start populating it by accident."""
+    statuses = await _once("gtfs_nyc", _nyc_transit(gtfs))
+
+    for status in statuses:
+        if status.status is TransportStatusCode.ON_TIME:
+            assert status.delay_minutes is not None
+        if status.scheduled_arrival is None:
+            assert status.status is not TransportStatusCode.ON_TIME
+
+
+async def test_live_gtfs_snapshot_is_recent(gtfs: GtfsAdapter) -> None:
+    """The agency rebuilds trip updates about every 30 seconds; § 10 allows 90.
+    A snapshot much older than that means the feed has stalled."""
+    statuses = await _once("gtfs_nyc", _nyc_transit(gtfs))
+    observed = [s.source.observed_at for s in statuses if s.source.observed_at]
+
+    assert observed
+    age = (datetime.now(UTC) - max(observed)).total_seconds()
+    assert age < 900, f"the newest realtime snapshot is {age:.0f}s old"
+
+
+async def test_live_gtfs_refuses_a_region_it_does_not_cover(
+    gtfs: GtfsAdapter,
+) -> None:
+    """Coverage is per agency. Bangkok publishes no GTFS-Realtime at all, which
+    is why the demo region is New York - and that limit has to be visible."""
+    with pytest.raises(ProviderError) as excinfo:
+        await gtfs.query(TransitQuery(bbox=(100.0, 13.0, 101.0, 14.0)))
+    assert excinfo.value.code is ProviderErrorCode.OUTSIDE_COVERAGE

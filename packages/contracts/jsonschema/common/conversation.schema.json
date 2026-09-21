@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Conversation",
+  "description": "A thread of assistant turns about a trip. Continuing a conversation reuses its id but never reuses stale evidence: a follow-up that asks about current conditions triggers a fresh assessment when the previous one is past its freshness window.",
+  "type": "object",
+  "required": ["conversation_id", "created_at", "updated_at", "message_count"],
+  "properties": {
+    "conversation_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "trip_id": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    },
+    "title": {
+      "description": "Short label derived from the first question, for the recent-chats list.",
+      "type": ["string", "null"],
+      "maxLength": 256
+    },
+    "last_message_preview": {
+      "type": ["string", "null"],
+      "maxLength": 512
+    },
+    "last_recommendation_id": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    },
+    "message_count": { "type": "integer", "minimum": 0 },
+    "created_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+    "updated_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" }
+  }
+}

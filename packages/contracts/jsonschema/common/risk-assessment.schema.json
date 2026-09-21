@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RiskAssessment",
+  "description": "Model output for one route against one immutable snapshot. risk_level is an input to policy, never an action by itself: HIGH often leads to AVOID, but only the decision policy may say so.",
+  "type": "object",
+  "required": [
+    "assessment_id",
+    "snapshot_id",
+    "route_id",
+    "score",
+    "risk_level",
+    "reason_codes",
+    "model",
+    "quality",
+    "created_at"
+  ],
+  "properties": {
+    "assessment_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "snapshot_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "route_id": {
+      "$ref": "primitives.schema.json#/$defs/Uuid"
+    },
+    "score": {
+      "$ref": "primitives.schema.json#/$defs/UnitInterval"
+    },
+    "probability_high": {
+      "oneOf": [
+        {
+          "$ref": "primitives.schema.json#/$defs/UnitInterval"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "risk_level": {
+      "$ref": "enums.schema.json#/$defs/RiskLevel"
+    },
+    "uncertainty": {
+      "oneOf": [
+        {
+          "$ref": "primitives.schema.json#/$defs/UnitInterval"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reason_codes": {
+      "description": "Controlled vocabulary. Explanations may restate these but may not assert causality beyond them.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/RiskReasonCode"
+      },
+      "default": []
+    },
+    "safety_overrides": {
+      "description": "Deterministic rules that fired regardless of the model score.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/SafetyOverride"
+      },
+      "default": []
+    },
+    "model": {
+      "$ref": "#/$defs/ModelRef"
+    },
+    "quality": {
+      "$ref": "data-quality.schema.json"
+    },
+    "created_at": {
+      "$ref": "primitives.schema.json#/$defs/Timestamp"
+    }
+  },
+  "$defs": {
+    "RiskReasonCode": {
+      "title": "RiskReasonCode",
+      "type": "string",
+      "enum": [
+        "SEVERE_WEATHER_CORRIDOR",
+        "HEAVY_PRECIPITATION",
+        "HIGH_WIND",
+        "LOW_VISIBILITY",
+        "SNOW_OR_ICE",
+        "EXTREME_TEMPERATURE",
+        "ACTIVE_DISASTER_ON_CORRIDOR",
+        "RECENT_EARTHQUAKE",
+        "FLOOD_RISK",
+        "WILDFIRE_SMOKE",
+        "OFFICIAL_CLOSURE",
+        "OFFICIAL_WARNING_ACTIVE",
+        "TRANSPORT_DISRUPTION",
+        "TRANSPORT_CANCELLED",
+        "NIGHT_TRAVEL",
+        "LONG_EXPOSURE_WINDOW",
+        "SPARSE_DATA_COVERAGE",
+        "STALE_EVIDENCE",
+        "CONFLICTING_EVIDENCE"
+      ]
+    },
+    "SafetyOverride": {
+      "title": "SafetyOverride",
+      "type": "object",
+      "required": [
+        "rule_id",
+        "effect"
+      ],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "effect": {
+          "description": "An override may only raise risk or force a more conservative outcome.",
+          "type": "string",
+          "enum": [
+            "FORCE_HIGH",
+            "FORCE_MEDIUM",
+            "FORCE_CLOSED",
+            "RAISE_ONE_LEVEL"
+          ]
+        },
+        "evidence_source_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "primitives.schema.json#/$defs/RecordId"
+          },
+          "default": []
+        }
+      }
+    },
+    "ModelRef": {
+      "title": "ModelRef",
+      "type": "object",
+      "required": [
+        "name",
+        "version",
+        "feature_schema_version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "version": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "feature_schema_version": {
+          "$ref": "primitives.schema.json#/$defs/SemVer"
+        }
+      }
+    }
+  }
+}

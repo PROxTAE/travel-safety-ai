@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RunRef",
+  "description": "Returned by every endpoint that starts asynchronous work. The caller follows the run over SSE and falls back to polling; the assessment itself never blocks the HTTP request that started it.",
+  "type": "object",
+  "required": ["request_id", "status", "events_url", "poll_url", "submitted_at"],
+  "properties": {
+    "request_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "trip_id": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    },
+    "conversation_id": {
+      "oneOf": [
+        { "$ref": "primitives.schema.json#/$defs/Uuid" },
+        { "type": "null" }
+      ]
+    },
+    "status": { "$ref": "enums.schema.json#/$defs/RunStatus" },
+    "events_url": {
+      "description": "Relative URL of the SSE stream for this run.",
+      "type": "string",
+      "maxLength": 512
+    },
+    "poll_url": {
+      "description": "Relative URL of the polling endpoint for this run.",
+      "type": "string",
+      "maxLength": 512
+    },
+    "submitted_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" }
+  }
+}

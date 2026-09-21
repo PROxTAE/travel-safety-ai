@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from app.adapters.base import CoverageDecision, ProviderAdapter, ProviderRequest
-from app.domain.canonical import DataQuality
+from app.domain.canonical import DataQuality, warning_has_been_issued
 from app.domain.enums import EventType, QualityFlag
 from app.domain.errors import ProviderError, ProviderErrorCode
 from app.domain.queries import DisasterQuery
@@ -125,9 +125,7 @@ class GdacsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
     def coverage(self, query: DisasterQuery) -> CoverageDecision:
         if query.event_types and not _requested_codes(query.event_types):
             names = ", ".join(str(t) for t in query.event_types)
-            return CoverageDecision(
-                False, f"GDACS publishes no equivalent of: {names}"
-            )
+            return CoverageDecision(False, f"GDACS publishes no equivalent of: {names}")
         if query.bbox is not None:
             min_lon, min_lat, max_lon, max_lat = query.bbox
             if not (-180.0 <= min_lon <= 180.0 and -180.0 <= max_lon <= 180.0):
@@ -163,8 +161,7 @@ class GdacsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                 ProviderErrorCode.PROVIDER_SCHEMA_CHANGED,
                 self.provider_id,
                 message=(
-                    "GDACS feed did not match the expected shape: "
-                    f"{exc.error_count()} errors"
+                    "GDACS feed did not match the expected shape: " f"{exc.error_count()} errors"
                 ),
             ) from exc
 
@@ -204,9 +201,7 @@ class GdacsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                 DisasterEvent(
                     event_id=f"{self.provider_id}:{properties.eventid}"
                     f":{properties.episodeid or 0}",
-                    event_type=EVENT_TYPES.get(
-                        properties.eventtype.upper(), EventType.OTHER
-                    ),
+                    event_type=EVENT_TYPES.get(properties.eventtype.upper(), EventType.OTHER),
                     title=_title(properties),
                     # Plain text only. `htmldescription` is markup and must not
                     # be handed to a consumer that may render it.
@@ -215,7 +210,9 @@ class GdacsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                     effective_at=effective_at,
                     ends_at=ends_at,
                     instruction=None,
-                    official=True,
+                    # GDACS raises Orange or Red only once it has assessed
+                    # impact; Green is a logged event, not a warning.
+                    official=warning_has_been_issued(properties.alertlevel),
                     magnitude=severity_data.severity,
                     magnitude_unit=severity_data.severityunit,
                     # Free text, never parsed for a number.
@@ -225,9 +222,7 @@ class GdacsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                     tsunami=None,
                     cross_reference_ids=_cross_ids(properties),
                     reporting_networks=_reporting_networks(properties),
-                    episode_id=(
-                        str(properties.episodeid) if properties.episodeid else None
-                    ),
+                    episode_id=(str(properties.episodeid) if properties.episodeid else None),
                     quality=_quality(
                         properties=properties,
                         effective_at=effective_at,
@@ -308,9 +303,7 @@ def _requested_codes(event_types: list[EventType]) -> list[str]:
 
 
 def _window_bucket(query: DisasterQuery) -> str:
-    start = (
-        query.start.replace(minute=0, second=0, microsecond=0) if query.start else None
-    )
+    start = query.start.replace(minute=0, second=0, microsecond=0) if query.start else None
     end = query.end.replace(minute=0, second=0, microsecond=0) if query.end else None
     return f"{start.isoformat() if start else '*'}/{end.isoformat() if end else '*'}"
 
@@ -363,11 +356,37 @@ def _quality(
     client_side_filtered: bool,
     severity_text: str | None,
 ) -> DataQuality:
-    age_seconds = max(0, int((fetched_at - effective_at).total_seconds()))
+    # The age of our copy of the data, not the age of the disaster. Shared
+    # context section 10 gives a disaster event a ten-minute budget and says
+    # "fetch again" past it, which is only a coherent instruction about a stale
+    # read - re-fetching cannot make an old cyclone younger. Measuring event age
+    # here marked every record STALE regardless of when it was read.
+    #
+    # Unlike the USGS feed, GDACS publishes no feed generation time, so the
+    # provider's own lag between an event occurring and appearing here is not
+    # measurable. This says so rather than implying it is zero.
+    age_seconds = 0
     flags: list[QualityFlag] = [QualityFlag.INFERRED]
     notes = [
         "provider timestamps carry no timezone offset and are read as UTC",
+        "the feed carries no generation time, so freshness is the age of this "
+        "read; any delay between the event and its publication here is not "
+        "visible to us",
     ]
+
+    revised_at = _parse_naive_utc(properties.datemodified)
+    if revised_at is not None:
+        stale_for = max(0, int((fetched_at - revised_at).total_seconds()))
+        notes.append(f"provider last revised this record {revised_at:%Y-%m-%dT%H:%M:%SZ}")
+        # A record the provider has not touched in a day while still calling the
+        # event current is worth flagging on its own - but as a flag, not as the
+        # freshness of the read, which is a different question.
+        if _wire_bool(properties.iscurrent) and stale_for > 24 * 3600:
+            flags.append(QualityFlag.STALE)
+            notes.append(
+                "the provider still marks this event current but has not "
+                f"revised the record in {stale_for // 3600} hours"
+            )
 
     if client_side_filtered:
         notes.append(
