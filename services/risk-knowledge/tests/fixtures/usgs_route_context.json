@@ -15,7 +15,8 @@
   "feature_schema_version": "1.0.0",
   "travel_window": {
     "starts_at": "2026-09-20T01:00:00Z",
-    "ends_at": "2026-09-20T03:00:00Z"
+    "ends_at": "2026-09-20T03:00:00Z",
+    "timezone": "Asia/Jayapura"
   },
   "route_candidates": [
     {

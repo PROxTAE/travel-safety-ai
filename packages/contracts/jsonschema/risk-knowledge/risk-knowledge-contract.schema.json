@@ -241,10 +241,19 @@
         "travel_window": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["starts_at", "ends_at"],
+          "description": "Must stay compatible with jsonschema/common/integrated-travel-context.schema.json#/$defs/TravelWindow.",
+          "required": ["starts_at", "ends_at", "timezone"],
           "properties": {
             "starts_at": { "$ref": "#/$defs/Timestamp" },
-            "ends_at": { "$ref": "#/$defs/Timestamp" }
+            "ends_at": { "$ref": "#/$defs/Timestamp" },
+            "timezone": {
+              "title": "Timezone",
+              "description": "IANA time zone identifier, e.g. Asia/Bangkok. Validated against the tz database at the boundary, not by pattern alone.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9+_-]+(/[A-Za-z0-9+_.-]+)*$"
+            }
           }
         },
         "route_candidates": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/RouteCandidate" } },
