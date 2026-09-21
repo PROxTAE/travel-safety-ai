@@ -94,9 +94,7 @@ class ProviderRepository:
         deletion is reviewable and testable."""
         cutoff = datetime.now(UTC) - timedelta(days=older_than_days)
         async with session_scope(self._sessions) as session:
-            result = await session.execute(
-                delete(FetchLog).where(FetchLog.fetched_at < cutoff)
-            )
+            result = await session.execute(delete(FetchLog).where(FetchLog.fetched_at < cutoff))
         return int(result.rowcount or 0)
 
     async def upsert_health(

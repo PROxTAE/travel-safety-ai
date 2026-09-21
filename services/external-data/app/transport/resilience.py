@@ -50,9 +50,7 @@ class CircuitBreaker:
             if self.state is CircuitState.OPEN:
                 elapsed = time.monotonic() - self.opened_at
                 if elapsed < self.policy.open_seconds:
-                    raise CircuitOpenError(
-                        self.provider_id, self.policy.open_seconds - elapsed
-                    )
+                    raise CircuitOpenError(self.provider_id, self.policy.open_seconds - elapsed)
                 # Cooldown elapsed: admit a limited number of probes.
                 self.state = CircuitState.HALF_OPEN
                 self.half_open_inflight = 0
@@ -113,9 +111,10 @@ class ConcurrencyLimiter:
 class QuotaTracker:
     """Records whatever quota a provider chooses to report.
 
-    None of our providers documents a stable quota header, so this reads the
-    common spellings and stays silent otherwise. It never invents a number --
-    an unknown quota is reported as unknown, not as "plenty left".
+    openrouteservice sends `X-Ratelimit-Limit`/`-Remaining`/`-Reset`; the
+    Open-Meteo and disaster feeds send nothing. So this reads the common
+    spellings and stays silent otherwise. It never invents a number -- an
+    unknown quota is reported as unknown, not as "plenty left".
     """
 
     provider_id: str
@@ -143,9 +142,9 @@ class QuotaTracker:
                         self.limit = int(lowered[limit_key])
                     except ValueError:
                         self.limit = None
-                quota_remaining.labels(
-                    provider=self.provider_id, window=self.window
-                ).set(self.remaining)
+                quota_remaining.labels(provider=self.provider_id, window=self.window).set(
+                    self.remaining
+                )
                 return
 
     @property

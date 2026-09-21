@@ -172,8 +172,7 @@ class EonetAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                 ProviderErrorCode.PROVIDER_SCHEMA_CHANGED,
                 self.provider_id,
                 message=(
-                    "EONET feed did not match the expected shape: "
-                    f"{exc.error_count()} errors"
+                    "EONET feed did not match the expected shape: " f"{exc.error_count()} errors"
                 ),
             ) from exc
 
@@ -223,7 +222,9 @@ class EonetAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                     effective_at=started_at,
                     ends_at=_parse_iso(raw.closed),
                     instruction=None,
-                    official=True,
+                    # EONET curates and tracks; it issues no warnings at all,
+                    # so nothing from it can have had one issued.
+                    official=False,
                     # Current intensity, from the latest observation - not the
                     # value it had when it was first seen.
                     magnitude=latest.magnitudeValue,
@@ -237,9 +238,7 @@ class EonetAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                     # in their own field: JTWC reports every typhoon, so
                     # matching on it groups every typhoon.
                     cross_reference_ids=[],
-                    reporting_networks=[
-                        source.id for source in raw.sources if source.id
-                    ],
+                    reporting_networks=[source.id for source in raw.sources if source.id],
                     quality=_quality(
                         track_length=len(track),
                         started_at=started_at,
@@ -361,9 +360,7 @@ def _pushable_bbox(
 
 
 def _window_bucket(query: DisasterQuery) -> str:
-    start = (
-        query.start.replace(minute=0, second=0, microsecond=0) if query.start else None
-    )
+    start = query.start.replace(minute=0, second=0, microsecond=0) if query.start else None
     end = query.end.replace(minute=0, second=0, microsecond=0) if query.end else None
     return f"{start.isoformat() if start else '*'}/{end.isoformat() if end else '*'}"
 
@@ -397,11 +394,24 @@ def _quality(
     is_closed: bool,
     magnitude_unit: str | None,
 ) -> DataQuality:
-    age_seconds = max(0, int((fetched_at - observed_at).total_seconds()))
+    # The age of our copy of the feed, not the age of the event. Shared context
+    # section 10 gives a disaster event a ten-minute budget and says "fetch
+    # again" past it, which only makes sense about a stale read - re-fetching
+    # cannot make an old wildfire younger. Measuring from the last observation
+    # marked every EONET record STALE, because a curated source that publishes
+    # once or twice a day can never be ten minutes old by that measure.
+    #
+    # EONET, like GDACS and unlike USGS, publishes no feed generation time, so
+    # the provider's own publication lag is not measurable here. The note says
+    # so instead of implying it is zero.
+    age_seconds = 0
     flags: list[QualityFlag] = []
     notes = [
         "EONET is curated and publishes more slowly than USGS or GDACS; treat as "
-        "corroboration, not as the first alert"
+        "corroboration, not as the first alert",
+        "the feed carries no generation time, so freshness is the age of this "
+        "read; the provider's publication lag is not visible to us",
+        f"the provider last observed this event {observed_at:%Y-%m-%dT%H:%M:%SZ}",
     ]
 
     if track_length > 1:
@@ -421,8 +431,7 @@ def _quality(
         # acres for a fire, knots for a storm. Saying so stops anyone ranking
         # one against the other.
         notes.append(
-            f"magnitude is in {magnitude_unit} and is only comparable within "
-            "this event type"
+            f"magnitude is in {magnitude_unit} and is only comparable within " "this event type"
         )
 
     return DataQuality.from_age(

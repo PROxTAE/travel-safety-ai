@@ -60,10 +60,34 @@ jobs:
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           fi
-          # รัน pytest เฉพาะเมื่อมีไฟล์เทส Python จริง (โฟลเดอร์ tests/ มี README ตั้งแต่ bootstrap — pytest เจอ 0 เทสจะ exit 5)
-          if git ls-files 'tests/**/*.py' 'tests/*.py' | grep -q .; then
+
+          # รัน pytest เฉพาะไฟล์เทสที่ "ไม่มี" pyproject.toml เป็นของตัวเอง
+          #
+          # ชุดเทสที่มี pyproject.toml ของตัวเอง (เช่น tests/contract/) ประกาศ dependency เองและมี
+          # workflow ของตัวเองที่ติดตั้งผ่าน uv ให้ครบ — การเอา `pip install pytest` เปล่า ๆ มารัน
+          # จะพังที่ ImportError เสมอ ไม่ใช่เพราะเทสผิด แต่เพราะติดตั้งไม่ครบ
+          #
+          # ตัวนี้ยังเป็นตาข่ายรับไฟล์เทสธรรมดาที่ใครวางไว้ใน tests/ ตรง ๆ ตามเดิม
+          standalone=""
+          for f in $(git ls-files 'tests/**/*.py' 'tests/*.py'); do
+            dir=$(dirname "$f")
+            owned=""
+            while [ "$dir" != "." ] && [ "$dir" != "/" ]; do
+              if [ -f "$dir/pyproject.toml" ]; then
+                owned="yes"
+                break
+              fi
+              dir=$(dirname "$dir")
+            done
+            if [ -z "$owned" ]; then
+              standalone="$standalone $f"
+            fi
+          done
+
+          if [ -n "$standalone" ]; then
             pip install pytest
-            pytest -q tests
+            # shellcheck disable=SC2086
+            pytest -q $standalone
           else
-            echo "ยังไม่มีไฟล์เทส Python ใน tests/ ข้ามการรันเทส"
+            echo "ไม่มีไฟล์เทส Python แบบ standalone ใน tests/ (ชุดที่มี pyproject.toml ของตัวเอง รันใน workflow ของมันเอง) ข้ามการรันเทส"
           fi

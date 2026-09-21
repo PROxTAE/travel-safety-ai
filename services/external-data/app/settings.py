@@ -31,9 +31,7 @@ class Settings(BaseSettings):
     # Shared secret between internal services. Callers send it as
     # `Authorization: Bearer <token>`. Absent => every internal route returns 401
     # and readiness reports NOT ready. We never fall back to "open in dev".
-    internal_service_token: SecretStr | None = Field(
-        default=None, alias="INTERNAL_SERVICE_TOKEN"
-    )
+    internal_service_token: SecretStr | None = Field(default=None, alias="INTERNAL_SERVICE_TOKEN")
 
     # --------------------------------------------------------------- storage
     postgres_host: str = Field(default="postgres", alias="POSTGRES_HOST")
@@ -43,9 +41,7 @@ class Settings(BaseSettings):
     postgres_password: SecretStr = Field(default=SecretStr(""), alias="POSTGRES_PASSWORD")
     db_schema: str = "provider"
 
-    redis_url: RedisDsn = Field(
-        default=RedisDsn("redis://redis:6379/0"), alias="REDIS_URL"
-    )
+    redis_url: RedisDsn = Field(default=RedisDsn("redis://redis:6379/0"), alias="REDIS_URL")
 
     # ------------------------------------------------------- provider registry
     provider_config_path: Path = Field(
@@ -59,21 +55,13 @@ class Settings(BaseSettings):
     open_meteo_geocoding_url: str = Field(
         default="https://geocoding-api.open-meteo.com", alias="OPEN_METEO_GEOCODING_URL"
     )
-    ors_base_url: str = Field(
-        default="https://api.openrouteservice.org", alias="ORS_BASE_URL"
-    )
-    amadeus_base_url: str = Field(
-        default="https://api.amadeus.com", alias="AMADEUS_BASE_URL"
-    )
+    ors_base_url: str = Field(default="https://api.openrouteservice.org", alias="ORS_BASE_URL")
+    amadeus_base_url: str = Field(default="https://api.amadeus.com", alias="AMADEUS_BASE_URL")
     usgs_feed_url: str = Field(
-        default=(
-            "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"
-        ),
+        default=("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson"),
         alias="USGS_FEED_URL",
     )
-    gdacs_base_url: str = Field(
-        default="https://www.gdacs.org/gdacsapi", alias="GDACS_BASE_URL"
-    )
+    gdacs_base_url: str = Field(default="https://www.gdacs.org/gdacsapi", alias="GDACS_BASE_URL")
     eonet_base_url: str = Field(
         default="https://eonet.gsfc.nasa.gov/api/v3", alias="EONET_BASE_URL"
     )
@@ -83,9 +71,7 @@ class Settings(BaseSettings):
     # explicit unavailable capability, never as a startup crash.
     ors_api_key: SecretStr | None = Field(default=None, alias="ORS_API_KEY")
     amadeus_client_id: SecretStr | None = Field(default=None, alias="AMADEUS_CLIENT_ID")
-    amadeus_client_secret: SecretStr | None = Field(
-        default=None, alias="AMADEUS_CLIENT_SECRET"
-    )
+    amadeus_client_secret: SecretStr | None = Field(default=None, alias="AMADEUS_CLIENT_SECRET")
 
     # ------------------------------------------------------ health probing
     # How often to check each ACTIVE provider's documented health URL. Without

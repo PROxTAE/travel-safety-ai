@@ -31,9 +31,7 @@ STORM_INDEX = 2  # Typhoon Dujuan, the one event with a real track
 
 @pytest.fixture
 def adapter() -> EonetAdapter:
-    entry = next(
-        p for p in load_registry(REGISTRY_PATH).providers if p.id == "nasa_eonet"
-    )
+    entry = next(p for p in load_registry(REGISTRY_PATH).providers if p.id == "nasa_eonet")
     provider = ResolvedProvider(
         entry=entry,
         effective_status=ProviderStatus.ACTIVE,
@@ -53,13 +51,9 @@ def _response(payload: Any) -> ProviderResponse:
     )
 
 
-def _run(
-    adapter: EonetAdapter, payload: Any, query: DisasterQuery | None = None
-) -> list[Any]:
+def _run(adapter: EonetAdapter, payload: Any, query: DisasterQuery | None = None) -> list[Any]:
     response = _response(payload)
-    return adapter.normalize(
-        adapter.validate(response), response, query or DisasterQuery()
-    )
+    return adapter.normalize(adapter.validate(response), response, query or DisasterQuery())
 
 
 def _storm(events: list[Any], raw: dict[str, Any]) -> Any:
@@ -105,9 +99,7 @@ def test_effective_at_is_when_the_event_began(adapter: EonetAdapter) -> None:
     track = raw["events"][STORM_INDEX]["geometry"]
     event = _storm(_run(adapter, raw), raw)
 
-    assert event.effective_at == datetime.fromisoformat(
-        track[0]["date"].replace("Z", "+00:00")
-    )
+    assert event.effective_at == datetime.fromisoformat(track[0]["date"].replace("Z", "+00:00"))
     assert event.source.observed_at == datetime.fromisoformat(
         track[-1]["date"].replace("Z", "+00:00")
     )
@@ -126,9 +118,7 @@ def test_a_shuffled_track_is_still_read_in_time_order(
     original = load_fixture(FIXTURE)["events"][STORM_INDEX]["geometry"]
 
     assert event.geometry.longitude == pytest.approx(original[-1]["coordinates"][0])
-    assert event.effective_at == datetime.fromisoformat(
-        original[0]["date"].replace("Z", "+00:00")
-    )
+    assert event.effective_at == datetime.fromisoformat(original[0]["date"].replace("Z", "+00:00"))
 
 
 def test_track_length_is_reported_in_quality(adapter: EonetAdapter) -> None:
@@ -169,10 +159,7 @@ def test_magnitude_units_are_recorded_as_not_comparable(
     units = {event.magnitude_unit for event in events}
     assert units == {"acres", "kts"}
     for event in events:
-        assert any(
-            "only comparable within this event type" in note
-            for note in event.quality.notes
-        )
+        assert any("only comparable within this event type" in note for note in event.quality.notes)
 
 
 # --------------------------------------------------------- trap 4: polygons
@@ -256,10 +243,7 @@ def test_requested_types_are_pushed_to_the_provider(adapter: EonetAdapter) -> No
 def test_coverage_rejects_hazards_eonet_does_not_publish(
     adapter: EonetAdapter,
 ) -> None:
-    assert (
-        adapter.coverage(DisasterQuery(event_types=[EventType.HEALTH])).supported
-        is False
-    )
+    assert adapter.coverage(DisasterQuery(event_types=[EventType.HEALTH])).supported is False
 
 
 # ------------------------------------------------------- provider filtering
@@ -293,9 +277,7 @@ def test_provider_results_are_re_checked_against_the_bbox(
 
 
 def test_a_past_window_asks_for_closed_events_too(adapter: EonetAdapter) -> None:
-    request = adapter.build_request(
-        DisasterQuery(start=datetime(2026, 9, 1, tzinfo=UTC))
-    )
+    request = adapter.build_request(DisasterQuery(start=datetime(2026, 9, 1, tzinfo=UTC)))
     assert request.params is not None
     assert request.params["status"] == "all"
     assert request.params["start"] == "2026-09-01"
@@ -368,9 +350,5 @@ def test_freshness_is_measured_from_the_latest_observation(
     raw = load_fixture(FIXTURE)
     event = _storm(_run(adapter, raw), raw)
     assert event.quality.freshness_seconds is not None
-    age_from_start = (
-        datetime.now(UTC) - event.effective_at
-    ).total_seconds()
-    assert event.quality.freshness_seconds < age_from_start - timedelta(
-        hours=12
-    ).total_seconds()
+    age_from_start = (datetime.now(UTC) - event.effective_at).total_seconds()
+    assert event.quality.freshness_seconds < age_from_start - timedelta(hours=12).total_seconds()

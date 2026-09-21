@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OfficialContact",
+  "description": "A verified emergency number for a specific country or subdivision. Numbers come from a reviewed directory with an effective and verified date, never from a language model and never from a neighbouring country as a fallback. A contact past its review date is withheld and the caller shows an unavailable state.",
+  "type": "object",
+  "required": [
+    "contact_id",
+    "country_code",
+    "service_type",
+    "label",
+    "phone",
+    "source_url",
+    "authority",
+    "effective_at",
+    "verified_at"
+  ],
+  "properties": {
+    "contact_id": { "$ref": "primitives.schema.json#/$defs/Uuid" },
+    "country_code": { "$ref": "primitives.schema.json#/$defs/CountryCode" },
+    "subdivision": {
+      "description": "ISO-3166-2 subdivision code when the number is regional rather than national.",
+      "type": ["string", "null"],
+      "maxLength": 16
+    },
+    "service_type": { "$ref": "enums.schema.json#/$defs/EmergencyServiceType" },
+    "label": {
+      "description": "Display name in the requested locale, for example Tourist Police.",
+      "type": "string",
+      "maxLength": 256
+    },
+    "phone": {
+      "description": "Dialable string as published by the authority, including short codes.",
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 32
+    },
+    "languages": {
+      "type": "array",
+      "items": { "$ref": "primitives.schema.json#/$defs/Locale" },
+      "default": []
+    },
+    "source_url": { "$ref": "primitives.schema.json#/$defs/HttpsUrl" },
+    "authority": { "$ref": "enums.schema.json#/$defs/SourceAuthority" },
+    "effective_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+    "verified_at": { "$ref": "primitives.schema.json#/$defs/Timestamp" },
+    "review_due_at": { "$ref": "primitives.schema.json#/$defs/NullableTimestamp" }
+  }
+}

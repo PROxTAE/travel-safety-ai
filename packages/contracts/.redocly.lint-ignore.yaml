@@ -1,0 +1,11 @@
+# Deliberate, reviewed exceptions to redocly.yaml. Every entry needs a reason; this file is not
+# a place to silence a finding instead of fixing it. Regenerate with
+# `npx redocly lint openapi/public-api.yaml --generate-ignore-file` and re-add the reasons.
+#
+# /health/live and /health/ready are unauthenticated and take no input, so there is no 4xx they
+# can produce. Readiness reports failure as 503 carrying the same body as its 200, which is what
+# the container healthcheck and the acceptance runbook assert against.
+openapi/public-api.yaml:
+  operation-4xx-response:
+    - '#/paths/~1health~1live/get/responses'
+    - '#/paths/~1health~1ready/get/responses'

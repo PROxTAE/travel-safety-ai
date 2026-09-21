@@ -35,17 +35,13 @@ BATCHED = "open_meteo_weather/forecast_batched.json"
 
 
 def _adapter(cache: Any = None) -> OpenMeteoWeatherAdapter:
-    entry = next(
-        p for p in load_registry(REGISTRY_PATH).providers if p.id == "open_meteo_forecast"
-    )
+    entry = next(p for p in load_registry(REGISTRY_PATH).providers if p.id == "open_meteo_forecast")
     provider = ResolvedProvider(
         entry=entry,
         effective_status=ProviderStatus.ACTIVE,
         base_url=get_settings().base_url_for(entry.base_url_env),
     )
-    return OpenMeteoWeatherAdapter(
-        provider, ProviderTransport(Defaults()), cache, env="test"
-    )
+    return OpenMeteoWeatherAdapter(provider, ProviderTransport(Defaults()), cache, env="test")
 
 
 def _response(payload: Any) -> ProviderResponse:
@@ -117,16 +113,10 @@ async def test_concurrent_queries_do_not_swap_samples(
     monkeypatch.setattr(adapter, "fetch", fake_fetch)
     monkeypatch.setattr(adapter, "_record_observation", _noop)
 
-    query_a = WeatherQuery(
-        samples=[CoordinateSample(13.7563, 100.5018, sample_id="A-bkk")]
-    )
-    query_b = WeatherQuery(
-        samples=[CoordinateSample(18.7883, 98.9853, sample_id="B-cnx")]
-    )
+    query_a = WeatherQuery(samples=[CoordinateSample(13.7563, 100.5018, sample_id="A-bkk")])
+    query_b = WeatherQuery(samples=[CoordinateSample(18.7883, 98.9853, sample_id="B-cnx")])
 
-    result_a, result_b = await asyncio.gather(
-        adapter.query(query_a), adapter.query(query_b)
-    )
+    result_a, result_b = await asyncio.gather(adapter.query(query_a), adapter.query(query_b))
 
     assert {p.sample_id for p in result_a} == {"A-bkk"}, {p.sample_id for p in result_a}
     assert {p.sample_id for p in result_b} == {"B-cnx"}
@@ -154,12 +144,8 @@ async def test_concurrent_queries_keep_their_own_coordinates(
     monkeypatch.setattr(adapter, "_record_observation", _noop)
 
     result_a, result_b = await asyncio.gather(
-        adapter.query(
-            WeatherQuery(samples=[CoordinateSample(13.7563, 100.5018, sample_id="a")])
-        ),
-        adapter.query(
-            WeatherQuery(samples=[CoordinateSample(18.7883, 98.9853, sample_id="b")])
-        ),
+        adapter.query(WeatherQuery(samples=[CoordinateSample(13.7563, 100.5018, sample_id="a")])),
+        adapter.query(WeatherQuery(samples=[CoordinateSample(18.7883, 98.9853, sample_id="b")])),
     )
 
     # Bangkok is south of Chiang Mai; a swap inverts this.
@@ -196,16 +182,12 @@ async def test_cache_hit_respects_a_different_eta(
 
     first = await adapter.query(
         WeatherQuery(
-            samples=[
-                CoordinateSample(13.7563, 100.5018, eta=first_hour, sample_id="first")
-            ]
+            samples=[CoordinateSample(13.7563, 100.5018, eta=first_hour, sample_id="first")]
         )
     )
     second = await adapter.query(
         WeatherQuery(
-            samples=[
-                CoordinateSample(13.7563, 100.5018, eta=later_hour, sample_id="second")
-            ]
+            samples=[CoordinateSample(13.7563, 100.5018, eta=later_hour, sample_id="second")]
         )
     )
 
@@ -234,9 +216,7 @@ async def test_identical_queries_still_share_a_cache_entry(
     monkeypatch.setattr(adapter, "_record_observation", _noop)
 
     eta = datetime.fromisoformat(single["hourly"]["time"][4]).replace(tzinfo=UTC)
-    query = WeatherQuery(
-        samples=[CoordinateSample(13.7563, 100.5018, eta=eta, sample_id="same")]
-    )
+    query = WeatherQuery(samples=[CoordinateSample(13.7563, 100.5018, eta=eta, sample_id="same")])
 
     await adapter.query(query)
     await adapter.query(query)

@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EmergencyPoi",
+  "description": "A nearby hospital, police station or embassy returned by a licensed places provider. A POI is a navigation aid, not a verified phone directory: any number shown here is the provider's and is labelled as such, while dialable emergency numbers come from OfficialContact.",
+  "type": "object",
+  "required": [
+    "poi_id",
+    "poi_type",
+    "name",
+    "location",
+    "distance_m",
+    "quality",
+    "source"
+  ],
+  "properties": {
+    "poi_id": {
+      "$ref": "primitives.schema.json#/$defs/RecordId"
+    },
+    "poi_type": {
+      "description": "OTHER is the required escape hatch: a provider category this contract does not model is mapped to OTHER and kept, never discarded and never guessed into a neighbouring type. provider_category, where a producer supplies it, records what the provider actually said.",
+      "type": "string",
+      "enum": [
+        "HOSPITAL",
+        "CLINIC",
+        "DOCTOR",
+        "PHARMACY",
+        "POLICE",
+        "FIRE_STATION",
+        "EMBASSY",
+        "CONSULATE",
+        "TOWNHALL",
+        "SHELTER",
+        "OTHER"
+      ]
+    },
+    "name": {
+      "description": "Null when the provider has no name for the place. OpenStreetMap leaves roughly one emergency POI in ten untagged, including real hospitals; the shared context calls this data 'frequently stale or missing'. The two alternatives were both worse: dropping the record hides the nearest hospital from somebody who needs it, and synthesising 'Unnamed hospital' puts words in the provider's mouth inside a data field. A consumer renders the type and the distance, and says the name is unknown.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "location": {
+      "$ref": "geojson.schema.json#/$defs/Point"
+    },
+    "address": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 512
+    },
+    "phone": {
+      "description": "As published by the places provider. Never presented as an official emergency number.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 32
+    },
+    "distance_m": {
+      "description": "Straight-line metres from the query point, not travel distance — there may be no road. Null when the provider did not give one, rather than zero, which would read as 'you are here'.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "open_now": {
+      "description": "Null unless the provider supplies opening hours; unknown is not open.",
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "quality": {
+      "$ref": "data-quality.schema.json"
+    },
+    "source": {
+      "$ref": "source-provenance.schema.json"
+    }
+  }
+}

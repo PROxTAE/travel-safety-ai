@@ -1,0 +1,28 @@
+{
+  "target": "jsonschema/common/location-ref.schema.json",
+  "kind": "real-sanitized",
+  "summary": "LocationRef normalised from a live Open-Meteo geocoding record for Bangkok, showing how a provider result maps onto the canonical shape.",
+  "provenance": {
+    "provider": "open_meteo",
+    "source_url": "https://geocoding-api.open-meteo.com/v1/search?name=Bangkok&count=2&language=en&format=json",
+    "captured_at": "2026-09-19T08:11:38Z",
+    "license": "Open-Meteo API terms — CC BY 4.0 for the geocoding dataset (GeoNames derived)",
+    "attribution": "Geocoding by Open-Meteo, data derived from GeoNames (CC BY 4.0)",
+    "upstream_content_hash": "0a25933dd3116b33fb4a15acde19fcff28f85dac00efb1de1807c1549c40d488",
+    "redaction": "none — the record describes a city and contains no personal data. Coordinates are rounded to 4 decimal places (about 11 m), which is the precision this contract keeps for a place rather than a person.",
+    "notes": "confirmed_by_user is false because a provider result is only a suggestion; the traveller must accept the pin before it can be used in an assessment."
+  },
+  "value": {
+    "place_id": "1609350",
+    "display_name": "Bangkok, Bangkok, Thailand",
+    "coordinates": {
+      "type": "Point",
+      "coordinates": [100.5014, 13.754]
+    },
+    "country_code": "TH",
+    "admin1": "Bangkok",
+    "timezone": "Asia/Bangkok",
+    "provider": "open_meteo",
+    "confirmed_by_user": false
+  }
+}

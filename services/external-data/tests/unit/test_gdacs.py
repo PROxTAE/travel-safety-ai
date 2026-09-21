@@ -49,13 +49,9 @@ def _response(payload: Any) -> ProviderResponse:
     )
 
 
-def _run(
-    adapter: GdacsAdapter, payload: Any, query: DisasterQuery | None = None
-) -> list[Any]:
+def _run(adapter: GdacsAdapter, payload: Any, query: DisasterQuery | None = None) -> list[Any]:
     response = _response(payload)
-    return adapter.normalize(
-        adapter.validate(response), response, query or DisasterQuery()
-    )
+    return adapter.normalize(adapter.validate(response), response, query or DisasterQuery())
 
 
 # --------------------------------------------------------- trap 1: naive times
@@ -67,9 +63,9 @@ def test_naive_timestamps_are_read_as_utc(adapter: GdacsAdapter) -> None:
     raw = load_fixture(FIXTURE)
     event = _run(adapter, raw)[0]
 
-    expected = datetime.fromisoformat(
-        raw["features"][0]["properties"]["fromdate"]
-    ).replace(tzinfo=UTC)
+    expected = datetime.fromisoformat(raw["features"][0]["properties"]["fromdate"]).replace(
+        tzinfo=UTC
+    )
     assert event.effective_at == expected
     assert event.effective_at.utcoffset() == timedelta(0)
 
@@ -83,9 +79,9 @@ def test_the_utc_assumption_is_recorded_not_hidden(adapter: GdacsAdapter) -> Non
 def test_published_at_comes_from_datemodified(adapter: GdacsAdapter) -> None:
     raw = load_fixture(FIXTURE)
     event = _run(adapter, raw)[0]
-    expected = datetime.fromisoformat(
-        raw["features"][0]["properties"]["datemodified"]
-    ).replace(tzinfo=UTC)
+    expected = datetime.fromisoformat(raw["features"][0]["properties"]["datemodified"]).replace(
+        tzinfo=UTC
+    )
     assert event.source.published_at == expected
 
 
@@ -241,9 +237,7 @@ def test_drought_maps_to_other_because_the_enum_has_none(
 def test_requested_types_are_pushed_to_the_provider(adapter: GdacsAdapter) -> None:
     """Hazard type is the one filter this endpoint is known to honour, so it is
     the one that should not be done client-side."""
-    request = adapter.build_request(
-        DisasterQuery(event_types=[EventType.FLOOD, EventType.CYCLONE])
-    )
+    request = adapter.build_request(DisasterQuery(event_types=[EventType.FLOOD, EventType.CYCLONE]))
     assert request.params is not None
     assert set(request.params["eventlist"].split(",")) == {"FL", "TC"}
 
@@ -258,9 +252,7 @@ def test_no_requested_types_asks_for_everything(adapter: GdacsAdapter) -> None:
 def test_coverage_rejects_hazards_gdacs_does_not_publish(
     adapter: GdacsAdapter,
 ) -> None:
-    decision = adapter.coverage(
-        DisasterQuery(event_types=[EventType.TRANSPORT_CLOSURE])
-    )
+    decision = adapter.coverage(DisasterQuery(event_types=[EventType.TRANSPORT_CLOSURE]))
     assert decision.supported is False
 
 
@@ -291,10 +283,7 @@ def test_bbox_across_the_antimeridian_is_handled(adapter: GdacsAdapter) -> None:
         f
         for f in raw["features"]
         if f["geometry"]
-        and (
-            f["geometry"]["coordinates"][0] >= 170.0
-            or f["geometry"]["coordinates"][0] <= -170.0
-        )
+        and (f["geometry"]["coordinates"][0] >= 170.0 or f["geometry"]["coordinates"][0] <= -170.0)
     ]
     assert len(events) == len(pacific)
 
@@ -319,8 +308,7 @@ def test_instantaneous_events_have_no_end(adapter: GdacsAdapter) -> None:
     end equal to the start would claim the event "finished" at that instant."""
     raw = load_fixture(FIXTURE)
     assert (
-        raw["features"][0]["properties"]["fromdate"]
-        == raw["features"][0]["properties"]["todate"]
+        raw["features"][0]["properties"]["fromdate"] == raw["features"][0]["properties"]["todate"]
     )
     assert _run(adapter, raw)[0].ends_at is None
 

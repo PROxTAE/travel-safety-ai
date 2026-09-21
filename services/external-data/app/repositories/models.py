@@ -51,35 +51,25 @@ class Provider(Base):
     kind: Mapped[str] = mapped_column(String(32), nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    coverage_json: Mapped[dict[str, Any]] = mapped_column(
-        JSON_TYPE, nullable=False, default=dict
-    )
+    coverage_json: Mapped[dict[str, Any]] = mapped_column(JSON_TYPE, nullable=False, default=dict)
     license_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     config_version: Mapped[str] = mapped_column(String(32), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class FetchLog(Base):
     __tablename__ = "fetch_log"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     provider_id: Mapped[str] = mapped_column(
         String(64), ForeignKey(f"{SCHEMA}.providers.id", ondelete="CASCADE"), nullable=False
     )
     query_hash: Mapped[str] = mapped_column(String(80), nullable=False)
     http_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     content_hash: Mapped[str | None] = mapped_column(String(80), nullable=True)
-    quality_json: Mapped[dict[str, Any]] = mapped_column(
-        JSON_TYPE, nullable=False, default=dict
-    )
+    quality_json: Mapped[dict[str, Any]] = mapped_column(JSON_TYPE, nullable=False, default=dict)
 
     __table_args__ = (
         Index("ix_fetch_log_provider_fetched_at", "provider_id", "fetched_at"),

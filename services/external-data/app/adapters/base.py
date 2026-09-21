@@ -140,9 +140,7 @@ class ProviderAdapter(abc.ABC, Generic[QueryT, RecordT]):
         """Parse into a typed provider model, or raise PROVIDER_SCHEMA_CHANGED."""
 
     @abc.abstractmethod
-    def normalize(
-        self, model: Any, response: ProviderResponse, query: QueryT
-    ) -> list[RecordT]:
+    def normalize(self, model: Any, response: ProviderResponse, query: QueryT) -> list[RecordT]:
         """Provider model -> canonical records, units and time converted.
 
         The query is passed explicitly rather than stashed on the adapter: one
@@ -175,9 +173,7 @@ class ProviderAdapter(abc.ABC, Generic[QueryT, RecordT]):
             published_at=published_at,
             fetched_at=fetched_at,
             expires_at=fetched_at + timedelta(seconds=ttl),
-            content_hash=content_hash(payload_for_hash)
-            if payload_for_hash is not None
-            else None,
+            content_hash=content_hash(payload_for_hash) if payload_for_hash is not None else None,
             schema_version=self.schema_version,
         )
 
@@ -224,9 +220,7 @@ class ProviderAdapter(abc.ABC, Generic[QueryT, RecordT]):
             deadline_seconds=deadline_seconds,
         )
 
-    async def query(
-        self, query: QueryT, *, deadline_seconds: float | None = None
-    ) -> list[RecordT]:
+    async def query(self, query: QueryT, *, deadline_seconds: float | None = None) -> list[RecordT]:
         """coverage -> cache -> fetch -> validate -> normalize."""
         decision = self.coverage(query)
         if not decision.supported:
