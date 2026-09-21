@@ -8,6 +8,7 @@ zero or to ``False``.
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cache
+from math import ceil
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -55,6 +56,8 @@ class FeatureInputs:
     disasters_in_corridor: list[DisasterEvent] | None
     transport: list[TransportStatus] | None
     sources: dict[str, DataQuality]
+    # A missing key means unavailable; None means the source answered without a timestamped record.
+    fetched_at: dict[str, datetime | None]
 
 
 @dataclass(frozen=True)
@@ -208,9 +211,15 @@ def _freshness(inputs: FeatureInputs) -> int | None:
     ages: list[int] = []
     for name in _critical_sources(inputs):
         quality = inputs.sources.get(name)
-        if quality is None or quality.freshness_seconds is None:
+        if name not in inputs.fetched_at or quality is None or quality.freshness_seconds is None:
             return None
-        ages.append(quality.freshness_seconds)
+        fetched_at = inputs.fetched_at[name]
+        elapsed = (
+            ceil(max(0.0, (inputs.recommendation_at - fetched_at).total_seconds()))
+            if fetched_at is not None
+            else 0
+        )
+        ages.append(quality.freshness_seconds + elapsed)
     return max(ages)
 
 

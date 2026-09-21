@@ -123,7 +123,7 @@ def candidate_links(
                 continue
             left_time, right_time = _instant(left), _instant(right)
             left_point, right_point = _point(left), _point(right)
-            if None in (left_time, right_time, left_point, right_point):
+            if left_time is None or right_time is None or left_point is None or right_point is None:
                 continue
             if abs((left_time - right_time).total_seconds()) > max_time_seconds:
                 continue

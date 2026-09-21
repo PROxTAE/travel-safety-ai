@@ -3,6 +3,7 @@
 import hashlib
 import json
 from datetime import datetime
+from typing import cast
 from uuid import uuid4
 
 from geoalchemy2.elements import WKTElement
@@ -53,7 +54,7 @@ class CanonicalRepository:
             source_hash = "sha256:" + hashlib.sha256(encoded.encode()).hexdigest()
         try:
             GENERATED_MODELS[kind].model_validate(raw)
-            record = RECORD_MODELS[kind].model_validate(raw)
+            record = cast(RecordModel, RECORD_MODELS[kind].model_validate(raw))
             payload, lineage = normalize_record(record)
             geometry_wkt = _geometry_wkt(record)
             if geometry_wkt is not None and not await self.session.scalar(
