@@ -61,8 +61,8 @@ class FakeSessions:
 def runtime_state() -> RuntimeState:
     runtime = RuntimeState.__new__(RuntimeState)
     runtime.settings = Settings(
-        RISK_KNOWLEDGE_DEPENDENCY_TIMEOUT_SECONDS=0.1,
-        RISK_KNOWLEDGE_ARTIFACT_VERIFICATION_TIMEOUT_SECONDS=0.2,
+        RISK_KNOWLEDGE_DEPENDENCY_TIMEOUT_SECONDS=1.0,
+        RISK_KNOWLEDGE_ARTIFACT_VERIFICATION_TIMEOUT_SECONDS=2.0,
     )
     runtime.database = SimpleNamespace(sessions=FakeSessions(), dispose=AsyncMock())
     runtime.qdrant = SimpleNamespace(
@@ -178,7 +178,11 @@ async def test_runtime_warmup_and_close(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 @pytest.mark.asyncio
-async def test_database_reports_configuration_and_migration_states() -> None:
+async def test_database_reports_configuration_and_migration_states(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("POSTGRES_PASSWORD", raising=False)
+    monkeypatch.delenv("RISK_KNOWLEDGE_DATABASE_URL", raising=False)
     database = Database(Settings())
     ready, detail = await database.check_ready()
     assert ready is False

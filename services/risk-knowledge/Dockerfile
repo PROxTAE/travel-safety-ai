@@ -18,14 +18,16 @@ COPY alembic.ini ./
 COPY migrations ./migrations
 COPY governance ./governance
 COPY knowledge ./knowledge
-RUN uv sync --frozen --no-dev
+COPY training ./training
+COPY tests ./tests
+RUN UV_COMPILE_BYTECODE=0 uv sync --frozen
 
 FROM builder AS test
 
 ENV PATH=/app/.venv/bin:$PATH \
     REPOSITORY_ROOT=/workspace
 
-RUN uv sync --frozen
+RUN UV_COMPILE_BYTECODE=0 uv sync --frozen
 COPY tests ./tests
 COPY training ./training
 COPY --from=contracts . /workspace/packages/contracts
@@ -37,7 +39,15 @@ FROM python:3.12.14-slim-trixie AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH=/app/.venv/bin:$PATH \
+    PYTHONPATH=/app \
+    UV_CACHE_DIR=/tmp/uv-cache \
+    UV_PROJECT_ENVIRONMENT=/app/.venv \
+    UV_NO_SYNC=1 \
+    UV_FROZEN=1 \
+    RUFF_CACHE_DIR=/tmp/ruff-cache \
     RISK_KNOWLEDGE_ARTIFACT_ROOT=/artifacts
+
+COPY --from=uv-bin /uv /uvx /bin/
 
 RUN groupadd --gid 10001 app \
     && useradd --uid 10001 --gid app --home-dir /nonexistent --no-create-home app

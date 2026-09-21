@@ -154,3 +154,61 @@ async def test_errors_use_the_contract_envelope(client: httpx.AsyncClient) -> No
     assert {"path": "unexpected", "code": "UNKNOWN_FIELD"} in extra.json()["error"]["field_errors"]
     anonymous = await client.get(f"/internal/v1/snapshots/{uuid4()}", headers={"Authorization": ""})
     assert anonymous.status_code == 401
+
+
+async def test_answered_empty_source_without_quality_is_not_missing(
+    client: httpx.AsyncClient,
+) -> None:
+    """Lead decision on #76: an ANSWERED capability with 0 records is complete evidence."""
+    payload = body(
+        evidence={
+            "weather": [record("m04-weather-forecast-points.json")],
+            "disaster_events": [],
+            "transport": [],
+        },
+        source_quality={
+            "route": record("m04-route-candidates.json")["quality"],
+            "weather": record("m04-weather-forecast-points.json")["quality"],
+        },
+    )
+    data = (await client.post("/internal/v1/snapshots", json=payload)).json()["data"]
+    notes = data["quality_summary"]["notes"]
+    assert "gate=BLOCK" not in notes
+    assert "missing_critical=disaster" not in notes
+
+
+async def test_caller_quality_for_empty_source_is_kept(client: httpx.AsyncClient) -> None:
+    stale = record("m04-usgs-event.json")["quality"] | {"status": "STALE"}
+    payload = body(
+        evidence={
+            "weather": [record("m04-weather-forecast-points.json")],
+            "disaster_events": [],
+            "transport": [],
+        },
+        source_quality={
+            "route": record("m04-route-candidates.json")["quality"],
+            "weather": record("m04-weather-forecast-points.json")["quality"],
+            "disaster": stale,
+        },
+    )
+    data = (await client.post("/internal/v1/snapshots", json=payload)).json()["data"]
+    assert "STALE" in data["quality_summary"]["flags"]
+
+
+async def test_unavailable_source_without_quality_still_blocks(client: httpx.AsyncClient) -> None:
+    payload = body(
+        evidence={
+            "weather": [record("m04-weather-forecast-points.json")],
+            "disaster_events": None,
+            "transport": [],
+        },
+        source_quality={
+            "route": record("m04-route-candidates.json")["quality"],
+            "weather": record("m04-weather-forecast-points.json")["quality"],
+        },
+    )
+    notes = (await client.post("/internal/v1/snapshots", json=payload)).json()["data"][
+        "quality_summary"
+    ]["notes"]
+    assert "gate=BLOCK" in notes
+    assert "missing_critical=disaster" in notes
