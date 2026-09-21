@@ -106,6 +106,7 @@ async def get_principal(
     structlog.contextvars.bind_contextvars(
         user_id=str(principal.user_id), subject_digest=principal.subject_digest
     )
+    request.state.principal = principal
     return principal
 
 

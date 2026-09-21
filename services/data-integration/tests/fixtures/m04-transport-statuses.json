@@ -1,0 +1,80 @@
+{
+  "_provenance": {
+    "fixture_id": "mta_subway_ace_trip_updates",
+    "source_url": "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace",
+    "captured_at": "2026-09-20T13:33:21Z",
+    "http_status": 200,
+    "license": "MTA open data terms (https://www.mta.info/developers)",
+    "redaction": "public timetable and vehicle-movement records only; no credential (the feeds need none) and no personal data"
+  },
+  "_note": "The first trip matched the published timetable so a delay could be measured; the second did not, so it is UNKNOWN with a null delay. About two thirds of live trips are in the second state at any moment - that is normal, not a broken feed.",
+  "_generated_from": "real captured provider responses in services/external-data/tests/fixtures/real-sanitized/",
+  "_warning": "Sample output, not a contract. packages/contracts is the contract. Timestamps are from generation time and will look stale.",
+  "records": [
+    {
+      "id": "mta_nyct_subway:052150_A..S57R",
+      "mode": "TRAIN",
+      "operator": "MTA New York City Transit",
+      "service_number": "A",
+      "origin_stop": {
+        "stop_id": "A40S",
+        "name": "High St",
+        "coordinates": {
+          "type": "Point",
+          "coordinates": [
+            -73.990531,
+            40.699337
+          ]
+        }
+      },
+      "destination_stop": {
+        "stop_id": "A65S",
+        "name": "Ozone Park-Lefferts Blvd",
+        "coordinates": {
+          "type": "Point",
+          "coordinates": [
+            -73.825798,
+            40.685951
+          ]
+        }
+      },
+      "scheduled_departure": "2026-09-20T13:22:30Z",
+      "estimated_departure": "2026-09-20T13:33:07Z",
+      "scheduled_arrival": "2026-09-20T13:57:30Z",
+      "estimated_arrival": "2026-09-20T14:07:50Z",
+      "status": "DELAYED",
+      "delay_minutes": 10,
+      "cancellation": null,
+      "quality": {
+        "status": "STALE",
+        "score": null,
+        "score_version": null,
+        "flags": [
+          "STALE"
+        ],
+        "coverage": null,
+        "completeness": null,
+        "freshness_seconds": 13871,
+        "conflicts": [],
+        "notes": [
+          "freshness is the age of the realtime snapshot the agency published (2026-09-20T13:33:21Z)"
+        ]
+      },
+      "source": {
+        "source_id": "gtfs_registry:052150_A..S57R",
+        "provider": "gtfs_registry",
+        "provider_record_id": "052150_A..S57R",
+        "authority": "OFFICIAL",
+        "source_url": "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/nyct%2Fgtfs-ace",
+        "license": "per feed",
+        "observed_at": "2026-09-20T13:33:21Z",
+        "published_at": null,
+        "fetched_at": "2026-09-20T17:24:32.130029Z",
+        "expires_at": "2026-09-20T17:25:02.130029Z",
+        "content_hash": "sha256:467879b0b4a7861c07a84ac70c1ff543143709cd7198b70cda7ff9fb5ebeaa13",
+        "schema_version": "1.0.0"
+      },
+      "feed_id": "mta_nyct_subway"
+    }
+  ]
+}

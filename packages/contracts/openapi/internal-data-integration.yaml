@@ -1,0 +1,264 @@
+openapi: 3.1.0
+info:
+  title: Smart Travel Data Integration Internal API
+  version: 1.0.0
+  description: |
+    Internal contract of module 05 (§5.3). It turns canonical module 04 records for one
+    route candidate into an immutable `IntegratedTravelContext` snapshot. A source that was
+    unavailable is sent as `null` and stays visible as missing evidence; it is never
+    replaced with an empty or fabricated value. This API is not browser-facing.
+    Health and metrics endpoints are operational and documented in the service README.
+  contact:
+    name: Module 05 Data Integration
+  license:
+    name: Internal project use
+servers:
+  - url: http://data-integration:8003
+    description: Docker internal network
+security:
+  - serviceBearer: []
+tags:
+  - name: snapshots
+    description: Create, read and validate immutable route snapshots.
+paths:
+  /internal/v1/snapshots:
+    post:
+      tags: [snapshots]
+      summary: Create a route snapshot
+      description: |
+        Validates the canonical records, builds features and the quality summary at
+        `recommendation_at`, buffers the route corridor and stores the snapshot.
+        Idempotent on `request_id` + SHA-256 of the canonical request body + schema version:
+        a replay returns the stored snapshot with 200; the same `request_id` with a different
+        body returns 409.
+      operationId: createSnapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SnapshotCreateRequest"
+      responses:
+        "201":
+          description: Snapshot created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SnapshotResponse"
+        "200":
+          description: Replay of an existing request; the stored snapshot is returned unchanged.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SnapshotResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/IdempotencyConflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /internal/v1/snapshots/{snapshot_id}:
+    get:
+      tags: [snapshots]
+      summary: Read a snapshot
+      description: Returns the stored snapshot exactly as it was created.
+      operationId: getSnapshot
+      parameters:
+        - $ref: "#/components/parameters/SnapshotId"
+      responses:
+        "200":
+          description: Stored immutable snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SnapshotResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /internal/v1/snapshots/{snapshot_id}/validate:
+    post:
+      tags: [snapshots]
+      summary: Validate a stored snapshot
+      description: |
+        Re-checks the stored snapshot against the contract and its content hash and reports
+        the quality gate. With `strict`, only a PASS gate is valid.
+      operationId: validateSnapshot
+      parameters:
+        - $ref: "#/components/parameters/SnapshotId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SnapshotValidateRequest"
+      responses:
+        "200":
+          description: Validation report; `valid` may be false.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationReportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+components:
+  securitySchemes:
+    serviceBearer:
+      type: http
+      scheme: bearer
+      description: Shared internal service token (`INTERNAL_SERVICE_TOKEN`). Browser cookies are rejected.
+  parameters:
+    SnapshotId:
+      name: snapshot_id
+      in: path
+      required: true
+      schema:
+        $ref: "../jsonschema/common/primitives.schema.json#/$defs/Uuid"
+  responses:
+    Unauthorized:
+      description: Missing or invalid internal credential.
+      content:
+        application/json:
+          schema:
+            $ref: "../jsonschema/common/envelope.schema.json#/$defs/ErrorResponse"
+    NotFound:
+      description: Snapshot, or the snapshot named in `supersedes_snapshot_id`, does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: "../jsonschema/common/envelope.schema.json#/$defs/ErrorResponse"
+    IdempotencyConflict:
+      description: The same request_id was already used with different content.
+      content:
+        application/json:
+          schema:
+            $ref: "../jsonschema/common/envelope.schema.json#/$defs/ErrorResponse"
+    ValidationError:
+      description: The request does not match the contract.
+      content:
+        application/json:
+          schema:
+            $ref: "../jsonschema/common/envelope.schema.json#/$defs/ErrorResponse"
+    DependencyUnavailable:
+      description: PostgreSQL or PostGIS is unavailable; nothing was stored.
+      content:
+        application/json:
+          schema:
+            $ref: "../jsonschema/common/envelope.schema.json#/$defs/ErrorResponse"
+  schemas:
+    Evidence:
+      type: object
+      description: Canonical records per source. `null` means the source was unavailable; `[]` means it answered with nothing.
+      additionalProperties: false
+      required: [weather, disaster_events, transport]
+      properties:
+        weather:
+          oneOf:
+            - type: array
+              items:
+                $ref: "../jsonschema/common/weather.schema.json#/$defs/WeatherForecastPoint"
+            - type: "null"
+        disaster_events:
+          description: Events already selected by the corridor query for this route and window.
+          oneOf:
+            - type: array
+              items:
+                $ref: "../jsonschema/common/disaster-event.schema.json"
+            - type: "null"
+        transport:
+          oneOf:
+            - type: array
+              items:
+                $ref: "../jsonschema/common/transport-status.schema.json"
+            - type: "null"
+    SnapshotCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [request_id, trip_id, travel_window, recommendation_at, route, evidence, source_quality]
+      properties:
+        request_id:
+          $ref: "../jsonschema/common/primitives.schema.json#/$defs/Uuid"
+        trip_id:
+          $ref: "../jsonschema/common/primitives.schema.json#/$defs/Uuid"
+        supersedes_snapshot_id:
+          oneOf:
+            - $ref: "../jsonschema/common/primitives.schema.json#/$defs/Uuid"
+            - type: "null"
+        travel_window:
+          $ref: "../jsonschema/common/integrated-travel-context.schema.json#/$defs/TravelWindow"
+        recommendation_at:
+          description: Evidence fetched, published or observed after this instant is excluded.
+          $ref: "../jsonschema/common/primitives.schema.json#/$defs/Timestamp"
+        route:
+          description: Exactly one route candidate; one snapshot describes one route.
+          $ref: "../jsonschema/common/route-candidate.schema.json"
+        evidence:
+          $ref: "#/components/schemas/Evidence"
+        source_quality:
+          description: Producer quality per source name (route, weather, disaster, transport).
+          type: object
+          additionalProperties:
+            $ref: "../jsonschema/common/data-quality.schema.json"
+    SnapshotResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "../jsonschema/common/integrated-travel-context.schema.json"
+        meta:
+          $ref: "../jsonschema/common/envelope.schema.json#/$defs/ResponseMeta"
+    SnapshotValidateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        strict:
+          type: boolean
+          default: false
+    ValidationReport:
+      type: object
+      additionalProperties: false
+      required: [snapshot_id, valid, schema_valid, content_hash_matches, gate, flags, missing_critical, problems]
+      properties:
+        snapshot_id:
+          $ref: "../jsonschema/common/primitives.schema.json#/$defs/Uuid"
+        valid:
+          type: boolean
+        schema_valid:
+          type: boolean
+        content_hash_matches:
+          type: boolean
+        gate:
+          type: string
+          enum: [PASS, DEGRADED, BLOCK]
+        flags:
+          type: array
+          items:
+            type: string
+        missing_critical:
+          type: array
+          items:
+            type: string
+        problems:
+          type: array
+          items:
+            type: string
+    ValidationReportResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/ValidationReport"
+        meta:
+          $ref: "../jsonschema/common/envelope.schema.json#/$defs/ResponseMeta"

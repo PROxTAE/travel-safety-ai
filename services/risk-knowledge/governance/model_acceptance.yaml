@@ -1,0 +1,43 @@
+schema_version: 1.0.0
+status: PENDING_TEAM_LEAD_APPROVAL
+owner: module-06-risk-knowledge
+required_approvers:
+  - team-lead
+  - module-07-decision-engine
+primary_objective: HIGH_risk_recall
+promotion_stages: [CANDIDATE, APPROVED, ACTIVE, RETIRED]
+evaluation:
+  split_requirements:
+    time_isolation: required
+    geography_isolation: required
+    route_event_group_isolation: required
+    future_leakage_check: required
+  required_metrics:
+    - high_risk_recall
+    - high_risk_false_negative_rate
+    - high_risk_false_negative_confidence_interval
+    - per_class_precision_recall_f1
+    - pr_auc
+    - roc_auc
+    - brier_score
+    - expected_calibration_error
+    - subgroup_confusion_matrices
+    - inference_latency_ms
+    - peak_memory_mb
+  required_subgroups: [geography, season, hazard, travel_mode, degraded_coverage]
+thresholds:
+  high_risk_recall_min: null
+  high_risk_false_negative_rate_max: null
+  expected_calibration_error_max: null
+  inference_p95_ms_max: 300
+approval_guard:
+  reject_null_safety_thresholds: true
+  require_dataset_manifest_checksum: true
+  require_model_artifact_checksum: true
+  require_artifact_signature: true
+  require_completed_model_card: true
+  require_approver_identity: true
+  require_approval_timestamp: true
+notes:
+  - Safety thresholds intentionally remain null until team approval; promotion tooling must fail closed.
+  - Changing an approved target requires a new config version and recorded rationale.

@@ -88,3 +88,4 @@ cat > "$package_dir/py.typed" <<'EOF'
 EOF
 
 echo "$out ($(wc -l < "$out" | tr -d ' ') lines)"
+bash "$here/generate-integration-inputs.sh"

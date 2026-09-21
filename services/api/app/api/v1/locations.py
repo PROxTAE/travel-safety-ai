@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 
 from app.api.responses import list_response
 from app.api.v1.me import TravelPrincipal
@@ -29,6 +29,7 @@ from app.observability.logging import get_logger
 from app.repositories import user_profiles
 from app.schemas.envelope import ListResponse
 from app.schemas.location import LocationRef
+from app.security.rate_limit import rate_limit
 
 logger = get_logger(__name__)
 
@@ -39,6 +40,7 @@ router = APIRouter(prefix="/api/v1/locations", tags=["locations"])
     "/search",
     summary="Search places with a real geocoding provider",
     response_model=ListResponse[LocationRef],
+    dependencies=[Depends(rate_limit("locations_search"))],
     responses={
         400: {"description": "A query parameter failed validation."},
         401: {"description": "No token, or a token that failed verification."},

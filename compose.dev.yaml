@@ -28,6 +28,23 @@ services:
       - -c
       - alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
 
+  data-integration:
+    image: smart-travel-data-integration:dev
+    build:
+      target: dev
+    ports: ["8003:8003"]
+    environment:
+      TEST_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-smart_travel}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-smart_travel}
+    volumes:
+      - ./services/data-integration/app:/app/app:ro
+      - ./services/data-integration/tests:/app/tests:ro
+      - ./services/data-integration/alembic.ini:/app/alembic.ini:ro
+      - ./services/data-integration/pyproject.toml:/app/pyproject.toml:ro
+    command:
+      - sh
+      - -c
+      - alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload
+
   api:
     # Its own tag, so building the dev stage cannot overwrite the runtime image that
     # compose.yaml starts. Same Dockerfile, different stage, different name.
@@ -71,6 +88,31 @@ services:
         "--no-access-log",
       ]
 
+  web:
+    # Development image keeps pnpm and source tooling; the production runtime
+    # remains the standalone, non-root image defined in compose.yaml.
+    image: smart-travel-web:dev
+    build:
+      target: development
+    ports: ["3000:3000"]
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    volumes:
+      - ./apps/web:/app
+      - web-node-modules:/app/node_modules
+    command: ["pnpm", "dev", "--hostname", "0.0.0.0"]
+
+  risk-knowledge:
+    ports: ["8004:8004"]
+    volumes:
+      - ./services/risk-knowledge/app:/app/app:ro
+      - ./services/risk-knowledge/governance:/app/governance:ro
+      - ./services/risk-knowledge/knowledge:/app/knowledge:ro
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8004", "--reload", "--no-server-header", "--no-access-log"]
+
+  mlflow:
+    ports: ["5000:5000"]
+
   # ตัวอย่าง override ของ module (เจ้าของเพิ่มพร้อม service ใน compose.yaml)
   #
   # external-data:
@@ -88,3 +130,4 @@ services:
 
 volumes:
   api-dev-cache:
+  web-node-modules:

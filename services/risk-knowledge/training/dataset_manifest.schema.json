@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smart-travel.example/risk-knowledge/dataset-manifest/1.0.0",
+  "title": "Risk model dataset manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "dataset_id",
+    "created_at",
+    "prediction_cutoff",
+    "feature_schema_version",
+    "label_method",
+    "sources",
+    "query_windows",
+    "split",
+    "row_count",
+    "class_distribution",
+    "content_checksum",
+    "license_review",
+    "created_by"
+  ],
+  "properties": {
+    "manifest_version": { "const": "1.0.0" },
+    "dataset_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "prediction_cutoff": { "type": "string", "format": "date-time" },
+    "feature_schema_version": { "const": "1.0.0" },
+    "label_method": { "enum": ["OFFICIAL_ALERT", "OFFICIAL_CLOSURE", "REVIEWED", "DOCUMENTED_WEAK_SUPERVISION", "MIXED"] },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "source_url", "authority", "license", "retrieved_at", "query_checksum"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "source_url": { "type": "string", "format": "uri", "pattern": "^https://" },
+          "authority": { "enum": ["OFFICIAL", "INTERGOVERNMENTAL", "LICENSED_PROVIDER"] },
+          "license": { "type": "string", "minLength": 1 },
+          "retrieved_at": { "type": "string", "format": "date-time" },
+          "query_checksum": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "query_windows": { "type": "array", "minItems": 1, "items": { "type": "object" } },
+    "split": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "time_boundaries", "geography_groups", "random_seed", "leakage_check_passed"],
+      "properties": {
+        "method": { "const": "TIME_AND_GEOGRAPHY_GROUPED" },
+        "time_boundaries": { "type": "object" },
+        "geography_groups": { "type": "array", "minItems": 2, "items": { "type": "string" } },
+        "random_seed": { "type": "integer" },
+        "leakage_check_passed": { "const": true }
+      }
+    },
+    "row_count": { "type": "integer", "minimum": 1 },
+    "class_distribution": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "integer", "minimum": 0 } },
+    "content_checksum": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "license_review": { "enum": ["APPROVED", "RESTRICTED_NOT_COMMITTED"] },
+    "created_by": { "type": "string", "minLength": 1 }
+  }
+}

@@ -13,4 +13,5 @@ went wrong and why, and what each downstream owner has to change.
 | Report | Module | Covers |
 | --- | --- | --- |
 | [`M02-public-api-foundation.md`](M02-public-api-foundation.md) | 02 — API and backend | Contract v1, service scaffold, OIDC, identity and privacy (phases 0–3) |
+| [`M02-public-facades.md`](M02-public-facades.md) | 02 — API and backend | Public facades, emergency, conversations, feedback & safety (Phase 6 items 1–5) |
 | [`M04-external-data.md`](M04-external-data.md) | 04 — External data | Provider governance, foundation and the Open-Meteo adapters |

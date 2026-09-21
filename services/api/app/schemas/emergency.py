@@ -12,8 +12,11 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Annotated, Any, Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.envelope import ResponseMeta
 
 BloodType = Literal["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "UNKNOWN"]
 
@@ -77,3 +80,89 @@ class EmergencyProfileResponse(EmergencyProfileBody):
             "outside; the key itself never leaves the process."
         ),
     )
+
+
+# --- Official emergency contacts and nearby POIs -------------------------------------------------
+
+EmergencyServiceType = Literal[
+    "GENERAL_EMERGENCY",
+    "POLICE",
+    "AMBULANCE",
+    "FIRE",
+    "TOURIST_POLICE",
+    "COAST_GUARD",
+    "POISON_CONTROL",
+    "EMBASSY",
+    "HOSPITAL",
+    "DISASTER_HOTLINE",
+]
+EmergencyPoiType = Literal[
+    "HOSPITAL",
+    "CLINIC",
+    "PHARMACY",
+    "POLICE",
+    "FIRE_STATION",
+    "EMBASSY",
+    "CONSULATE",
+    "SHELTER",
+    "DOCTOR",
+    "TOWNHALL",
+    "OTHER",
+]
+SourceAuthority = Literal[
+    "OFFICIAL",
+    "INTERGOVERNMENTAL",
+    "LICENSED_PROVIDER",
+    "COMMUNITY",
+    "UNKNOWN",
+]
+
+
+class OfficialContactModel(BaseModel):
+    """A verified emergency number for a specific country or subdivision."""
+
+    model_config = ConfigDict(frozen=True)
+
+    contact_id: UUID
+    country_code: Annotated[str, Field(pattern=r"^[A-Z]{2}$")]
+    subdivision: Annotated[str | None, Field(max_length=16)] = None
+    service_type: EmergencyServiceType
+    label: Annotated[str, Field(max_length=256)]
+    phone: Annotated[str, Field(min_length=2, max_length=32)]
+    languages: list[str] = Field(default_factory=list)
+    source_url: Annotated[str, Field(max_length=2048)]
+    authority: SourceAuthority
+    effective_at: datetime
+    verified_at: datetime
+    review_due_at: datetime | None = None
+
+
+class OfficialContactListResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    data: list[OfficialContactModel]
+    meta: ResponseMeta
+
+
+class EmergencyPoiModel(BaseModel):
+    """An emergency facility found near a confirmed position."""
+
+    model_config = ConfigDict(frozen=True)
+
+    poi_id: Annotated[str, Field(min_length=1, max_length=256)]
+    poi_type: EmergencyPoiType
+    name: Annotated[str | None, Field(max_length=512)]
+    location: dict[str, Any]
+    address: Annotated[str | None, Field(max_length=512)] = None
+    phone: Annotated[str | None, Field(max_length=32)] = None
+    distance_m: Annotated[float | None, Field(ge=0.0)]
+    open_now: bool | None = None
+    quality: dict[str, Any]
+    source: dict[str, Any]
+
+
+class EmergencyPoiListResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    data: list[EmergencyPoiModel]
+    meta: ResponseMeta
