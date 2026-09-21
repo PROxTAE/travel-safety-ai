@@ -16,12 +16,14 @@ import yaml
 from app.domain.canonical import (
     DataQuality,
     DisasterEvent,
+    GeoPoint,
     RouteCandidate,
     SourceProvenance,
     TransportStatus,
     WeatherForecastPoint,
 )
 from app.pipeline.alignment import align_transport, align_weather
+from app.pipeline.area import point_in_area
 from app.pipeline.corridor import RouteSample, geodesic_distance_m
 
 SCHEMA_PATH = Path(__file__).with_name("feature_schema.yaml")
@@ -35,7 +37,6 @@ OFFICIAL_ALERT_FEATURES = (
 
 FeatureValue = float | int | bool | None
 Record = TypeVar("Record", WeatherForecastPoint, DisasterEvent, TransportStatus)
-Ring = list[tuple[float, float]]
 
 
 @dataclass(frozen=True)
@@ -120,26 +121,9 @@ def _weather(inputs: FeatureInputs, policy: FeaturePolicy) -> dict[str, FeatureV
     }
 
 
-def _inside(point: tuple[float, float], ring: Ring) -> bool:
-    """Even-odd test with longitudes unwrapped around the point for dateline rings."""
-    x, y = point
-    shifted = [((lon - x + 180) % 360 - 180, lat) for lon, lat in ring]
-    inside = False
-    for (x1, y1), (x2, y2) in zip(shifted, shifted[1:], strict=False):
-        if (y1 > y) != (y2 > y) and 0 < x1 + (y - y1) * (x2 - x1) / (y2 - y1):
-            inside = not inside
-    return inside
-
-
 def _in_area(point: tuple[float, float], event: DisasterEvent) -> bool:
     geometry = event.geometry
-    if geometry.type == "Point":
-        return False
-    polygons = [geometry.coordinates] if geometry.type == "Polygon" else geometry.coordinates
-    return any(
-        _inside(point, rings[0]) and not any(_inside(point, hole) for hole in rings[1:])
-        for rings in polygons
-    )
+    return not isinstance(geometry, GeoPoint) and point_in_area(point, geometry)
 
 
 def _active_at(event: DisasterEvent, at: datetime) -> bool:
