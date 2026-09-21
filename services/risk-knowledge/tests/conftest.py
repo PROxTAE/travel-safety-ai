@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from app.contracts import IntegratedTravelContext
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from app.contracts import IntegratedTravelContext  # noqa: E402
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
