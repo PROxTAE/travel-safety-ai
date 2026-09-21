@@ -25,7 +25,7 @@ from urllib.parse import urlsplit, urlunsplit
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.adapters.base import CoverageDecision, ProviderAdapter, ProviderRequest
-from app.domain.canonical import DataQuality
+from app.domain.canonical import DataQuality, warning_has_been_issued
 from app.domain.enums import EventType, QualityFlag
 from app.domain.errors import ProviderError, ProviderErrorCode
 from app.domain.queries import DisasterQuery
@@ -210,7 +210,11 @@ class UsgsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                     # events with their own ids.
                     ends_at=None,
                     instruction=None,
-                    official=True,
+                    # The feed is a catalogue: most entries are seismometer
+                    # readings nobody needs to act on. PAGER is the part that
+                    # is a warning, and it is orange or red for perhaps a
+                    # handful of events a year.
+                    official=warning_has_been_issued(feature.properties.alert),
                     magnitude=feature.properties.mag,
                     magnitude_unit=feature.properties.magType or "M",
                     depth_km=depth_km,
