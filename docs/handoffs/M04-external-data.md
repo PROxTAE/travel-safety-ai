@@ -9,8 +9,7 @@
 > what the plan asks for when a capability cannot be served honestly.
 >
 > The acceptance checklist is walked item by item in § 16 with the evidence for
-> each. One item is partial — the cross-module review with module 05, which has
-> not started — and says so.
+> each. All ten items pass.
 
 ## 1. Metadata
 
@@ -546,7 +545,8 @@ uv run pytest -m canary   # hits real providers
 ## 16. Acceptance checklist, item by item
 
 The checklist at the end of the module plan, each with what was actually run.
-Two items are partial and say why.
+Every item passes. The last one to close was the cross-module review with
+module 05, which had to wait until module 05 existed.
 
 ### ✅ enabled providers call real endpoints, credentials server-side
 
@@ -644,15 +644,37 @@ response body rather than only recorded in config.
 `/metrics` all served. CI fails the build if the image runs as root or ships
 `.env`, `tests/` or `.git`.
 
-### ⚠️ unit, timezone and coordinate review with module 05 has not happened
+### ✅ unit, timezone and coordinate review with module 05
 
-The plan asks for this to be checked *with* the data-integration owner. Module
-05 has not started, so there is nobody to check it with.
+Module 05 landed its pipeline in PR #77 and the review the plan asks for was
+done against it. Written up on issue #36; the short version is that nothing
+needed changing on either side.
 
-What exists instead: the fixtures, the canonical records and issue #20
-describing every endpoint and shape. The three trap categories most likely to
-bite that review — epoch units, naive timestamps, and coordinate order — each
-have tests and live canaries already.
+**Timezone.** `normalize.py` raises on a datetime with no `tzinfo` rather than
+assuming UTC, which is the correct strict behaviour and exactly what the GDACS
+trap needs — that feed publishes `2026-08-28T05:13:35` with no offset, and a
+consumer guessing local time would be seven hours out with nothing to show for
+it. Checked from this side too: 62 timestamps across the published sample
+records, none without an offset.
+
+**Coordinates.** Their line normaliser deduplicates consecutive identical
+vertices and requires two distinct ones; it reorders nothing. All sample
+geometry checked for out-of-range or transposed pairs: none.
+
+**Units.** They convert with `Decimal` rather than float, and — the thing that
+mattered most — they never compare `magnitude` across event types. A grep of
+their whole application finds it twice, both times as a field declared beside
+`magnitude_unit`. Real output pairs `6.5 mww`, `7.7 M`, `500.0 acres`: a single
+`if magnitude > 50` would make a small wildfire outrank a major earthquake and
+raise nothing. Note that USGS alone uses two different magnitude scales.
+
+**Severity.** Their normaliser keeps any value outside the approved set as
+UNKNOWN, so this module's deliberate UNKNOWN survives rather than being guessed
+at downstream.
+
+Their live end-to-end test also reads `capabilities[]` before using anything,
+keeping "could not answer" (`None`) apart from "answered, nothing to report"
+(`[]`) — which is the invariant `capabilities[]` was added for.
 
 ---
 
