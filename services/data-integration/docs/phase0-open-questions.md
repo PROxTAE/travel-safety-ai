@@ -5,7 +5,7 @@ These items require human review before the draft semantics become version 1.0.0
 | ID | Decision / evidence | Who must agree |
 | --- | --- | --- |
 | P0-01 | Verify each module 04 provider-to-field/unit/time mapping, including USGS PAGER, GDACS alert color, EONET category and Open-Meteo weather code. Decide whether proposed severity thresholds in `severity-and-authority.md` are acceptable. | Module 04 with module 05; safety meaning also module 07 |
-| P0-02 | Lock feature names, types, null indicators, cutoff, H3 resolution, corridor distance/time windows and shared online/offline implementation. Current `config/feature_schema.yaml` is draft 0.1.0. | Module 06 with module 05 |
+| P0-02 | **Resolved for features:** module 05 adopts the module 06 proposal `feature_schema.v1.yaml` 1.0.0 instead of its own 0.1.0 draft. Open: the official alert booleans must be allowed to be null (#43), and no source supplies evacuation orders (#44). Corridor distance/time windows and online/offline sharing remain open. | Module 06 with module 05 |
 | P0-03 | Approve critical fields, dimension measurement/weights, freshness and coverage thresholds, PASS/DEGRADED/BLOCK behavior. | Modules 03 and 07 with module 05 |
 | P0-04 | Decide input contract for route candidates: module 04 intentionally emits `exposure=null` and `risk_level=UNKNOWN`, while shared `RouteCandidate` schema requires `exposure`. Do not silently coerce null to safe. A versioned producer/consumer contract change may be needed. | Modules 04, 05, 06 and contract owner |
 | P0-05 | Decide transport/official-alert source: module 04 combined endpoint currently emits neither a `transport` array nor a separate `official_alerts` array. `data.capabilities` does not include TRANSIT. | Modules 04, 05 and 03 |
