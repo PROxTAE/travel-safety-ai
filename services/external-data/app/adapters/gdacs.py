@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from app.adapters.base import CoverageDecision, ProviderAdapter, ProviderRequest
-from app.domain.canonical import DataQuality
+from app.domain.canonical import DataQuality, warning_has_been_issued
 from app.domain.enums import EventType, QualityFlag
 from app.domain.errors import ProviderError, ProviderErrorCode
 from app.domain.queries import DisasterQuery
@@ -210,7 +210,9 @@ class GdacsAdapter(ProviderAdapter[DisasterQuery, DisasterEvent]):
                     effective_at=effective_at,
                     ends_at=ends_at,
                     instruction=None,
-                    official=True,
+                    # GDACS raises Orange or Red only once it has assessed
+                    # impact; Green is a logged event, not a warning.
+                    official=warning_has_been_issued(properties.alertlevel),
                     magnitude=severity_data.severity,
                     magnitude_unit=severity_data.severityunit,
                     # Free text, never parsed for a number.
