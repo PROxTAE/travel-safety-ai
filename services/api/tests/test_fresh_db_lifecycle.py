@@ -114,9 +114,9 @@ def test_empty_db_migration_and_schema_isolation(
             "audit_log",
             "data_subject_requests",
         }
-        assert expected_identity <= identity_tables, (
-            f"Missing identity tables: {expected_identity - identity_tables}"
-        )
+        assert (
+            expected_identity <= identity_tables
+        ), f"Missing identity tables: {expected_identity - identity_tables}"
 
         # Check travel tables
         travel_tables = {
@@ -129,9 +129,9 @@ def test_empty_db_migration_and_schema_isolation(
             ).fetchall()
         }
         expected_travel = {"trips", "idempotency_keys", "requests"}
-        assert expected_travel <= travel_tables, (
-            f"Missing travel tables: {expected_travel - travel_tables}"
-        )
+        assert (
+            expected_travel <= travel_tables
+        ), f"Missing travel tables: {expected_travel - travel_tables}"
 
 
 def test_fresh_database_persistence_and_crud(

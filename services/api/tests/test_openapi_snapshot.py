@@ -92,9 +92,9 @@ def test_all_contract_paths_and_methods_implemented(
             if method.lower() not in impl_paths[path]:
                 missing_operations.append(f"Missing {method.upper()} on path {path}")
 
-    assert not missing_operations, (
-        f"Contract operations missing in implementation: {missing_operations}"
-    )
+    assert (
+        not missing_operations
+    ), f"Contract operations missing in implementation: {missing_operations}"
 
 
 def test_contract_security_schemes_and_tags(

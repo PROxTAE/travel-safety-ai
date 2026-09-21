@@ -67,9 +67,7 @@ async def run_load_test(
 
     async with httpx.AsyncClient(limits=limits, timeout=timeout_seconds) as client:
         workers = [
-            asyncio.create_task(
-                _worker(client, url, queue, latencies, status_counts, errors)
-            )
+            asyncio.create_task(_worker(client, url, queue, latencies, status_counts, errors))
             for _ in range(concurrency)
         ]
         await asyncio.gather(*workers)
