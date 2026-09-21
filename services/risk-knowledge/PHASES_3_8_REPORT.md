@@ -3,18 +3,22 @@
 ## Implemented
 
 - Calibrated leakage-safe logistic baseline, rule baseline, metrics, subgroup evaluation,
-  model card, checksum and reproducible candidate artifact.
+  threshold-boundary analysis, linear-SHAP reason validation, model card, checksum and
+  reproducible candidate artifact.
 - Fail-closed promotion gates and verified local inference with strict feature-schema and
   critical-quality validation.
 - Versioned official-priority overrides and privacy-safe drift aggregates without automatic
-  retraining.
+  retraining, feedback recall proxy, and explicit model rollback.
 - Approved HTTPS/PDF/checksum ingestion, procedure-preserving chunks, effective/expiry filters,
-  hybrid BM25 plus multilingual character-vector retrieval, and resolvable citations.
-- Full-corridor geometry intersection, official hard constraints and deterministic ranking when
-  approved numeric coefficients exist.
-- Existing risk endpoint uses a verified active predictor when available and preserves the
-  conservative fallback otherwise.
-- Release gate validates active stage, model-card safety language, golden cases and checksums.
+  hybrid BM25 plus multilingual character-vector retrieval, Qdrant versioned collection
+  build/release/rollback, and resolvable citations.
+- Full-corridor geometry/time intersection, official hard constraints and deterministic ranking
+  when approved numeric coefficients exist.
+- `/risk/assess`, `/knowledge/retrieve`, and `/routes/evaluate` use the implemented pipelines.
+  `/evidence/package` reads one immutable M05 snapshot and runs independent model, RAG, and route
+  work concurrently with explicit partial/degraded semantics and version reporting.
+- Release gate validates active stage, model-card safety language, golden cases, citation/route
+  safety, resource/concurrency evidence, rollback, and checksums.
 
 ## Verification
 
@@ -22,9 +26,9 @@
 docker compose run --rm risk-knowledge uv run ruff check .
 All checks passed!
 
-ruff format --check: 65 files already formatted
-mypy: Success: no issues found in 48 source files
-pytest: 80 passed; coverage 85.83% (gate 80%)
+ruff format --check: 71 files already formatted
+mypy: Success: no issues found in 53 source files
+pytest: 87 passed; coverage 83.51% (gate 80%)
 ```
 
 ## Deliberately not activated
@@ -37,10 +41,12 @@ pytest: 80 passed; coverage 85.83% (gate 80%)
 - No approved knowledge PDF artifact/embedding model has been supplied, so no Qdrant active alias
   is switched. The implementation uses an auditable multilingual character-vector fallback and
   rejects unapproved encoder names.
-- The combined evidence endpoint still fails closed until immutable snapshot retrieval and active
-  model/knowledge/route dependencies are all available.
-- A real-provider/full-system Phase 8 acceptance run was not fabricated. It must run with approved
-  artifacts, provider credentials and recorded cross-module decisions.
+- The combined endpoint is implemented and returns independently degraded subparts. Its production
+  ACTIVE path still requires an accessible immutable M05 snapshot, approved model/collection, and
+  approved route coefficients.
+- The sanitized real-provider snapshot flow is covered. A live external-provider acceptance run
+  cannot be executed without deployment credentials and approved artifacts; the release gate
+  requires that evidence before declaring production readiness.
 
 ## Rollback
 

@@ -72,6 +72,7 @@ def runtime_state() -> RuntimeState:
         ),
         close=AsyncMock(),
     )
+    runtime.snapshots = SimpleNamespace(close=AsyncMock())
     runtime.artifacts = SimpleNamespace(
         verify=lambda _record: SimpleNamespace(
             checksum="sha256:" + "a" * 64,
@@ -181,6 +182,7 @@ async def test_runtime_warmup_and_close(monkeypatch: pytest.MonkeyPatch) -> None
     await runtime.close()
     runtime.database.dispose.assert_awaited_once()
     runtime.qdrant.close.assert_awaited_once()
+    runtime.snapshots.close.assert_awaited_once()
 
 
 @pytest.mark.asyncio

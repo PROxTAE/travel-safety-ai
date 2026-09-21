@@ -254,6 +254,12 @@ class EvidencePackageRequest(StrictModel):
     locale: str = Field(pattern=r"^[a-z]{2}(-[A-Z]{2})?$")
     route_ids: list[UUID] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def unique_route_ids(self) -> Self:
+        if len(self.route_ids) != len(set(self.route_ids)):
+            raise ValueError("route_ids must not contain duplicates")
+        return self
+
 
 class SafetyOverride(StrictModel):
     code: Literal[
@@ -353,6 +359,30 @@ class RouteEvaluateData(StrictModel):
 
 class RouteEvaluateResponse(StrictModel):
     data: RouteEvaluateData
+    meta: StandardMeta
+
+
+class EvidenceVersions(StrictModel):
+    contract: Literal["1.0.0"] = "1.0.0"
+    feature_schema: str
+    model: str | None
+    thresholds: str | None
+    route_policy: str
+    knowledge_collection: str | None
+
+
+class EvidencePackageData(StrictModel):
+    snapshot_id: UUID
+    assessments: list[RiskAssessment]
+    evidence: list[dict[str, Any]]
+    routes: list[RouteCandidate]
+    capabilities: list[CapabilityState]
+    limitations: list[str]
+    versions: EvidenceVersions
+
+
+class EvidencePackageResponse(StrictModel):
+    data: EvidencePackageData
     meta: StandardMeta
 
 

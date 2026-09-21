@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from shapely.geometry import shape
 
-from app.contracts import RiskLevel, RouteCandidate, RouteExposure
+from app.contracts import IntegratedTravelContext, RiskLevel, RouteCandidate, RouteExposure
 
 
 @dataclass(frozen=True)
@@ -18,13 +19,20 @@ class EvaluatedRoute:
 
 
 def evaluate_exposure(
-    route: RouteCandidate, hazards: list[dict[str, Any]], severity_weights: dict[str, float] | None
+    route: RouteCandidate,
+    hazards: list[dict[str, Any]],
+    severity_weights: dict[str, float] | None,
+    *,
+    starts_at: datetime | None = None,
+    ends_at: datetime | None = None,
 ) -> RouteCandidate:
     line = shape(route.geometry)
     hard: list[str] = []
     event_ids: list[str] = []
     weighted = 0.0
     for hazard in hazards:
+        if starts_at and ends_at and not _overlaps_window(hazard, starts_at, ends_at):
+            continue
         geometry = hazard.get("geometry")
         if not geometry or not line.intersects(shape(geometry)):
             continue
@@ -61,6 +69,56 @@ def evaluate_exposure(
         )
     )
     return route.model_copy(update={"exposure": exposure, "risk_level": risk})
+
+
+def _overlaps_window(hazard: dict[str, Any], starts_at: datetime, ends_at: datetime) -> bool:
+    start_value = hazard.get("effective_at") or hazard.get("starts_at")
+    end_value = hazard.get("ends_at") or hazard.get("expires_at")
+    if start_value is None and end_value is None:
+        return True
+    try:
+        hazard_start = datetime.fromisoformat(str(start_value).replace("Z", "+00:00"))
+        hazard_end = (
+            datetime.fromisoformat(str(end_value).replace("Z", "+00:00"))
+            if end_value is not None
+            else ends_at
+        )
+    except ValueError:
+        return False
+    return hazard_start <= ends_at and hazard_end >= starts_at
+
+
+def evaluate_snapshot_routes(
+    snapshot: IntegratedTravelContext,
+    route_ids: list[Any],
+    severity_weights: dict[str, float] | None,
+) -> list[EvaluatedRoute]:
+    selected = [route for route in snapshot.route_candidates if route.route_id in set(route_ids)]
+    hazards = list(snapshot.disaster_events)
+    for alert in snapshot.official_alerts:
+        hazards.append(
+            {
+                "event_id": alert.event_id,
+                "official": True,
+                "closure": alert.closure,
+                "no_go": alert.evacuation,
+                "severity": alert.severity.value,
+                "effective_at": alert.effective_at.isoformat(),
+                "ends_at": alert.ends_at.isoformat() if alert.ends_at else None,
+                "geometry": snapshot.route_corridor_geojson,
+            }
+        )
+    evaluated = [
+        evaluate_exposure(
+            route,
+            hazards,
+            severity_weights,
+            starts_at=snapshot.travel_window.starts_at,
+            ends_at=snapshot.travel_window.ends_at,
+        )
+        for route in selected
+    ]
+    return rank_routes(evaluated)
 
 
 def rank_routes(routes: list[RouteCandidate]) -> list[EvaluatedRoute]:

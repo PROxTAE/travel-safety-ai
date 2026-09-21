@@ -1,8 +1,8 @@
-# [M06] Add Phase 3–8 fail-closed foundations
+# [M06] Implement Phase 3–8 model, RAG, routes and evidence package
 
 ## Summary
 
-Adds the Module 06 baseline-model, safety-monitoring, knowledge, route-evaluation, and release-gate foundations inside `services/risk-knowledge/`. Approval-dependent capabilities remain fail closed: no threshold, model, knowledge collection, or route coefficient is promoted or invented.
+Implements the Module 06 Phase 3–8 model, monitoring, knowledge, route-evaluation, evidence-package, rollback, and release-verification paths inside `services/risk-knowledge/`. Approval-dependent activation remains fail closed: no threshold, model, collection, or route coefficient is invented.
 
 ## Scope
 
@@ -11,7 +11,7 @@ In scope:
 - Calibrated rule/logistic baselines, evaluation metrics, model card, checksum, and candidate artifact.
 - Verified local inference, official-priority overrides, privacy-safe drift aggregates, and release gates.
 - Approved-source PDF ingestion, procedure-aware chunks, filtered hybrid retrieval, citations, corridor geometry, hard constraints, and deterministic ranking when approved coefficients exist.
-- Focused regression tests and exact Docker verification evidence.
+- Qdrant versioned build/release/rollback, immutable M05 snapshot retrieval, concurrent evidence packaging, and focused regression/performance tests.
 
 Out of scope:
 
@@ -31,7 +31,7 @@ Out of scope:
 
 - API/OpenAPI/JSON Schema: no shared contract change; the existing internal risk endpoint can use a verified ACTIVE predictor.
 - Migration/table/index: none.
-- Environment variables: none added.
+- Environment variables: `DATA_INTEGRATION_URL` and optional `DATA_INTEGRATION_SERVICE_TOKEN` for the immutable M05 snapshot API.
 - Backward compatibility/rollout: conservative fallback remains active whenever verification, quality, or approval gates fail.
 
 ## Real data and provenance
@@ -40,7 +40,7 @@ Out of scope:
 - Endpoint/coverage: no new live-provider call; runtime providers remain owned upstream.
 - License/attribution: knowledge ingestion requires recorded authority, review approval, checksum, and HTTPS allowlist.
 - Freshness/TTL: effective/expiry metadata is filtered at retrieval time.
-- Failure/degraded behavior: model, RAG, evidence package, and numeric route ranking fail closed or degrade explicitly.
+- Failure/degraded behavior: each model/RAG/route subpart fails closed or degrades independently; the combined package retains capability and version evidence.
 - ยืนยันว่า runtime/demo ไม่มี mock หรือ hard-coded current data: [x]
 
 ## How to run
@@ -58,9 +58,9 @@ Commands and results:
 docker compose config --quiet: passed
 docker compose build risk-knowledge: passed
 docker compose run --rm risk-knowledge uv run ruff check .: All checks passed
-ruff format --check: 65 files already formatted
-mypy: Success: no issues found in 48 source files
-pytest: 80 passed, 45 warnings; total coverage 85.83% (required 80%)
+ruff format --check: 71 files already formatted
+mypy: Success: no issues found in 53 source files
+pytest: 87 passed, 49 warnings; total coverage 83.51% (required 80%)
 credential/runtime-mock scan: no match
 runtime image UID: 10001 (non-root)
 ```
@@ -89,15 +89,16 @@ runtime image UID: 10001 (non-root)
 - [x] stale/conflicting/partial data
 - [x] boundary values and regression case
 - [x] contract test with producer/consumer
-- [ ] E2E or reason N/A: blocked until approved ACTIVE model, knowledge artifact, provider credentials, and route coefficients exist.
+- [x] Sanitized immutable-snapshot end-to-end and concurrent evidence-package flow
+- [ ] Live deployment acceptance: requires approved ACTIVE artifacts and deployment credentials.
 
 ## Risks and limitations
 
 - `model_acceptance.yaml` is still `PENDING_TEAM_LEAD_APPROVAL`; the model remains CANDIDATE.
 - Route exposure coefficients are null, so official hard constraints work but numeric ranking remains unavailable.
 - No approved knowledge PDF/embedding model exists; no Qdrant active alias is switched. The auditable multilingual character-vector implementation is a temporary fallback.
-- The combined evidence endpoint remains unavailable until immutable snapshot retrieval and all active dependencies exist.
-- A full real-provider Phase 8 acceptance run was not fabricated.
+- `/evidence/package` is implemented and returns partial/degraded results when individual capabilities are unavailable.
+- A live external-provider Phase 8 acceptance run still requires deployment credentials; the sanitized captured-provider snapshot flow is tested.
 
 ## Rollback
 

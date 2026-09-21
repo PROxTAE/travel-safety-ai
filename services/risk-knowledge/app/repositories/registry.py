@@ -81,6 +81,60 @@ async def get_active_model(session: AsyncSession, name: str) -> ActiveModel | No
     return _active_model(row) if row else None
 
 
+async def activate_approved_model(session: AsyncSession, model_id: UUID, name: str) -> None:
+    """Atomically retire the current model and activate one explicitly APPROVED version."""
+    await session.execute(
+        update(ModelVersion)
+        .where(ModelVersion.name == name, ModelVersion.stage == "ACTIVE")
+        .values(stage="RETIRED")
+    )
+    result = cast(
+        CursorResult[Any],
+        await session.execute(
+            update(ModelVersion)
+            .where(
+                ModelVersion.id == model_id,
+                ModelVersion.name == name,
+                ModelVersion.stage == "APPROVED",
+                ModelVersion.approved_by.is_not(None),
+                ModelVersion.approved_at.is_not(None),
+            )
+            .values(stage="ACTIVE")
+        ),
+    )
+    if result.rowcount != 1:
+        await session.rollback()
+        raise ValueError("Model must be APPROVED with recorded approval before activation")
+    await session.commit()
+
+
+async def rollback_model(session: AsyncSession, *, name: str, previous_model_id: UUID) -> None:
+    """Restore a known retired version; never select an arbitrary historical artifact."""
+    await session.execute(
+        update(ModelVersion)
+        .where(ModelVersion.name == name, ModelVersion.stage == "ACTIVE")
+        .values(stage="RETIRED")
+    )
+    result = cast(
+        CursorResult[Any],
+        await session.execute(
+            update(ModelVersion)
+            .where(
+                ModelVersion.id == previous_model_id,
+                ModelVersion.name == name,
+                ModelVersion.stage == "RETIRED",
+                ModelVersion.approved_by.is_not(None),
+                ModelVersion.approved_at.is_not(None),
+            )
+            .values(stage="ACTIVE")
+        ),
+    )
+    if result.rowcount != 1:
+        await session.rollback()
+        raise ValueError("Rollback target must be a previously approved RETIRED model")
+    await session.commit()
+
+
 async def get_active_collection(session: AsyncSession) -> ActiveCollection | None:
     row = await session.scalar(
         select(KnowledgeCollectionVersion).where(KnowledgeCollectionVersion.stage == "ACTIVE")

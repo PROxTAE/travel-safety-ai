@@ -18,6 +18,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
+    average_precision_score,
     brier_score_loss,
     confusion_matrix,
     precision_recall_fscore_support,
@@ -31,6 +32,9 @@ from training.features import FEATURE_NAMES
 
 LABELS = ("LOW", "MEDIUM", "HIGH")
 REASON_BY_FEATURE = {
+    "route_distance_m": "TRANSPORT_DISRUPTION",
+    "route_duration_seconds": "TRANSPORT_DISRUPTION",
+    "route_transfer_count": "TRANSPORT_DISRUPTION",
     "corridor_official_closure_active": "OFFICIAL_CLOSURE",
     "corridor_official_evacuation_active": "OFFICIAL_EVACUATION",
     "corridor_extreme_alert_active": "EXTREME_WARNING_CORRIDOR",
@@ -118,6 +122,11 @@ def rule_baseline(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _coverage_group(row: dict[str, Any]) -> str:
+    coverage = float(row["features"].get("critical_evidence_coverage") or 0)
+    return "DEGRADED" if coverage < 1 else "COMPLETE"
+
+
 def _evaluate(model: Any, rows: list[dict[str, Any]]) -> dict[str, Any]:
     x, y = _matrix(rows)
     started = time.perf_counter()
@@ -138,6 +147,18 @@ def _evaluate(model: Any, rows: list[dict[str, Any]]) -> dict[str, Any]:
     high_hits = int(((predicted == "HIGH") & (y == "HIGH")).sum())
     y_binary = label_binarize(y, classes=list(LABELS))
     ordered_probabilities = probabilities[:, [classes.index(label) for label in LABELS]]
+    threshold_curve = [
+        {
+            "threshold": threshold,
+            "recall": float(((high_probability >= threshold) & (high_truth == 1)).sum())
+            / max(1, high_total),
+            "false_positive_rate": float(
+                ((high_probability >= threshold) & (high_truth == 0)).sum()
+            )
+            / max(1, int((high_truth == 0).sum())),
+        }
+        for threshold in (0.1, 0.25, 0.5, 0.75, 0.9)
+    ]
     return {
         "high_risk_recall": high_hits / max(1, high_total),
         "high_risk_false_negative_rate": 1 - high_hits / max(1, high_total),
@@ -152,12 +173,26 @@ def _evaluate(model: Any, rows: list[dict[str, Any]]) -> dict[str, Any]:
             for i, label in enumerate(LABELS)
         },
         "roc_auc": float(roc_auc_score(y_binary, ordered_probabilities, multi_class="ovr")),
+        "pr_auc": float(average_precision_score(high_truth, high_probability)),
         "brier_score": float(brier_score_loss(high_truth, high_probability)),
         "expected_calibration_error": _ece(high_truth, high_probability),
         "confusion_matrix": confusion_matrix(y, predicted, labels=list(LABELS)).tolist(),
         "inference_latency_ms": latency,
         "peak_memory_mb": peak / (1024 * 1024),
+        "threshold_boundaries": threshold_curve,
     }
+
+
+def derive_high_threshold(metrics: dict[str, Any], minimum_recall: float | None) -> float:
+    """Select the highest boundary satisfying an explicitly approved recall objective."""
+    if minimum_recall is None:
+        raise ValueError("APPROVED_HIGH_RECALL_OBJECTIVE_REQUIRED")
+    eligible = [
+        item for item in metrics["threshold_boundaries"] if float(item["recall"]) >= minimum_recall
+    ]
+    if not eligible:
+        raise ValueError("NO_THRESHOLD_SATISFIES_APPROVED_OBJECTIVE")
+    return float(max(eligible, key=lambda item: float(item["threshold"]))["threshold"])
 
 
 def train(dataset_dir: Path, output_dir: Path, version: str = "1.0.0") -> TrainingResult:
@@ -201,6 +236,14 @@ def train(dataset_dir: Path, output_dir: Path, version: str = "1.0.0") -> Traini
             if len({row["label"] for row in rows if str(row[field]) == value}) == len(LABELS)
         }
         for field in ("geography_group", "season", "hazard_type", "travel_mode")
+    }
+    metrics["subgroups"]["degraded_coverage"] = {
+        value: _evaluate(
+            model,
+            [row for row in rows if _coverage_group(row) == value],
+        )
+        for value in ("DEGRADED", "COMPLETE")
+        if len({row["label"] for row in rows if _coverage_group(row) == value}) == len(LABELS)
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     artifact = output_dir / f"route-risk-baseline-{version}.joblib"

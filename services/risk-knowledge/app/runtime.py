@@ -6,6 +6,7 @@ from datetime import datetime
 
 from app.contracts import ModelReference
 from app.db import Database
+from app.integrations.snapshots import SnapshotClient
 from app.knowledge.qdrant import QdrantManager
 from app.metrics import DEPENDENCY_STATUS
 from app.repositories.registry import (
@@ -41,6 +42,7 @@ class RuntimeState:
         self.database = Database(settings)
         self.qdrant = QdrantManager(settings)
         self.artifacts = ArtifactVerifier(settings)
+        self.snapshots = SnapshotClient(settings)
         self.model = ModelRuntimeStatus()
         self.predictor: RiskPredictor | None = None
         self.knowledge = KnowledgeRuntimeStatus()
@@ -51,6 +53,7 @@ class RuntimeState:
 
     async def close(self) -> None:
         await self.qdrant.close()
+        await self.snapshots.close()
         await self.database.dispose()
 
     async def _active_model_record(self) -> ActiveModel | None:

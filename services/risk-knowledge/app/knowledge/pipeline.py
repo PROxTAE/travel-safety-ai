@@ -5,8 +5,10 @@ from __future__ import annotations
 import hashlib
 import io
 import re
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from typing import cast
 from urllib.parse import urlparse
 
 import httpx
@@ -153,3 +155,62 @@ class HybridRetriever:
 def resolve_citation(result: dict[str, object]) -> str:
     page = f"#page={result['page']}" if result.get("page") else ""
     return f"{result['source_url']}{page}"
+
+
+def dense_vector(text: str, *, dimensions: int = 768) -> list[float]:
+    encoder = HashingVectorizer(
+        analyzer="char_wb", ngram_range=(3, 5), n_features=dimensions, norm="l2"
+    )
+    return cast(list[float], encoder.transform([text]).toarray()[0].astype(float).tolist())
+
+
+def qdrant_points(
+    chunks: list[KnowledgeChunk], *, dimensions: int = 768
+) -> list[dict[str, object]]:
+    """Produce deterministic Qdrant points with every citation/filter field retained."""
+    return [
+        {
+            "id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"{chunk.document_id}:{chunk.content_hash}")),
+            "vector": dense_vector(chunk.text, dimensions=dimensions),
+            "payload": {
+                "document_id": chunk.document_id,
+                "passage": chunk.text,
+                "page": chunk.page,
+                "section": chunk.section,
+                "authority": chunk.authority,
+                "source_url": chunk.source_url,
+                "language": chunk.language,
+                "regions": list(chunk.regions),
+                "hazards": list(chunk.hazards),
+                "effective_at_epoch": chunk.effective_at.timestamp(),
+                "expires_at_epoch": chunk.expires_at.timestamp(),
+                "content_hash": chunk.content_hash,
+            },
+        }
+        for chunk in chunks
+    ]
+
+
+def evaluate_retrieval(
+    retriever: HybridRetriever, cases: list[dict[str, object]], *, at: datetime
+) -> dict[str, object]:
+    outcomes: list[dict[str, object]] = []
+    for case in cases:
+        limit_value = case.get("limit", 5)
+        if not isinstance(limit_value, int):
+            raise ValueError("retrieval evaluation limit must be an integer")
+        results = retriever.search(
+            str(case["query"]),
+            region=str(case["region"]),
+            language=str(case["language"]),
+            hazard=str(case["hazard"]),
+            at=at,
+            limit=limit_value,
+        )
+        expected = case.get("expected_document_id")
+        passed = (not results) if expected is None else results[0]["document_id"] == expected
+        outcomes.append({"name": case["name"], "passed": passed, "count": len(results)})
+    return {
+        "passed": all(bool(outcome["passed"]) for outcome in outcomes),
+        "cases": outcomes,
+    }

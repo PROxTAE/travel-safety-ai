@@ -28,6 +28,14 @@ class Settings(BaseSettings):
         default=None,
         validation_alias="INTERNAL_SERVICE_TOKEN",
     )
+    data_integration_url: str = Field(
+        default="http://data-integration:8003",
+        validation_alias="DATA_INTEGRATION_URL",
+    )
+    data_integration_token: SecretStr | None = Field(
+        default=None,
+        validation_alias="DATA_INTEGRATION_SERVICE_TOKEN",
+    )
 
     database_url: SecretStr | None = Field(
         default=None,
@@ -122,6 +130,14 @@ class Settings(BaseSettings):
         normalized = value.rstrip("/")
         if not normalized.startswith(("http://", "https://")):
             raise ValueError("QDRANT_URL must use http or https")
+        return normalized
+
+    @field_validator("data_integration_url")
+    @classmethod
+    def validate_data_integration_url(cls, value: str) -> str:
+        normalized = value.rstrip("/")
+        if not normalized.startswith(("http://", "https://")):
+            raise ValueError("DATA_INTEGRATION_URL must use http or https")
         return normalized
 
     def sqlalchemy_url(self) -> URL | str:

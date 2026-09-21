@@ -48,6 +48,7 @@ risk-knowledge-qdrant = "app.cli.qdrant_collection:main"
 risk-knowledge-train = "training.train:main"
 risk-knowledge-promote = "training.promote:main"
 risk-knowledge-release-check = "training.release_check:main"
+risk-knowledge-knowledge-release = "training.knowledge_release:main"
 
 [build-system]
 requires = ["hatchling==1.27.0"]
