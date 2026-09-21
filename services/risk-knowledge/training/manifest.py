@@ -12,7 +12,7 @@ import hashlib
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from jsonschema import validate
 
@@ -20,7 +20,7 @@ SCHEMA_PATH = Path(__file__).resolve().parent / "dataset_manifest.schema.json"
 
 
 def load_manifest_schema() -> dict[str, Any]:
-    return json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    return cast(dict[str, Any], json.loads(SCHEMA_PATH.read_text(encoding="utf-8")))
 
 
 def compute_dataset_content_checksum(rows: list[dict[str, Any]]) -> str:

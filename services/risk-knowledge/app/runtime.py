@@ -15,6 +15,7 @@ from app.repositories.registry import (
     get_active_model,
 )
 from app.risk.artifact_loader import ArtifactUnavailable, ArtifactVerifier
+from app.risk.inference import RiskPredictor
 from app.settings import Settings
 from app.timeouts import hard_timeout
 
@@ -41,6 +42,7 @@ class RuntimeState:
         self.qdrant = QdrantManager(settings)
         self.artifacts = ArtifactVerifier(settings)
         self.model = ModelRuntimeStatus()
+        self.predictor: RiskPredictor | None = None
         self.knowledge = KnowledgeRuntimeStatus()
 
     async def warmup(self) -> None:
@@ -76,21 +78,26 @@ class RuntimeState:
                 return self.model
             async with asyncio.timeout(self.settings.artifact_verification_timeout_seconds):
                 artifact = await asyncio.to_thread(self.artifacts.verify, record)
+            reference = ModelReference(
+                name=record.name,
+                version=record.version,
+                feature_schema_version="1.0.0",
+                artifact_checksum=artifact.checksum,
+            )
             self.model = ModelRuntimeStatus(
                 status="AVAILABLE",
                 reason=None,
-                model=ModelReference(
-                    name=record.name,
-                    version=record.version,
-                    feature_schema_version="1.0.0",
-                    artifact_checksum=artifact.checksum,
-                ),
+                model=reference,
             )
+            self.predictor = await asyncio.to_thread(RiskPredictor, artifact.path, reference)
         except TimeoutError:
+            self.predictor = None
             self.model = ModelRuntimeStatus("UNAVAILABLE", "MODEL_WARMUP_TIMEOUT", None)
         except ArtifactUnavailable as exc:
+            self.predictor = None
             self.model = ModelRuntimeStatus("UNAVAILABLE", exc.reason, None)
         except Exception:
+            self.predictor = None
             self.model = ModelRuntimeStatus("UNAVAILABLE", "MODEL_REGISTRY_UNAVAILABLE", None)
         return self.model
 

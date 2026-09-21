@@ -42,6 +42,7 @@ from training.split import perform_time_and_geography_split
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("build_dataset")
 
+
 def get_default_data_dir() -> Path:
     """Return default data directory, falling back to tempdir if filesystem is read-only."""
     target = Path(__file__).resolve().parent / "data"

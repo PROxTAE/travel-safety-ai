@@ -31,6 +31,7 @@ from app.repositories.assessments import (
     save_fallback_route_evaluations,
 )
 from app.risk.fallback import assess_with_conservative_fallback
+from app.risk.inference import ModelInputRejected
 from app.routes.fallback import (
     FALLBACK_ROUTE_POLICY_VERSION,
     enforce_hard_constraints_without_ranking,
@@ -62,7 +63,19 @@ async def assess_risk(payload: RiskAssessRequest, request: Request) -> RiskAsses
             retryable=True,
             retry_after_seconds=5,
         )
-    assessments = assess_with_conservative_fallback(payload.snapshot, payload.route_ids)
+    predictor = getattr(runtime, "predictor", None)
+    limitations: list[str] = []
+    degraded = predictor is None
+    if predictor is None:
+        assessments = assess_with_conservative_fallback(payload.snapshot, payload.route_ids)
+        limitations = ["MODEL_UNAVAILABLE"]
+    else:
+        try:
+            assessments = predictor.assess(payload.snapshot, payload.route_ids)
+        except ModelInputRejected:
+            assessments = assess_with_conservative_fallback(payload.snapshot, payload.route_ids)
+            limitations = ["FEATURE_SCHEMA_OR_QUALITY_REJECTED"]
+            degraded = True
     try:
         async with runtime.database.sessions() as session:
             await save_fallback_assessments(
@@ -78,19 +91,22 @@ async def assess_risk(payload: RiskAssessRequest, request: Request) -> RiskAsses
             retryable=True,
             retry_after_seconds=5,
         ) from exc
-    DEGRADED_RESULTS.labels("risk_model", "MODEL_UNAVAILABLE").inc()
+    if degraded:
+        DEGRADED_RESULTS.labels("risk_model", "MODEL_UNAVAILABLE").inc()
     return RiskAssessResponse(
         data=RiskAssessData(
             assessments=assessments,
             capability=CapabilityState(
                 capability="RISK_MODEL",
-                status="DEGRADED",
-                version="fallback-safety-1.0.0",
-                reason=runtime.model.reason or "MODEL_INFERENCE_NOT_ENABLED",
+                status="DEGRADED" if degraded else "AVAILABLE",
+                version=("fallback-safety-1.0.0" if degraded else runtime.model.model.version),
+                reason=(runtime.model.reason or "MODEL_INFERENCE_NOT_ENABLED")
+                if degraded
+                else None,
             ),
-            limitations=["MODEL_UNAVAILABLE"],
+            limitations=limitations,
         ),
-        meta=_meta(degraded_services=["risk-model"]),
+        meta=_meta(degraded_services=["risk-model"] if degraded else []),
     )
 
 

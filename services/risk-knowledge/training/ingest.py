@@ -306,8 +306,7 @@ class HistoricalDataIngester:
             "start_date": start_date,
             "end_date": end_date,
             "hourly": (
-                "temperature_2m,relative_humidity_2m,"
-                "precipitation,weather_code,wind_gusts_10m"
+                "temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_gusts_10m"
             ),
             "timezone": "UTC",
         }

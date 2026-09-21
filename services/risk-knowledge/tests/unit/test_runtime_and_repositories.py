@@ -4,6 +4,7 @@ import asyncio
 import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock
@@ -116,12 +117,17 @@ def active_collection(**overrides: Any) -> ActiveCollection:
 
 
 @pytest.mark.asyncio
-async def test_runtime_model_lifecycle(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_runtime_model_lifecycle(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     runtime = runtime_state()
     monkeypatch.setattr("app.runtime.get_active_model", AsyncMock(return_value=None))
     assert (await runtime.refresh_model()).reason == "NO_APPROVED_ACTIVE_MODEL"
 
     monkeypatch.setattr("app.runtime.get_active_model", AsyncMock(return_value=active_model()))
+    monkeypatch.setattr("app.runtime.RiskPredictor", lambda _path, _reference: object())
+    runtime.artifacts.verify = lambda _record: SimpleNamespace(
+        checksum="sha256:" + "a" * 64,
+        path=tmp_path / "model.bin",
+    )
     available = await runtime.refresh_model()
     assert available.status == "AVAILABLE"
     assert available.model is not None and available.model.version == "1.0.0"
