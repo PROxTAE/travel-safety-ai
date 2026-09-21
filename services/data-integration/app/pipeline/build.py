@@ -103,6 +103,17 @@ def compute_route_features(
         before_cutoff(evidence.transport, recommendation_at),
         evidence.source_quality,
     )
+    fetched_at: dict[str, datetime | None] = {}
+    for name, records in (
+        ("weather", known.weather),
+        ("disaster", known.disasters),
+        ("transport", known.transport),
+    ):
+        if records is not None:
+            timestamps = [
+                record.source.fetched_at for record in records if record.source.fetched_at
+            ]
+            fetched_at[name] = min(timestamps) if timestamps else None
     samples = sample_route(
         route.geometry,
         departure_at=travel_window.starts_at,
@@ -118,6 +129,7 @@ def compute_route_features(
             known.disasters,
             known.transport,
             known.source_quality,
+            fetched_at,
         ),
         FeaturePolicy(
             weather_radius_m=settings.corridor_radius_m,
