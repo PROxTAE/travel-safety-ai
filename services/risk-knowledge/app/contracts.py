@@ -2,10 +2,19 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any, Literal, Self
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    field_validator,
+    model_validator,
+)
 
 
 class StrictModel(BaseModel):
@@ -119,11 +128,21 @@ class OfficialAlert(BaseModel):
 
 
 class TravelWindow(StrictModel):
-    starts_at: datetime
-    ends_at: datetime
+    starts_at: AwareDatetime
+    ends_at: AwareDatetime
+    timezone: str = Field(min_length=1, max_length=64)
+
+    @field_validator("timezone")
+    @classmethod
+    def known_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as error:
+            raise ValueError("timezone must be an IANA zone") from error
+        return value
 
     @model_validator(mode="after")
-    def validate_order(self) -> TravelWindow:
+    def validate_order(self) -> Self:
         if self.ends_at <= self.starts_at:
             raise ValueError("ends_at must be later than starts_at")
         return self
