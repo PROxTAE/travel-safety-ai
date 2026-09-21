@@ -44,14 +44,13 @@ def align_transport(
     source_id = record.source.source_id
     if segment.transport_status_id != record.id or segment.mode != record.mode:
         return TransportAlignment("OUTSIDE_COVERAGE", source_id, "TRIP_OR_MODE_MISMATCH")
-    if not all(
-        (
-            record.operator,
-            record.service_number,
-            segment.from_name,
-            segment.to_name,
-            segment.departure_time,
-        )
+    departure_time = segment.departure_time
+    if (
+        not record.operator
+        or not record.service_number
+        or not segment.from_name
+        or not segment.to_name
+        or departure_time is None
     ):
         return TransportAlignment("UNAVAILABLE", source_id, "INSUFFICIENT_KEYS")
     if normalize_place(segment.from_name) != normalize_place(record.origin_stop.name) or (
@@ -61,7 +60,7 @@ def align_transport(
     scheduled = record.estimated_departure or record.scheduled_departure
     if scheduled is None:
         return TransportAlignment("UNAVAILABLE", source_id, "SCHEDULE_MISSING")
-    if abs((segment.departure_time - scheduled).total_seconds()) > time_tolerance_seconds:
+    if abs((departure_time - scheduled).total_seconds()) > time_tolerance_seconds:
         return TransportAlignment("OUTSIDE_COVERAGE", source_id, "TIME_MISMATCH")
     if record.quality.status in {"STALE", "UNAVAILABLE"}:
         return TransportAlignment(record.quality.status, source_id, "SOURCE_QUALITY")
