@@ -235,16 +235,16 @@ Exit: public contractครบและ frontendไม่ต้องรู้ i
 
 ## Acceptance checklist
 
-- [ ] public OpenAPI v1ครบและ generated clients reproducible
-- [ ] OIDC/JWT verifyครบ ไม่ใช้ custom insecure password endpoint
-- [ ] user/trip/consent/emergency profileเก็บใน PostgreSQLจริงด้วย migrations
-- [ ] object ownershipและ rate limitผ่าน negative tests
-- [ ] assessment async/idempotentและ SSE reconnectได้
-- [ ] final response validate schemaก่อนส่ง web
-- [ ] exact location/medical/tokenไม่รั่ว log/cache/trace
-- [ ] dependencyล่มคืน stable error/partialไม่ stack trace
-- [ ] health/readiness/metrics/tracesทำงาน
-- [ ] Docker production non-rootและ full E2Eผ่าน
+- [x] public OpenAPI v1ครบและ generated clients reproducible
+- [x] OIDC/JWT verifyครบ ไม่ใช้ custom insecure password endpoint
+- [x] user/trip/consent/emergency profileเก็บใน PostgreSQLจริงด้วย migrations
+- [x] object ownershipและ rate limitผ่าน negative tests
+- [x] assessment async/idempotentและ SSE reconnectได้
+- [x] final response validate schemaก่อนส่ง web
+- [x] exact location/medical/tokenไม่รั่ว log/cache/trace
+- [x] dependencyล่มคืน stable error/partialไม่ stack trace
+- [x] health/readiness/metrics/tracesทำงาน
+- [x] Docker production non-rootและ full E2Eผ่าน
 
 ## Branch/commit/PR breakdown
 

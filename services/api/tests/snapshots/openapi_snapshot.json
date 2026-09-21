@@ -1,0 +1,5076 @@
+{
+  "components": {
+    "schemas": {
+      "AlertSubscriptionModel": {
+        "description": "One standing subscription to hazard notifications.",
+        "properties": {
+          "cancelled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled At"
+          },
+          "channel": {
+            "enum": [
+              "IN_APP",
+              "EMAIL",
+              "SMS",
+              "PUSH"
+            ],
+            "title": "Channel",
+            "type": "string"
+          },
+          "consent_id": {
+            "format": "uuid",
+            "title": "Consent Id",
+            "type": "string"
+          },
+          "cooldown_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cooldown Until"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "min_severity": {
+            "anyOf": [
+              {
+                "enum": [
+                  "INFO",
+                  "MINOR",
+                  "MODERATE",
+                  "SEVERE",
+                  "EXTREME",
+                  "UNKNOWN"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Severity"
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "PAUSED",
+              "CANCELLED",
+              "EXPIRED"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "subscription_id": {
+            "format": "uuid",
+            "title": "Subscription Id",
+            "type": "string"
+          },
+          "trip_id": {
+            "format": "uuid",
+            "title": "Trip Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subscription_id",
+          "trip_id",
+          "channel",
+          "consent_id",
+          "status",
+          "created_at"
+        ],
+        "title": "AlertSubscriptionModel",
+        "type": "object"
+      },
+      "ApplyRouteData": {
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/RunRefModel"
+          },
+          "trip": {
+            "$ref": "#/components/schemas/TripModel"
+          }
+        },
+        "required": [
+          "trip",
+          "run"
+        ],
+        "title": "ApplyRouteData",
+        "type": "object"
+      },
+      "ApplyRouteRequest": {
+        "additionalProperties": false,
+        "description": "What a traveller sends to lock a route into their journey.\n\n`extra=\"forbid\"`: unrecognised fields are rejected.",
+        "properties": {
+          "recommendation_id": {
+            "format": "uuid",
+            "title": "Recommendation Id",
+            "type": "string"
+          },
+          "risk_acknowledged": {
+            "default": false,
+            "title": "Risk Acknowledged",
+            "type": "boolean"
+          },
+          "route_id": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Route Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recommendation_id",
+          "route_id"
+        ],
+        "title": "ApplyRouteRequest",
+        "type": "object"
+      },
+      "ConsentRecordModel": {
+        "description": "One versioned consent decision, as it appears in a response.",
+        "properties": {
+          "consent_id": {
+            "format": "uuid",
+            "title": "Consent Id",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "granted": {
+            "title": "Granted",
+            "type": "boolean"
+          },
+          "granted_at": {
+            "format": "date-time",
+            "title": "Granted At",
+            "type": "string"
+          },
+          "policy_version": {
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "type": {
+            "enum": [
+              "LOCATION_ONCE",
+              "LOCATION_LIVE",
+              "ALERT_NOTIFICATION",
+              "ANALYTICS",
+              "EMERGENCY_PROFILE"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "consent_id",
+          "type",
+          "granted",
+          "policy_version",
+          "granted_at"
+        ],
+        "title": "ConsentRecordModel",
+        "type": "object"
+      },
+      "ConsentRequest": {
+        "additionalProperties": false,
+        "description": "A decision to grant or withdraw one consent.",
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Requested expiry for a scoped grant. The server caps it: a client may ask for less than the configured ceiling and never for more.",
+            "title": "Expires At"
+          },
+          "granted": {
+            "title": "Granted",
+            "type": "boolean"
+          },
+          "policy_version": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Policy Version",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "LOCATION_ONCE",
+              "LOCATION_LIVE",
+              "ALERT_NOTIFICATION",
+              "ANALYTICS",
+              "EMERGENCY_PROFILE"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "granted",
+          "policy_version"
+        ],
+        "title": "ConsentRequest",
+        "type": "object"
+      },
+      "ConversationMessageRequest": {
+        "additionalProperties": false,
+        "description": "A follow-up question sent to an assistant thread.\n\n`extra=\"forbid\"`, because unrecognised fields could bypass prompt boundaries.",
+        "properties": {
+          "locale": {
+            "anyOf": [
+              {
+                "maxLength": 35,
+                "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "question": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "trip_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trip Id"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "ConversationMessageRequest",
+        "type": "object"
+      },
+      "ConversationModel": {
+        "description": "A thread of assistant turns about a trip.",
+        "properties": {
+          "conversation_id": {
+            "format": "uuid",
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "last_message_preview": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Message Preview"
+          },
+          "last_recommendation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Recommendation Id"
+          },
+          "message_count": {
+            "minimum": 0.0,
+            "title": "Message Count",
+            "type": "integer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "trip_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trip Id"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "message_count",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ConversationModel",
+        "type": "object"
+      },
+      "CreateAlertSubscriptionRequest": {
+        "additionalProperties": false,
+        "description": "Opting into live safety alerts for a saved trip.",
+        "properties": {
+          "channel": {
+            "enum": [
+              "IN_APP",
+              "EMAIL",
+              "SMS",
+              "PUSH"
+            ],
+            "title": "Channel",
+            "type": "string"
+          },
+          "consent_id": {
+            "format": "uuid",
+            "title": "Consent Id",
+            "type": "string"
+          },
+          "min_severity": {
+            "default": "MODERATE",
+            "enum": [
+              "INFO",
+              "MINOR",
+              "MODERATE",
+              "SEVERE",
+              "EXTREME",
+              "UNKNOWN"
+            ],
+            "title": "Min Severity",
+            "type": "string"
+          },
+          "trip_id": {
+            "format": "uuid",
+            "title": "Trip Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trip_id",
+          "channel",
+          "consent_id"
+        ],
+        "title": "CreateAlertSubscriptionRequest",
+        "type": "object"
+      },
+      "CreateAssessmentRequest": {
+        "additionalProperties": false,
+        "description": "What a client may say when starting an assessment.\n\nEverything is optional and none of it describes the journey: the journey comes from the stored\ntrip. A client cannot assess one trip while claiming another, because the trip id is in the\npath and the ownership check is a repository query.",
+        "properties": {
+          "avoid_areas": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 32,
+            "title": "Avoid Areas",
+            "type": "array"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "live_location_consent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Location Consent Id"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "maxLength": 35,
+                "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Question"
+          }
+        },
+        "title": "CreateAssessmentRequest",
+        "type": "object"
+      },
+      "CreateTripRequest": {
+        "additionalProperties": false,
+        "description": "A new trip.\n\n`extra=\"forbid\"`, because an unrecognised field on input is a client bug or an attack, and\nignoring it hides both. A client that sends `revision` or `selected_route_id` is told so\nrather than having it quietly dropped — both are the server's to set.",
+        "properties": {
+          "departure_time": {
+            "format": "date-time",
+            "title": "Departure Time",
+            "type": "string"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/TravelPreference"
+          },
+          "return_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Time"
+          },
+          "timezone": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "travel_modes": {
+            "items": {
+              "enum": [
+                "FLIGHT",
+                "TRAIN",
+                "BUS",
+                "CAR",
+                "WALK",
+                "BICYCLE",
+                "MULTIMODAL"
+              ],
+              "type": "string"
+            },
+            "maxItems": 7,
+            "minItems": 1,
+            "title": "Travel Modes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "origin",
+          "destination",
+          "departure_time",
+          "timezone",
+          "travel_modes"
+        ],
+        "title": "CreateTripRequest",
+        "type": "object"
+      },
+      "DataResponse_AlertSubscriptionModel_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AlertSubscriptionModel"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "DataResponse[AlertSubscriptionModel]",
+        "type": "object"
+      },
+      "DataResponse_ApplyRouteData_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ApplyRouteData"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "DataResponse[ApplyRouteData]",
+        "type": "object"
+      },
+      "DataResponse_ConsentRecordModel_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ConsentRecordModel"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "DataResponse[ConsentRecordModel]",
+        "type": "object"
+      },
+      "DataResponse_DeletionStatusModel_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DeletionStatusModel"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "DataResponse[DeletionStatusModel]",
+        "type": "object"
+      },
+      "DataResponse_EmergencyProfileResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/EmergencyProfileResponse"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "DataResponse[EmergencyProfileResponse]",
+        "type": "object"
+      },
+      "DataResponse_FeedbackEventModel_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FeedbackEventModel"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "DataResponse[FeedbackEventModel]",
+        "type": "object"
+      },
+      "DataResponse_RecommendationResponseModel_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RecommendationResponseModel"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "DataResponse[RecommendationResponseModel]",
+        "type": "object"
+      },
+      "DataResponse_RunRefModel_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RunRefModel"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "DataResponse[RunRefModel]",
+        "type": "object"
+      },
+      "DataResponse_RunStateModel_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RunStateModel"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "DataResponse[RunStateModel]",
+        "type": "object"
+      },
+      "DataResponse_TripModel_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TripModel"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "DataResponse[TripModel]",
+        "type": "object"
+      },
+      "DataResponse_UserProfileModel_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UserProfileModel"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "DataResponse[UserProfileModel]",
+        "type": "object"
+      },
+      "DataResponse_list_EmergencyPoiModel__": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/EmergencyPoiModel"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "DataResponse[list[EmergencyPoiModel]]",
+        "type": "object"
+      },
+      "DataResponse_list_OfficialContactModel__": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/OfficialContactModel"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ],
+        "title": "DataResponse[list[OfficialContactModel]]",
+        "type": "object"
+      },
+      "DegradedService": {
+        "description": "A dependency that answered late, partially or not at all.\n\nReported rather than hidden: a user deciding whether to travel needs to know that the answer\nwas assembled with something missing.",
+        "properties": {
+          "reason": {
+            "enum": [
+              "TIMEOUT",
+              "UNAVAILABLE",
+              "RATE_LIMITED",
+              "STALE_DATA",
+              "PARTIAL_COVERAGE",
+              "NOT_CONFIGURED",
+              "SCHEMA_MISMATCH"
+            ],
+            "title": "Reason",
+            "type": "string"
+          },
+          "retrying": {
+            "default": false,
+            "title": "Retrying",
+            "type": "boolean"
+          },
+          "service": {
+            "maxLength": 64,
+            "title": "Service",
+            "type": "string"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          }
+        },
+        "required": [
+          "service",
+          "reason"
+        ],
+        "title": "DegradedService",
+        "type": "object"
+      },
+      "DegradedServiceModel": {
+        "description": "One dependency that was not fully available while the run was in progress.",
+        "properties": {
+          "reason": {
+            "maxLength": 256,
+            "title": "Reason",
+            "type": "string"
+          },
+          "service": {
+            "maxLength": 64,
+            "title": "Service",
+            "type": "string"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          }
+        },
+        "required": [
+          "service",
+          "reason"
+        ],
+        "title": "DegradedServiceModel",
+        "type": "object"
+      },
+      "DeletionStatusModel": {
+        "description": "What a soft delete actually accomplished, and what is still outstanding.\n\nThe trip stops being visible immediately; the purge of everything hanging off it runs out of\nband. Saying `COMPLETED` when only the first half has happened would be the kind of reassurance\nthis project exists not to give.",
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "resource_id": {
+            "format": "uuid",
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PENDING",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "FAILED"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_id",
+          "status",
+          "requested_at"
+        ],
+        "title": "DeletionStatusModel",
+        "type": "object"
+      },
+      "EmergencyContactPerson": {
+        "additionalProperties": false,
+        "description": "Someone to call. Their details belong to them, not to the account holder.",
+        "properties": {
+          "locale": {
+            "anyOf": [
+              {
+                "maxLength": 35,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "name": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "maxLength": 32,
+            "minLength": 3,
+            "title": "Phone",
+            "type": "string"
+          },
+          "relationship": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relationship"
+          }
+        },
+        "required": [
+          "name",
+          "phone"
+        ],
+        "title": "EmergencyContactPerson",
+        "type": "object"
+      },
+      "EmergencyPoiModel": {
+        "description": "An emergency facility found near a confirmed position.",
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "location": {
+            "additionalProperties": true,
+            "title": "Location",
+            "type": "object"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "open_now": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open Now"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "poi_id": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Poi Id",
+            "type": "string"
+          },
+          "poi_type": {
+            "enum": [
+              "HOSPITAL",
+              "CLINIC",
+              "PHARMACY",
+              "POLICE",
+              "FIRE_STATION",
+              "EMBASSY",
+              "CONSULATE",
+              "SHELTER",
+              "DOCTOR",
+              "TOWNHALL",
+              "OTHER"
+            ],
+            "title": "Poi Type",
+            "type": "string"
+          },
+          "quality": {
+            "additionalProperties": true,
+            "title": "Quality",
+            "type": "object"
+          },
+          "source": {
+            "additionalProperties": true,
+            "title": "Source",
+            "type": "object"
+          }
+        },
+        "required": [
+          "poi_id",
+          "poi_type",
+          "name",
+          "location",
+          "distance_m",
+          "quality",
+          "source"
+        ],
+        "title": "EmergencyPoiModel",
+        "type": "object"
+      },
+      "EmergencyProfileBody": {
+        "additionalProperties": false,
+        "description": "The part a person writes. This is what gets sealed.",
+        "properties": {
+          "allergies": {
+            "items": {
+              "maxLength": 128,
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Allergies",
+            "type": "array"
+          },
+          "blood_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "A+",
+                  "A-",
+                  "B+",
+                  "B-",
+                  "AB+",
+                  "AB-",
+                  "O+",
+                  "O-",
+                  "UNKNOWN"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blood Type"
+          },
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/EmergencyContactPerson"
+            },
+            "maxItems": 8,
+            "title": "Contacts",
+            "type": "array"
+          },
+          "insurance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InsuranceRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "medical_notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medical Notes"
+          },
+          "medications": {
+            "items": {
+              "maxLength": 128,
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Medications",
+            "type": "array"
+          }
+        },
+        "title": "EmergencyProfileBody",
+        "type": "object"
+      },
+      "EmergencyProfileResponse": {
+        "additionalProperties": false,
+        "description": "What comes back to the owner, and to nobody else.",
+        "properties": {
+          "allergies": {
+            "items": {
+              "maxLength": 128,
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Allergies",
+            "type": "array"
+          },
+          "blood_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "A+",
+                  "A-",
+                  "B+",
+                  "B-",
+                  "AB+",
+                  "AB-",
+                  "O+",
+                  "O-",
+                  "UNKNOWN"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blood Type"
+          },
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/EmergencyContactPerson"
+            },
+            "maxItems": 8,
+            "title": "Contacts",
+            "type": "array"
+          },
+          "insurance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InsuranceRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "key_version": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which key version sealed this record. Echoed so a rotation is auditable from the outside; the key itself never leaves the process.",
+            "title": "Key Version"
+          },
+          "medical_notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medical Notes"
+          },
+          "medications": {
+            "items": {
+              "maxLength": 128,
+              "type": "string"
+            },
+            "maxItems": 32,
+            "title": "Medications",
+            "type": "array"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "updated_at"
+        ],
+        "title": "EmergencyProfileResponse",
+        "type": "object"
+      },
+      "FeedbackEventModel": {
+        "description": "An explicit feedback event recorded in the system.",
+        "properties": {
+          "category": {
+            "enum": [
+              "HELPFUL",
+              "INCORRECT",
+              "STALE",
+              "UNSAFE",
+              "ROUTE_ISSUE",
+              "SOURCE_ISSUE",
+              "OTHER"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "feedback_id": {
+            "format": "uuid",
+            "title": "Feedback Id",
+            "type": "string"
+          },
+          "recommendation_id": {
+            "format": "uuid",
+            "title": "Recommendation Id",
+            "type": "string"
+          },
+          "review_status": {
+            "enum": [
+              "NEW",
+              "TRIAGED",
+              "IN_REVIEW",
+              "RESOLVED",
+              "DISMISSED"
+            ],
+            "title": "Review Status",
+            "type": "string"
+          },
+          "safety_review_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Safety Review Id"
+          },
+          "text_redacted": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Redacted"
+          }
+        },
+        "required": [
+          "feedback_id",
+          "recommendation_id",
+          "category",
+          "review_status",
+          "created_at"
+        ],
+        "title": "FeedbackEventModel",
+        "type": "object"
+      },
+      "FeedbackRequest": {
+        "additionalProperties": false,
+        "description": "Explicit feedback submitted on a recommendation.",
+        "properties": {
+          "category": {
+            "enum": [
+              "HELPFUL",
+              "INCORRECT",
+              "STALE",
+              "UNSAFE",
+              "ROUTE_ISSUE",
+              "SOURCE_ISSUE",
+              "OTHER"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "recommendation_id": {
+            "format": "uuid",
+            "title": "Recommendation Id",
+            "type": "string"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "recommendation_id",
+          "category"
+        ],
+        "title": "FeedbackRequest",
+        "type": "object"
+      },
+      "FreshnessModel": {
+        "description": "When the underlying facts were observed and fetched.\n\n`fetched_at` is required and the other two are not: a provider that does not say when it\nobserved something still has to say when we asked it. A recommendation with no fetch time\ncannot be aged, and an answer that cannot be aged cannot be trusted to be current.",
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "fetched_at": {
+            "format": "date-time",
+            "title": "Fetched At",
+            "type": "string"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Observed At"
+          }
+        },
+        "required": [
+          "fetched_at"
+        ],
+        "title": "FreshnessModel",
+        "type": "object"
+      },
+      "GeoPoint": {
+        "additionalProperties": false,
+        "description": "A GeoJSON Point. Exactly two elements, `[longitude, latitude]`.",
+        "properties": {
+          "coordinates": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              }
+            ],
+            "title": "Coordinates",
+            "type": "array"
+          },
+          "type": {
+            "const": "Point",
+            "default": "Point",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "coordinates"
+        ],
+        "title": "GeoPoint",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthCheckModel": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "required",
+          "status",
+          "duration_ms"
+        ],
+        "title": "HealthCheckModel",
+        "type": "object"
+      },
+      "HealthLiveResponse": {
+        "properties": {
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "version"
+        ],
+        "title": "HealthLiveResponse",
+        "type": "object"
+      },
+      "HealthReadyResponse": {
+        "properties": {
+          "checked_at": {
+            "format": "date-time",
+            "title": "Checked At",
+            "type": "string"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/HealthCheckModel"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "checks",
+          "checked_at"
+        ],
+        "title": "HealthReadyResponse",
+        "type": "object"
+      },
+      "InsuranceRef": {
+        "additionalProperties": false,
+        "properties": {
+          "emergency_phone": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emergency Phone"
+          },
+          "policy_reference": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy Reference"
+          },
+          "provider_name": {
+            "maxLength": 256,
+            "title": "Provider Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_name"
+        ],
+        "title": "InsuranceRef",
+        "type": "object"
+      },
+      "ListResponse_ConversationModel_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationModel"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "page"
+        ],
+        "title": "ListResponse[ConversationModel]",
+        "type": "object"
+      },
+      "ListResponse_LocationRef_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/LocationRef"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "page"
+        ],
+        "title": "ListResponse[LocationRef]",
+        "type": "object"
+      },
+      "ListResponse_SafetyEventModel_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/SafetyEventModel"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "page"
+        ],
+        "title": "ListResponse[SafetyEventModel]",
+        "type": "object"
+      },
+      "ListResponse_TripModel_": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TripModel"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta"
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageMeta"
+          }
+        },
+        "required": [
+          "data",
+          "meta",
+          "page"
+        ],
+        "title": "ListResponse[TripModel]",
+        "type": "object"
+      },
+      "LocationRef": {
+        "additionalProperties": false,
+        "description": "A place resolved by a real geocoding provider, or a pin the user dropped.\n\n`confirmed_by_user` is set by the client after the traveller has seen the pin on the map. This\nservice never sets it true on the caller's behalf: the whole point is that a person looked.",
+        "properties": {
+          "admin1": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admin1"
+          },
+          "confirmed_by_user": {
+            "default": false,
+            "title": "Confirmed By User",
+            "type": "boolean"
+          },
+          "coordinates": {
+            "$ref": "#/components/schemas/GeoPoint"
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Z]{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
+          },
+          "display_name": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "place_id": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Id"
+          },
+          "provider": {
+            "pattern": "^[a-z][a-z0-9_]{1,63}$",
+            "title": "Provider",
+            "type": "string"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          }
+        },
+        "required": [
+          "display_name",
+          "coordinates",
+          "provider"
+        ],
+        "title": "LocationRef",
+        "type": "object"
+      },
+      "OfficialContactModel": {
+        "description": "A verified emergency number for a specific country or subdivision.",
+        "properties": {
+          "authority": {
+            "enum": [
+              "OFFICIAL",
+              "INTERGOVERNMENTAL",
+              "LICENSED_PROVIDER",
+              "COMMUNITY",
+              "UNKNOWN"
+            ],
+            "title": "Authority",
+            "type": "string"
+          },
+          "contact_id": {
+            "format": "uuid",
+            "title": "Contact Id",
+            "type": "string"
+          },
+          "country_code": {
+            "pattern": "^[A-Z]{2}$",
+            "title": "Country Code",
+            "type": "string"
+          },
+          "effective_at": {
+            "format": "date-time",
+            "title": "Effective At",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 256,
+            "title": "Label",
+            "type": "string"
+          },
+          "languages": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Languages",
+            "type": "array"
+          },
+          "phone": {
+            "maxLength": 32,
+            "minLength": 2,
+            "title": "Phone",
+            "type": "string"
+          },
+          "review_due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Due At"
+          },
+          "service_type": {
+            "enum": [
+              "GENERAL_EMERGENCY",
+              "POLICE",
+              "AMBULANCE",
+              "FIRE",
+              "TOURIST_POLICE",
+              "COAST_GUARD",
+              "POISON_CONTROL",
+              "EMBASSY",
+              "HOSPITAL",
+              "DISASTER_HOTLINE"
+            ],
+            "title": "Service Type",
+            "type": "string"
+          },
+          "source_url": {
+            "maxLength": 2048,
+            "title": "Source Url",
+            "type": "string"
+          },
+          "subdivision": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subdivision"
+          },
+          "verified_at": {
+            "format": "date-time",
+            "title": "Verified At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "contact_id",
+          "country_code",
+          "service_type",
+          "label",
+          "phone",
+          "source_url",
+          "authority",
+          "effective_at",
+          "verified_at"
+        ],
+        "title": "OfficialContactModel",
+        "type": "object"
+      },
+      "PageMeta": {
+        "description": "Opaque cursor pagination. Clients pass the cursor back; they never construct one.",
+        "properties": {
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cursor"
+          },
+          "has_more": {
+            "default": false,
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "title": "PageMeta",
+        "type": "object"
+      },
+      "RecommendationResponseModel": {
+        "additionalProperties": true,
+        "description": "The object module 08 returns and this service checks before acting on it.\n\nExtras are allowed rather than forbidden, and that is the one place this model is deliberately\nlenient. An added optional field is how the contract says a producer may evolve without a\nbreaking change; rejecting it would take a working system down on a compatible release. What is\n*not* lenient is the required set, the enums and the ranges — the things a wrong value would\nturn into a wrong verdict.",
+        "properties": {
+          "action_code": {
+            "enum": [
+              "NORMAL",
+              "CHANGE_ROUTE",
+              "DELAY",
+              "AVOID"
+            ],
+            "title": "Action Code",
+            "type": "string"
+          },
+          "alerts": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Alerts",
+            "type": "array"
+          },
+          "alternatives": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Alternatives",
+            "type": "array"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decision_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Id"
+          },
+          "degraded_services": {
+            "items": {
+              "$ref": "#/components/schemas/DegradedService"
+            },
+            "title": "Degraded Services",
+            "type": "array"
+          },
+          "emergency_instructions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Emergency Instructions",
+            "type": "array"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "freshness": {
+            "$ref": "#/components/schemas/FreshnessModel"
+          },
+          "immediate_actions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Immediate Actions",
+            "type": "array"
+          },
+          "limitations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "official_contacts": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Official Contacts",
+            "type": "array"
+          },
+          "primary_route": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Primary Route"
+          },
+          "reasons": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Reasons",
+            "type": "array"
+          },
+          "recommendation_id": {
+            "format": "uuid",
+            "title": "Recommendation Id",
+            "type": "string"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "risk_level": {
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "UNKNOWN"
+            ],
+            "title": "Risk Level",
+            "type": "string"
+          },
+          "short_summary": {
+            "maxLength": 1000,
+            "title": "Short Summary",
+            "type": "string"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
+          "sources": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "NEEDS_INPUT",
+              "COMPLETED",
+              "PARTIAL",
+              "FAILED",
+              "CANCELLED"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "trip_id": {
+            "format": "uuid",
+            "title": "Trip Id",
+            "type": "string"
+          },
+          "versions": {
+            "$ref": "#/components/schemas/ResponseVersionsModel"
+          }
+        },
+        "required": [
+          "recommendation_id",
+          "request_id",
+          "trip_id",
+          "status",
+          "action_code",
+          "risk_level",
+          "confidence",
+          "short_summary",
+          "reasons",
+          "sources",
+          "freshness",
+          "limitations",
+          "degraded_services",
+          "versions",
+          "created_at"
+        ],
+        "title": "RecommendationResponseModel",
+        "type": "object"
+      },
+      "ResponseMeta": {
+        "description": "Present on every response, success or failure.",
+        "properties": {
+          "contract_version": {
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Id"
+          },
+          "degraded_services": {
+            "items": {
+              "$ref": "#/components/schemas/DegradedService"
+            },
+            "title": "Degraded Services",
+            "type": "array"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "contract_version",
+          "generated_at"
+        ],
+        "title": "ResponseMeta",
+        "type": "object"
+      },
+      "ResponseVersionsModel": {
+        "description": "Which contract, policy, prompt and models produced this.\n\nOnly `contract` is required. The rest are null when the producing stage did not exist for a\ngiven answer, and they are what makes a past recommendation explainable after the models behind\nit have moved on.",
+        "properties": {
+          "contract": {
+            "maxLength": 32,
+            "title": "Contract",
+            "type": "string"
+          },
+          "knowledge_collection": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Knowledge Collection"
+          },
+          "llm_model": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Llm Model"
+          },
+          "policy": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Policy"
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt"
+          },
+          "risk_model": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Model"
+          }
+        },
+        "required": [
+          "contract"
+        ],
+        "title": "ResponseVersionsModel",
+        "type": "object"
+      },
+      "RunErrorModel": {
+        "description": "The `ErrorBody` shape, carried inside a run state rather than an HTTP error envelope.",
+        "properties": {
+          "code": {
+            "maxLength": 64,
+            "title": "Code",
+            "type": "string"
+          },
+          "field_errors": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Field Errors",
+            "type": "array"
+          },
+          "message": {
+            "maxLength": 512,
+            "title": "Message",
+            "type": "string"
+          },
+          "retry_after_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry After Seconds"
+          },
+          "retryable": {
+            "default": false,
+            "title": "Retryable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "RunErrorModel",
+        "type": "object"
+      },
+      "RunRefModel": {
+        "description": "Returned by every endpoint that starts asynchronous work.",
+        "properties": {
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "events_url": {
+            "maxLength": 512,
+            "title": "Events Url",
+            "type": "string"
+          },
+          "poll_url": {
+            "maxLength": 512,
+            "title": "Poll Url",
+            "type": "string"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "NEEDS_INPUT",
+              "COMPLETED",
+              "PARTIAL",
+              "FAILED",
+              "CANCELLED"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "trip_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trip Id"
+          }
+        },
+        "required": [
+          "request_id",
+          "status",
+          "events_url",
+          "poll_url",
+          "submitted_at"
+        ],
+        "title": "RunRefModel",
+        "type": "object"
+      },
+      "RunStateModel": {
+        "description": "Pollable state of a run.\n\nIt reports progress and where the result will appear. It never exposes the agent's reasoning,\nits prompts or a raw provider payload — those are not absent by accident, they are absent\nbecause this is the object a browser receives.",
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "degraded_services": {
+            "items": {
+              "$ref": "#/components/schemas/DegradedServiceModel"
+            },
+            "title": "Degraded Services",
+            "type": "array"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunErrorModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message_key": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "pattern": "^[a-z][a-z0-9_.]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Key"
+          },
+          "missing_fields": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Missing Fields",
+            "type": "array"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          },
+          "recommendation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendation Id"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "result_url": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Url"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "enum": [
+                  "VALIDATING",
+                  "FETCHING_EXTERNAL_DATA",
+                  "INTEGRATING_DATA",
+                  "ASSESSING_RISK",
+                  "RETRIEVING_GUIDANCE",
+                  "EVALUATING_ROUTES",
+                  "MAKING_DECISION",
+                  "EXPLAINING",
+                  "FORMATTING_RESPONSE"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "status": {
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "NEEDS_INPUT",
+              "COMPLETED",
+              "PARTIAL",
+              "FAILED",
+              "CANCELLED"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "trip_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trip Id"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "status",
+          "submitted_at",
+          "updated_at"
+        ],
+        "title": "RunStateModel",
+        "type": "object"
+      },
+      "SafetyEventModel": {
+        "description": "Map-sized summary of one hazard for the safety map.",
+        "properties": {
+          "detail_url": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail Url"
+          },
+          "event_id": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Event Id",
+            "type": "string"
+          },
+          "event_type": {
+            "enum": [
+              "EARTHQUAKE",
+              "CYCLONE",
+              "STORM",
+              "FLOOD",
+              "WILDFIRE",
+              "VOLCANO",
+              "LANDSLIDE",
+              "EXTREME_TEMPERATURE",
+              "HEALTH",
+              "TRANSPORT_CLOSURE",
+              "OTHER"
+            ],
+            "title": "Event Type",
+            "type": "string"
+          },
+          "geometry": {
+            "additionalProperties": true,
+            "title": "Geometry",
+            "type": "object"
+          },
+          "layer": {
+            "enum": [
+              "WEATHER",
+              "DISASTER",
+              "TRANSPORT",
+              "OFFICIAL_ALERT"
+            ],
+            "title": "Layer",
+            "type": "string"
+          },
+          "official": {
+            "title": "Official",
+            "type": "boolean"
+          },
+          "quality": {
+            "additionalProperties": true,
+            "title": "Quality",
+            "type": "object"
+          },
+          "severity": {
+            "enum": [
+              "INFO",
+              "MINOR",
+              "MODERATE",
+              "SEVERE",
+              "EXTREME",
+              "UNKNOWN"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "source": {
+            "additionalProperties": true,
+            "title": "Source",
+            "type": "object"
+          },
+          "title": {
+            "maxLength": 512,
+            "title": "Title",
+            "type": "string"
+          },
+          "valid_from": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          }
+        },
+        "required": [
+          "event_id",
+          "layer",
+          "event_type",
+          "title",
+          "severity",
+          "geometry",
+          "official",
+          "valid_from",
+          "valid_to",
+          "quality",
+          "source"
+        ],
+        "title": "SafetyEventModel",
+        "type": "object"
+      },
+      "TravelPreference": {
+        "additionalProperties": false,
+        "description": "How the traveller would like options ranked.\n\nPreferences rank acceptable options; they never make an unacceptable one acceptable. Nothing\nhere can clear a closure or lower a risk level — that is a property of where these values are\nread, and it is stated in the contract so no downstream module treats them as an override.",
+        "properties": {
+          "accessibility": {
+            "items": {
+              "enum": [
+                "STEP_FREE",
+                "WHEELCHAIR",
+                "LOW_FLOOR_VEHICLE",
+                "AVOID_STAIRS",
+                "ASSISTANCE_REQUIRED",
+                "VISUAL_IMPAIRMENT",
+                "HEARING_IMPAIRMENT"
+              ],
+              "type": "string"
+            },
+            "maxItems": 16,
+            "title": "Accessibility",
+            "type": "array"
+          },
+          "avoid_tolls": {
+            "default": false,
+            "title": "Avoid Tolls",
+            "type": "boolean"
+          },
+          "max_extra_duration_minutes": {
+            "anyOf": [
+              {
+                "maximum": 1440.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": 90,
+            "title": "Max Extra Duration Minutes"
+          },
+          "prefer_lower_cost": {
+            "default": false,
+            "title": "Prefer Lower Cost",
+            "type": "boolean"
+          },
+          "prefer_lower_emissions": {
+            "default": false,
+            "title": "Prefer Lower Emissions",
+            "type": "boolean"
+          },
+          "prefer_safer_route": {
+            "default": true,
+            "title": "Prefer Safer Route",
+            "type": "boolean"
+          }
+        },
+        "title": "TravelPreference",
+        "type": "object"
+      },
+      "TripModel": {
+        "description": "A trip as it appears in a response.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "departure_time": {
+            "format": "date-time",
+            "title": "Departure Time",
+            "type": "string"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "latest_request_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Request Id"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/TravelPreference"
+          },
+          "previous_selected_route_id": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:,+@/=-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Selected Route Id"
+          },
+          "return_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Time"
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "selected_route_id": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:,+@/=-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected Route Id"
+          },
+          "status": {
+            "enum": [
+              "DRAFT",
+              "PLANNED",
+              "ACTIVE",
+              "COMPLETED",
+              "CANCELLED",
+              "DELETED"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "travel_modes": {
+            "items": {
+              "enum": [
+                "FLIGHT",
+                "TRAIN",
+                "BUS",
+                "CAR",
+                "WALK",
+                "BICYCLE",
+                "MULTIMODAL"
+              ],
+              "type": "string"
+            },
+            "maxItems": 7,
+            "minItems": 1,
+            "title": "Travel Modes",
+            "type": "array"
+          },
+          "trip_id": {
+            "format": "uuid",
+            "title": "Trip Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trip_id",
+          "revision",
+          "origin",
+          "destination",
+          "departure_time",
+          "timezone",
+          "travel_modes",
+          "preferences",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "TripModel",
+        "type": "object"
+      },
+      "UpdateProfileRequest": {
+        "additionalProperties": false,
+        "description": "What a person may change about their own profile.\n\nIdentity itself is not here: name and e-mail belong to Keycloak, and a second editable copy\nwould be a second thing to keep correct and to delete. Consent is not here either — it goes\nthrough `/api/v1/consents`, where each decision keeps its own policy version.\n\n`extra=\"forbid\"` so a typo is a 400 rather than a change the caller thinks happened.",
+        "properties": {
+          "home_country_code": {
+            "anyOf": [
+              {
+                "maxLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Country Code"
+          },
+          "locale": {
+            "anyOf": [
+              {
+                "maxLength": 35,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locale"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          }
+        },
+        "title": "UpdateProfileRequest",
+        "type": "object"
+      },
+      "UpdateTripRequest": {
+        "additionalProperties": false,
+        "description": "Changes to an existing trip.\n\nOnly the fields actually sent are applied, so a PATCH that omits `title` does not clear it.\n`revision`, `selected_route_id` and `latest_request_id` are absent on purpose: the first is the\nconcurrency token, and the other two are set by apply-route and by starting an assessment,\nafter the server has checked what the client is asking for.",
+        "properties": {
+          "departure_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Departure Time"
+          },
+          "destination": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocationRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocationRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TravelPreference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "return_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Time"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "DRAFT",
+                  "PLANNED",
+                  "ACTIVE",
+                  "COMPLETED",
+                  "CANCELLED"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "travel_modes": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "FLIGHT",
+                    "TRAIN",
+                    "BUS",
+                    "CAR",
+                    "WALK",
+                    "BICYCLE",
+                    "MULTIMODAL"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 7,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Travel Modes"
+          }
+        },
+        "title": "UpdateTripRequest",
+        "type": "object"
+      },
+      "UserProfileModel": {
+        "description": "The caller's own profile. Returned to its owner and to nobody else.",
+        "properties": {
+          "consents": {
+            "items": {
+              "$ref": "#/components/schemas/ConsentRecordModel"
+            },
+            "title": "Consents",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "has_emergency_profile": {
+            "default": false,
+            "title": "Has Emergency Profile",
+            "type": "boolean"
+          },
+          "home_country_code": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Z]{2}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Country Code"
+          },
+          "locale": {
+            "title": "Locale",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "locale",
+          "timezone",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "UserProfileModel",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Public trust boundary for the Smart Travel Assistant.\n\nThe browser reaches `web` and `api` and nothing else. Authentication is an OIDC access token;\nownership is resolved from that token and never from a body field. Anything safety-relevant carries\nits source and freshness, and when a dependency is unavailable the response says so rather than\nsubstituting a plausible value.\n",
+    "title": "Smart Travel Assistant — Public API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/alert-subscriptions": {
+      "post": {
+        "description": "Register an alert subscription for a trip.",
+        "operationId": "create_alert_subscription_api_v1_alert_subscriptions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAlertSubscriptionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_AlertSubscriptionModel_"
+                }
+              }
+            },
+            "description": "Subscription created."
+          },
+          "400": {
+            "description": "Validation error."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "Required ALERT_NOTIFICATION consent missing or revoked."
+          },
+          "404": {
+            "description": "Trip not found or not owned by caller."
+          },
+          "409": {
+            "description": "Idempotency conflict."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Opt in to live alerts for a trip",
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
+    "/api/v1/alert-subscriptions/{subscription_id}": {
+      "delete": {
+        "description": "Cancel an alert subscription.",
+        "operationId": "delete_alert_subscription_api_v1_alert_subscriptions__subscription_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "subscription_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Subscription Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Subscription cancelled. Delivery stops immediately."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "404": {
+            "description": "Subscription not found."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Opt out of live alerts",
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
+    "/api/v1/consents": {
+      "post": {
+        "description": "Record a decision, superseding whatever stood before it for that type.\n\nThe expiry the caller asks for is a ceiling request, not an instruction: location grants are\nclamped to the configured maximum, because a location grant that outlives the errand it was\ngiven for is indistinguishable from tracking.",
+        "operationId": "record_consent_api_v1_consents_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_ConsentRecordModel_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "A field failed validation."
+          },
+          "401": {
+            "description": "No token, or a token that failed verification."
+          },
+          "403": {
+            "description": "The token is valid but does not carry the `travel` scope."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Grant or withdraw a consent",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/conversations": {
+      "get": {
+        "description": "List conversation summaries owned by the authenticated user.",
+        "operationId": "list_conversations_api_v1_conversations_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_ConversationModel_"
+                }
+              }
+            },
+            "description": "Conversations, most recently updated first."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List the caller's recent assistant threads",
+        "tags": [
+          "conversations"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/messages": {
+      "post": {
+        "description": "Continue a conversation thread with a new turn and trigger a fresh assessment.",
+        "operationId": "post_conversation_message_api_v1_conversations__conversation_id__messages_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_RunRefModel_"
+                }
+              }
+            },
+            "description": "Follow-up accepted."
+          },
+          "400": {
+            "description": "Validation error."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "404": {
+            "description": "Trip or conversation not found."
+          },
+          "409": {
+            "description": "Idempotency conflict."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Ask a follow-up question",
+        "tags": [
+          "conversations"
+        ]
+      }
+    },
+    "/api/v1/emergency/contacts": {
+      "get": {
+        "description": "Return reviewed emergency numbers for a location.",
+        "operationId": "get_emergency_contacts_api_v1_emergency_contacts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "latitude",
+            "required": true,
+            "schema": {
+              "maximum": 90.0,
+              "minimum": -90.0,
+              "title": "Latitude",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "longitude",
+            "required": true,
+            "schema": {
+              "maximum": 180.0,
+              "minimum": -180.0,
+              "title": "Longitude",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Locale"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_list_OfficialContactModel__"
+                }
+              }
+            },
+            "description": "Verified official contacts list."
+          },
+          "400": {
+            "description": "Validation error (invalid coordinates)."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "Dependency unavailable."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Verified emergency numbers for a location",
+        "tags": [
+          "emergency"
+        ]
+      }
+    },
+    "/api/v1/emergency/nearby": {
+      "get": {
+        "description": "Search nearby facilities using module 04, enforcing active location consent.",
+        "operationId": "get_emergency_nearby_api_v1_emergency_nearby_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "latitude",
+            "required": true,
+            "schema": {
+              "maximum": 90.0,
+              "minimum": -90.0,
+              "title": "Latitude",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "longitude",
+            "required": true,
+            "schema": {
+              "maximum": 180.0,
+              "minimum": -180.0,
+              "title": "Longitude",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": true,
+            "schema": {
+              "enum": [
+                "HOSPITAL",
+                "CLINIC",
+                "PHARMACY",
+                "POLICE",
+                "FIRE_STATION",
+                "EMBASSY",
+                "CONSULATE",
+                "SHELTER",
+                "DOCTOR",
+                "TOWNHALL",
+                "OTHER"
+              ],
+              "title": "Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "radius_m",
+            "required": false,
+            "schema": {
+              "default": 5000,
+              "maximum": 50000,
+              "minimum": 100,
+              "title": "Radius M",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_list_EmergencyPoiModel__"
+                }
+              }
+            },
+            "description": "Facilities found, nearest first."
+          },
+          "400": {
+            "description": "Validation error."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "403": {
+            "description": "No active location consent."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "Places provider unavailable."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Nearby hospitals, police stations or embassies",
+        "tags": [
+          "emergency"
+        ]
+      }
+    },
+    "/api/v1/feedback": {
+      "post": {
+        "description": "Submit explicit feedback on a recommendation.",
+        "operationId": "create_feedback_api_v1_feedback_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_FeedbackEventModel_"
+                }
+              }
+            },
+            "description": "Feedback stored."
+          },
+          "400": {
+            "description": "Validation error."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "404": {
+            "description": "Recommendation not found or not owned by caller."
+          },
+          "409": {
+            "description": "Idempotency conflict."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Submit explicit feedback on a recommendation",
+        "tags": [
+          "feedback"
+        ]
+      }
+    },
+    "/api/v1/locations/search": {
+      "get": {
+        "description": "Resolve free text to candidate places.\n\nThe language defaults to the caller's stored profile locale, so someone who set their account\nto Thai gets Thai place names without the client having to remember to ask for them.\n\nIf the caller disconnects, the `await` below is cancelled and the outbound request is cancelled\nwith it — the provider quota is not spent finishing an answer nobody will read.",
+        "operationId": "search_locations_api_v1_locations_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 2,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "locale",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 35,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Locale"
+            }
+          },
+          {
+            "in": "query",
+            "name": "country_code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 2,
+                  "minLength": 2,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Country Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_LocationRef_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "A query parameter failed validation."
+          },
+          "401": {
+            "description": "No token, or a token that failed verification."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "No geocoding provider is configured or reachable."
+          },
+          "504": {
+            "description": "The geocoding provider did not answer in time."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Search places with a real geocoding provider",
+        "tags": [
+          "locations"
+        ]
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "description": "Read the profile belonging to the caller.\n\nThe row is created on first sign-in by the authentication dependency, so a 404 here means the\naccount was deleted between authenticating and reading.",
+        "operationId": "get_me_api_v1_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_UserProfileModel_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No token, or a token that failed verification."
+          },
+          "403": {
+            "description": "The token is valid but does not carry the `travel` scope."
+          },
+          "404": {
+            "description": "The account was deleted."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get the caller's profile and consent summary",
+        "tags": [
+          "identity"
+        ]
+      },
+      "patch": {
+        "description": "Change presentation preferences.\n\nOnly the fields actually sent are applied: a PATCH that omits `timezone` must not reset it.\nAn empty body is accepted and changes nothing, which is what a client that computed no diff\nwill send.",
+        "operationId": "update_me_api_v1_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_UserProfileModel_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "A field failed validation."
+          },
+          "401": {
+            "description": "No token, or a token that failed verification."
+          },
+          "403": {
+            "description": "The token is valid but does not carry the `travel` scope."
+          },
+          "404": {
+            "description": "The account was deleted."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update locale, timezone or home country",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/me/emergency-profile": {
+      "delete": {
+        "description": "Remove the profile outright.\n\nA hard delete, unlike everything else in this service: there is nothing here worth keeping for\naudit that the audit log does not already record, and the row is somebody's medical details.\n\nNo consent check. Withdrawing data must never be harder than providing it, so this works even\nwhen the consent that authorised storage has already been withdrawn. 204 either way, so a\nclient retrying after a timeout gets the same answer as the first attempt.",
+        "operationId": "delete_emergency_profile_api_v1_me_emergency_profile_delete",
+        "responses": {
+          "204": {
+            "description": "Deleted, or there was nothing to delete."
+          },
+          "401": {
+            "description": "No token, or a token that failed verification."
+          },
+          "403": {
+            "description": "The token is valid but does not carry the `travel` scope."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Delete the caller's emergency profile",
+        "tags": [
+          "identity"
+        ]
+      },
+      "get": {
+        "description": "Open the caller's emergency profile.\n\nRequires the consent that authorised storing it in the first place. If that consent has been\nwithdrawn the row is retained for the retention window but is not returned: withdrawing consent\nhas to mean something before the purge job runs.",
+        "operationId": "get_emergency_profile_api_v1_me_emergency_profile_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_EmergencyProfileResponse_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No token, or a token that failed verification."
+          },
+          "403": {
+            "description": "The `EMERGENCY_PROFILE` consent is not in force."
+          },
+          "404": {
+            "description": "No emergency profile has been stored."
+          },
+          "503": {
+            "description": "Encryption is not configured, so the profile cannot be opened."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Read the caller's emergency profile",
+        "tags": [
+          "identity"
+        ]
+      },
+      "put": {
+        "description": "Replace the whole profile.\n\nSealed before it reaches the database, under a key that does not live there. Replace rather\nthan merge, and one row per user, so an earlier version of someone's medical details is never\nleft behind.",
+        "operationId": "put_emergency_profile_api_v1_me_emergency_profile_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmergencyProfileBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_EmergencyProfileResponse_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "A field failed validation."
+          },
+          "401": {
+            "description": "No token, or a token that failed verification."
+          },
+          "403": {
+            "description": "The `EMERGENCY_PROFILE` consent is not in force."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "Encryption is not configured, so the profile cannot be stored."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create or replace the caller's emergency profile",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/api/v1/recommendations/{recommendation_id}": {
+      "get": {
+        "description": "The API revalidates the stored response against the contract schema before returning it. A result that no longer validates is reported as an error rather than rendered.",
+        "operationId": "get_recommendation_api_v1_recommendations__recommendation_id__get",
+        "parameters": [
+          {
+            "description": "Recommendation ID",
+            "in": "path",
+            "name": "recommendation_id",
+            "required": true,
+            "schema": {
+              "description": "Recommendation ID",
+              "format": "uuid",
+              "title": "Recommendation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_RecommendationResponseModel_"
+                }
+              }
+            },
+            "description": "The recommendation."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "404": {
+            "description": "Recommendation not found or not owned by caller."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "502": {
+            "description": "The stored response failed contract validation and was withheld."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get a finished assessment result",
+        "tags": [
+          "recommendations"
+        ]
+      }
+    },
+    "/api/v1/runs/{request_id}": {
+      "delete": {
+        "description": "Stop work that is still outstanding.\n\n409 when the run already reached a terminal state: there is nothing to cancel, and reporting\nsuccess would tell the traveller they stopped something that had in fact already completed.",
+        "operationId": "cancel_run_api_v1_runs__request_id__delete",
+        "parameters": [
+          {
+            "description": "The run to follow.",
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "description": "The run to follow.",
+              "format": "uuid",
+              "title": "Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_RunStateModel_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Cancel an assessment run",
+        "tags": [
+          "assessments"
+        ]
+      },
+      "get": {
+        "description": "Current state of a run, refreshed from the agent when it is still in flight.\n\nThe fallback for clients that cannot hold an SSE connection open — and the source of truth\nwhen they can, because the stream reports progress while this reports the record.",
+        "operationId": "get_run_api_v1_runs__request_id__get",
+        "parameters": [
+          {
+            "description": "The run to follow.",
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "description": "The run to follow.",
+              "format": "uuid",
+              "title": "Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_RunStateModel_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Poll an assessment run",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
+    "/api/v1/runs/{request_id}/events": {
+      "get": {
+        "description": "Server-sent events for one run.\n\nOwnership is checked **before** the stream opens, while there is still a status code to answer\nwith. Once the response has started, an error can only be an event, and a browser's\n`EventSource` would silently retry it for ever.",
+        "operationId": "stream_run_events_api_v1_runs__request_id__events_get",
+        "parameters": [
+          {
+            "description": "The run to follow.",
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "description": "The run to follow.",
+              "format": "uuid",
+              "title": "Request Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Last-Event-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last-Event-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Follow an assessment run over SSE",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
+    "/api/v1/safety/events": {
+      "get": {
+        "description": "Fetch safety events for the map viewport.",
+        "operationId": "query_safety_events_api_v1_safety_events_get",
+        "parameters": [
+          {
+            "description": "`west,south,east,north` in degrees.",
+            "in": "query",
+            "name": "bbox",
+            "required": true,
+            "schema": {
+              "description": "`west,south,east,north` in degrees.",
+              "pattern": "^-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?$",
+              "title": "Bbox",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Instant to evaluate, defaulting to now.",
+            "in": "query",
+            "name": "at",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Instant to evaluate, defaulting to now.",
+              "title": "At"
+            }
+          },
+          {
+            "description": "Layers to include.",
+            "in": "query",
+            "name": "layers",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "enum": [
+                      "WEATHER",
+                      "DISASTER",
+                      "TRANSPORT",
+                      "OFFICIAL_ALERT"
+                    ],
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Layers to include.",
+              "title": "Layers"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_SafetyEventModel_"
+                }
+              }
+            },
+            "description": "Hazards intersecting the viewport and instant."
+          },
+          "400": {
+            "description": "Validation error (invalid bbox coordinates)."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "External data provider unavailable."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Query safety events in viewport",
+        "tags": [
+          "safety"
+        ]
+      }
+    },
+    "/api/v1/trips": {
+      "get": {
+        "description": "The caller's trips, newest departure first.\n\nSoft-deleted trips are excluded unless `status=DELETED` is asked for explicitly, so a person\ncan still see what they removed while it is inside the retention window.",
+        "operationId": "list_trips_api_v1_trips_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Limit"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListResponse_TripModel_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "The cursor or a query parameter is invalid."
+          },
+          "401": {
+            "description": "No token, or a token that failed verification."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "List the caller's trips",
+        "tags": [
+          "trips"
+        ]
+      },
+      "post": {
+        "description": "Save a journey.\n\nBoth endpoints must be locations the traveller confirmed on the map, because the coordinates\ndecide which weather, closures and alerts are fetched for this trip. A pin nobody looked at can\nbe the wrong city with the right name, and nothing downstream would notice.\n\nWith an `Idempotency-Key`, a retry after a network timeout returns the trip the first attempt\ncreated instead of creating a second one.",
+        "operationId": "create_trip_api_v1_trips_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTripRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_TripModel_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "A field failed validation."
+          },
+          "401": {
+            "description": "No token, or a token that failed verification."
+          },
+          "409": {
+            "description": "The idempotency key was reused with a different payload."
+          },
+          "422": {
+            "description": "No provider coverage for a selected travel mode."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Create a trip",
+        "tags": [
+          "trips"
+        ]
+      }
+    },
+    "/api/v1/trips/{trip_id}": {
+      "delete": {
+        "description": "Remove a trip from the caller's view and schedule the purge of its child data.\n\nThe response reports `IN_PROGRESS`, not `COMPLETED`. The trip stops being visible immediately,\nbut assessments and recommendations produced for it live in other services' schemas and are\nremoved by the retention worker. Reporting completion before that has happened would be a\nreassurance this service cannot honestly give.",
+        "operationId": "delete_trip_api_v1_trips__trip_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trip_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Trip Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_DeletionStatusModel_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No token, or a token that failed verification."
+          },
+          "404": {
+            "description": "No such trip for this caller."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Soft-delete a trip",
+        "tags": [
+          "trips"
+        ]
+      },
+      "get": {
+        "description": "Read a trip, with the `ETag` a later update must quote back.",
+        "operationId": "get_trip_api_v1_trips__trip_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trip_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Trip Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_TripModel_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "No token, or a token that failed verification."
+          },
+          "404": {
+            "description": "No such trip for this caller."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Get one trip",
+        "tags": [
+          "trips"
+        ]
+      },
+      "patch": {
+        "description": "Change a trip, if it is still at the revision the client last read.\n\nThe precondition is mandatory. Without it, two tabs editing the same trip would both succeed\nand the second would erase the first's change with no sign that anything was lost.",
+        "operationId": "update_trip_api_v1_trips__trip_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trip_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Trip Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTripRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_TripModel_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "A field failed validation."
+          },
+          "401": {
+            "description": "No token, or a token that failed verification."
+          },
+          "404": {
+            "description": "No such trip for this caller."
+          },
+          "412": {
+            "description": "The If-Match revision is stale; re-read and retry."
+          },
+          "422": {
+            "description": "No provider coverage for a selected travel mode."
+          },
+          "428": {
+            "description": "If-Match is required and was not supplied."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Update a trip",
+        "tags": [
+          "trips"
+        ]
+      }
+    },
+    "/api/v1/trips/{trip_id}/apply-route": {
+      "post": {
+        "description": "Apply a route to the trip and trigger a fresh assessment.",
+        "operationId": "apply_route_api_v1_trips__trip_id__apply_route_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trip_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Trip Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "If-Match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyRouteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_ApplyRouteData_"
+                }
+              }
+            },
+            "description": "Route applied; a new assessment was started for the new revision."
+          },
+          "400": {
+            "description": "Validation error."
+          },
+          "401": {
+            "description": "Unauthorized."
+          },
+          "404": {
+            "description": "Trip or recommendation not found."
+          },
+          "409": {
+            "description": "Idempotency conflict."
+          },
+          "412": {
+            "description": "Revision mismatch (If-Match precondition failed)."
+          },
+          "422": {
+            "description": "Route is closed or required risk acknowledgement is missing."
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Apply a route to the trip",
+        "tags": [
+          "trips",
+          "recommendations"
+        ]
+      }
+    },
+    "/api/v1/trips/{trip_id}/assessments": {
+      "post": {
+        "description": "Accept the work and return immediately.\n\n202, never 200: nothing has been assessed when this returns. The response carries the two URLs\nthe client follows — the stream and the poll — and the run itself proceeds asynchronously.",
+        "operationId": "create_assessment_api_v1_trips__trip_id__assessments_post",
+        "parameters": [
+          {
+            "description": "The trip to assess.",
+            "in": "path",
+            "name": "trip_id",
+            "required": true,
+            "schema": {
+              "description": "The trip to assess.",
+              "format": "uuid",
+              "title": "Trip Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CreateAssessmentRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataResponse_RunRefModel_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "summary": "Start a safety assessment for this trip",
+        "tags": [
+          "assessments"
+        ]
+      }
+    },
+    "/health/live": {
+      "get": {
+        "description": "True whenever the process is running.\n\nTouches no dependency on purpose: a database outage must not make the orchestrator restart\ncontainers that are working perfectly well.",
+        "operationId": "health_live_health_live_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthLiveResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Process liveness",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "description": "Whether this instance can serve traffic right now.\n\n503 when a required dependency is down, so the instance leaves rotation rather than answering\nrequests it cannot honour. Optional dependencies are reported but do not fail the probe.",
+        "operationId": "health_ready_health_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthReadyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Dependency readiness",
+        "tags": [
+          "health"
+        ]
+      }
+    }
+  }
+}
