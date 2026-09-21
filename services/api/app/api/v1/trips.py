@@ -28,13 +28,16 @@ from sqlalchemy.exc import IntegrityError
 from app.api.responses import data_response, list_response
 from app.api.v1.me import TravelPrincipal
 from app.auth.dependencies import DbSession
-from app.db.models.travel import Trip
+from app.clients.agent import AgentClient
+from app.clients.recommendation import RecommendationClient
+from app.db.models.travel import AssessmentRequest, Trip
 from app.domain import trip as rules
 from app.errors.codes import FieldErrorCode
 from app.errors.exceptions import (
     FieldError,
     IdempotencyConflict,
     NotFound,
+    PolicyValidationFailed,
     PreconditionFailed,
     PreconditionRequired,
     UnsupportedCoverage,
@@ -42,7 +45,12 @@ from app.errors.exceptions import (
 )
 from app.observability.logging import get_logger
 from app.repositories import audit, idempotency, trips
+from app.repositories import requests as requests_repo
 from app.schemas.envelope import DataResponse, ListResponse, PageMeta
+from app.schemas.recommendation import (
+    ApplyRouteData,
+    ApplyRouteRequest,
+)
 from app.schemas.trip import (
     CreateTripRequest,
     DeletionStatusModel,
@@ -50,6 +58,7 @@ from app.schemas.trip import (
     UpdateTripRequest,
 )
 from app.security.rate_limit import rate_limit
+from app.services import runs as orchestrator
 
 logger = get_logger(__name__)
 
@@ -60,6 +69,7 @@ router = APIRouter(
 )
 
 CREATE_TRIP_OPERATION = "createTrip"
+APPLY_ROUTE_OPERATION = "applyRoute"
 
 
 def _to_model(row: Trip) -> TripModel:
@@ -625,5 +635,262 @@ async def delete_trip(
             status="IN_PROGRESS",
             requested_at=deleted.deleted_at or rules.now_utc(),
             completed_at=None,
+        ),
+    )
+
+
+@router.post(
+    "/{trip_id}/apply-route",
+    tags=["recommendations"],
+    summary="Apply a route to the trip",
+    response_model=DataResponse[ApplyRouteData],
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        202: {"description": "Route applied; a new assessment was started for the new revision."},
+        400: {"description": "Validation error."},
+        401: {"description": "Unauthorized."},
+        404: {"description": "Trip or recommendation not found."},
+        409: {"description": "Idempotency conflict."},
+        412: {"description": "Revision mismatch (If-Match precondition failed)."},
+        422: {"description": "Route is closed or required risk acknowledgement is missing."},
+    },
+)
+async def apply_route(
+    request: Request,
+    response: Response,
+    session: DbSession,
+    principal: TravelPrincipal,
+    trip_id: Annotated[uuid.UUID, Path()],
+    payload_body: ApplyRouteRequest,
+    if_match: Annotated[str | None, Header(alias="If-Match")] = None,
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> DataResponse[ApplyRouteData]:
+    """Apply a route to the trip and trigger a fresh assessment."""
+    from sqlalchemy import select
+
+    from app.repositories import user_profiles
+
+    trip = await trips.get_owned(session, owner_id=principal.user_id, trip_id=trip_id)
+    if trip is None:
+        raise NotFound
+
+    # Concurrency check
+    if if_match is None:
+        raise PreconditionRequired
+    revision = rules.revision_from_if_match(if_match)
+    if revision is None or revision != trip.revision:
+        raise PreconditionFailed
+
+    idem_payload = payload_body.model_dump(mode="json")
+    if idempotency_key is not None:
+        try:
+            existing_id = await idempotency.lookup(
+                session,
+                owner_id=principal.user_id,
+                key=idempotency_key,
+                operation=APPLY_ROUTE_OPERATION,
+                payload=idem_payload,
+            )
+        except idempotency.KeyConflict:
+            raise IdempotencyConflict from None
+
+        if existing_id is not None:
+            existing_req = await requests_repo.get_owned(
+                session, owner_id=principal.user_id, request_id=existing_id
+            )
+            if existing_req is not None:
+                response.status_code = status.HTTP_200_OK
+                response.headers["ETag"] = f'"{trip.revision}"'
+                return data_response(
+                    request,
+                    ApplyRouteData(
+                        trip=_to_model(trip),
+                        run=orchestrator.to_ref(existing_req),
+                    ),
+                )
+
+    # Validate recommendation ownership & presence
+    rec_stmt = (
+        select(AssessmentRequest)
+        .where(
+            AssessmentRequest.user_id == principal.user_id,
+            AssessmentRequest.recommendation_id == payload_body.recommendation_id,
+            AssessmentRequest.trip_id == trip.id,
+        )
+        .limit(1)
+    )
+    rec_res = await session.execute(rec_stmt)
+    req_row = rec_res.scalar_one_or_none()
+    if req_row is None:
+        raise NotFound
+
+    client = RecommendationClient(request.app.state.internal_http, request.app.state.settings)
+    rec = await client.fetch_validated(
+        payload_body.recommendation_id,
+        request_id=req_row.id,
+        trip_id=trip.id,
+    )
+
+    # Locate route in recommendation
+    candidates: list[dict[str, Any]] = []
+    if rec.primary_route is not None:
+        candidates.append(rec.primary_route)
+    candidates.extend(rec.alternatives)
+
+    target_route: dict[str, Any] | None = None
+    for cand in candidates:
+        if cand.get("route_id") == payload_body.route_id:
+            target_route = cand
+            break
+
+    if target_route is None:
+        raise ValidationFailed(
+            field_errors=[
+                FieldError(
+                    path="route_id",
+                    code=FieldErrorCode.UNSUPPORTED_VALUE,
+                    message="The specified route was not offered in this recommendation.",
+                )
+            ]
+        )
+
+    # Check official closure
+    exposure = target_route.get("exposure")
+    if exposure is not None and isinstance(exposure, dict) and exposure.get("closed") is True:
+        msg = "A route known to be closed cannot be applied even if risk is acknowledged."
+        raise PolicyValidationFailed(
+            msg,
+            field_errors=[
+                FieldError(
+                    path="route_id",
+                    code=FieldErrorCode.INCONSISTENT,
+                    message=msg,
+                )
+            ],
+        )
+
+    # Check risk acknowledgement
+    risk_level = target_route.get("risk_level")
+    if risk_level in ("MEDIUM", "HIGH", "CRITICAL") and not payload_body.risk_acknowledged:
+        msg = "Accepting a route with elevated risk requires explicit risk acknowledgement."
+        raise PolicyValidationFailed(
+            msg,
+            field_errors=[
+                FieldError(
+                    path="risk_acknowledged",
+                    code=FieldErrorCode.REQUIRED,
+                    message=msg,
+                )
+            ],
+        )
+
+    # Update trip
+    trip.previous_selected_route_id = trip.selected_route_id
+    trip.selected_route_id = payload_body.route_id
+    trip.revision += 1
+    trip.updated_at = rules.now_utc()
+
+    settings = request.app.state.settings
+    profile = await user_profiles.get_owned(session, owner_id=principal.user_id)
+    locale = profile.locale if profile is not None else "en-US"
+
+    agent_payload = orchestrator.normalise_input(
+        trip,
+        question=None,
+        locale=locale,
+        timezone=trip.timezone,
+        live_location_consent_id=None,
+        avoid_areas=[],
+        contract_version=settings.contract_version,
+    )
+
+    new_run_row = await requests_repo.create(
+        session,
+        owner_id=principal.user_id,
+        trip_id=trip.id,
+        conversation_id=None,
+        input_digest=orchestrator.input_digest(agent_payload),
+        contract_version=settings.contract_version,
+        locale=locale,
+        timezone=trip.timezone,
+    )
+    trip.latest_request_id = new_run_row.id
+
+    if idempotency_key is not None:
+        try:
+            await idempotency.record(
+                session,
+                owner_id=principal.user_id,
+                key=idempotency_key,
+                operation=APPLY_ROUTE_OPERATION,
+                payload=idem_payload,
+                resource_id=new_run_row.id,
+            )
+        except IntegrityError:
+            await session.rollback()
+            winner_id = await idempotency.lookup(
+                session,
+                owner_id=principal.user_id,
+                key=idempotency_key,
+                operation=APPLY_ROUTE_OPERATION,
+                payload=idem_payload,
+            )
+            if winner_id is not None:
+                winner = await requests_repo.get_owned(
+                    session, owner_id=principal.user_id, request_id=winner_id
+                )
+                if winner is not None:
+                    response.status_code = status.HTTP_200_OK
+                    response.headers["ETag"] = f'"{trip.revision}"'
+                    return data_response(
+                        request,
+                        ApplyRouteData(
+                            trip=_to_model(trip),
+                            run=orchestrator.to_ref(winner),
+                        ),
+                    )
+
+    await audit.write(
+        session,
+        user_id=principal.user_id,
+        action="trip.apply_route",
+        resource_type="trip",
+        resource_id=trip.id,
+        details={"route_id": payload_body.route_id, "revision": trip.revision},
+    )
+
+    await session.commit()
+    await session.refresh(new_run_row)
+
+    correlation_id = str(getattr(request.state, "correlation_id", "")) or None
+    redis = getattr(request.app.state, "redis", None)
+
+    if redis is not None:
+        await orchestrator.announce_accepted(
+            redis, settings, new_run_row, correlation_id=correlation_id
+        )
+
+        new_run_row = await orchestrator.start(
+            session,
+            redis,
+            settings,
+            row=new_run_row,
+            payload=agent_payload,
+            agent=AgentClient(request.app.state.internal_http, settings),
+            correlation_id=correlation_id,
+        )
+        await session.commit()
+        await session.refresh(new_run_row)
+
+    response.status_code = status.HTTP_202_ACCEPTED
+    response.headers["ETag"] = f'"{trip.revision}"'
+    response.headers["Location"] = orchestrator.poll_url(new_run_row.id)
+    response.headers["Cache-Control"] = "no-store"
+
+    return data_response(
+        request,
+        ApplyRouteData(
+            trip=_to_model(trip),
+            run=orchestrator.to_ref(new_run_row),
         ),
     )

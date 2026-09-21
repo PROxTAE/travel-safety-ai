@@ -23,6 +23,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.domain.run import RunStage, RunStatus
+from app.schemas.envelope import ResponseMeta
 
 #: Matches `primitives.schema.json#/$defs/MessageKey`: dotted lower-case identifiers.
 MessageKey = Annotated[str, Field(max_length=128, pattern=r"^[a-z][a-z0-9_.]*$")]
@@ -109,6 +110,20 @@ class RunStateModel(BaseModel):
     submitted_at: datetime
     updated_at: datetime
     completed_at: datetime | None = None
+
+
+class RunRefResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    data: RunRefModel
+    meta: ResponseMeta
+
+
+class RunStateResponse(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    data: RunStateModel
+    meta: ResponseMeta
 
 
 # --- SSE payloads -------------------------------------------------------------------------------

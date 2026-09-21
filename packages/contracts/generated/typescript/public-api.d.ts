@@ -590,7 +590,7 @@ export interface components {
              * @default false
              */
             risk_acknowledged?: boolean;
-            route_id: components["schemas"]["Uuid"];
+            route_id: components["schemas"]["RecordId"];
         };
         ApplyRouteResponse: {
             data: {

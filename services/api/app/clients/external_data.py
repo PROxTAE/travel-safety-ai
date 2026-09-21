@@ -18,6 +18,7 @@ from __future__ import annotations
 from typing import Any
 
 import httpx
+from fastapi import Request
 
 from app.errors.exceptions import DependencyTimeout, DependencyUnavailable
 from app.observability.logging import get_logger
@@ -25,6 +26,7 @@ from app.observability.metrics import (
     downstream_request_duration_seconds,
     downstream_request_errors_total,
 )
+from app.schemas.envelope import DegradedService
 from app.security.outbound import validate_outbound_url
 from app.settings import Settings
 
@@ -34,6 +36,8 @@ logger = get_logger(__name__)
 DEPENDENCY = "external-data"
 
 GEOCODE_PATH = "/internal/v1/geocode/search"
+DISASTERS_PATH = "/internal/v1/disasters/query"
+PLACES_PATH = "/internal/v1/places/nearby"
 
 
 class ExternalDataClient:
@@ -196,7 +200,204 @@ class ExternalDataClient:
 
         return results
 
+    async def disasters_query(
+        self,
+        *,
+        bbox: tuple[float, float, float, float],
+        start: Any | None = None,
+        end: Any | None = None,
+        event_types: list[str] | None = None,
+        min_magnitude: float | None = None,
+    ) -> tuple[list[dict[str, Any]], list[DegradedService]]:
+        """Query hazards from module 04's disaster aggregators."""
+        if self._settings.internal_service_token is None:
+            logger.error(
+                "internal_service_token_missing",
+                event_type="configuration",
+                dependency=DEPENDENCY,
+            )
+            raise DependencyUnavailable(
+                DEPENDENCY,
+                message="Hazard query is not available.",
+            )
 
-def get_external_data_client(request: Any) -> ExternalDataClient:
+        url = f"{self._settings.external_data_service_url.rstrip('/')}{DISASTERS_PATH}"
+        validate_outbound_url(url, self._settings)
+        payload: dict[str, Any] = {"bbox": list(bbox)}
+        if start is not None:
+            payload["start"] = start.isoformat() if hasattr(start, "isoformat") else str(start)
+        if end is not None:
+            payload["end"] = end.isoformat() if hasattr(end, "isoformat") else str(end)
+        if event_types is not None:
+            payload["event_types"] = event_types
+        if min_magnitude is not None:
+            payload["min_magnitude"] = min_magnitude
+
+        try:
+            response = await self._client.post(url, json=payload, headers=self._headers)
+        except httpx.TimeoutException as exc:
+            logger.warning(
+                "dependency_timeout",
+                event_type="dependency",
+                dependency=DEPENDENCY,
+                path=DISASTERS_PATH,
+            )
+            raise DependencyTimeout(
+                DEPENDENCY, message="Hazard query did not answer in time."
+            ) from exc
+        except httpx.HTTPError as exc:
+            logger.warning(
+                "dependency_unreachable",
+                event_type="dependency",
+                dependency=DEPENDENCY,
+                path=DISASTERS_PATH,
+                error_type=type(exc).__name__,
+            )
+            raise DependencyUnavailable(DEPENDENCY, message="Hazard query is unavailable.") from exc
+
+        if response.status_code >= 500:
+            logger.warning(
+                "dependency_error_status",
+                event_type="dependency",
+                dependency=DEPENDENCY,
+                status=response.status_code,
+            )
+            raise DependencyUnavailable(DEPENDENCY, message="Hazard query is unavailable.")
+
+        if response.status_code >= 400:
+            logger.error(
+                "dependency_rejected_request",
+                event_type="dependency",
+                dependency=DEPENDENCY,
+                status=response.status_code,
+            )
+            raise DependencyUnavailable(DEPENDENCY, message="Hazard query is unavailable.")
+
+        try:
+            body = response.json()
+            events_data = body.get("data", {}).get("events", [])
+            events: list[dict[str, Any]] = (
+                list(events_data) if isinstance(events_data, list) else []
+            )
+            meta = body.get("meta", {})
+            degraded_raw = meta.get("degraded_services", [])
+            degraded_list: list[DegradedService] = []
+            if isinstance(degraded_raw, list):
+                for item in degraded_raw:
+                    if isinstance(item, dict):
+                        degraded_list.append(DegradedService.model_validate(item))
+        except (ValueError, KeyError, TypeError) as exc:
+            logger.error(
+                "dependency_schema_mismatch",
+                event_type="dependency",
+                dependency=DEPENDENCY,
+                path=DISASTERS_PATH,
+            )
+            raise DependencyUnavailable(
+                DEPENDENCY, message="Hazard query returned an unexpected response."
+            ) from exc
+
+        return events, degraded_list
+
+    async def places_nearby(
+        self,
+        *,
+        latitude: float,
+        longitude: float,
+        place_types: list[str] | None = None,
+        radius_m: int = 5000,
+        limit: int = 20,
+        language: str = "en",
+    ) -> list[dict[str, Any]]:
+        """Search nearby emergency facilities from module 04."""
+        if self._settings.internal_service_token is None:
+            logger.error(
+                "internal_service_token_missing",
+                event_type="configuration",
+                dependency=DEPENDENCY,
+            )
+            raise DependencyUnavailable(
+                DEPENDENCY,
+                message="Nearby facility search is not available.",
+            )
+
+        url = f"{self._settings.external_data_service_url.rstrip('/')}{PLACES_PATH}"
+        validate_outbound_url(url, self._settings)
+        payload: dict[str, Any] = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "radius_m": radius_m,
+            "limit": limit,
+            "language": language,
+        }
+        if place_types is not None:
+            payload["place_types"] = place_types
+
+        try:
+            response = await self._client.post(url, json=payload, headers=self._headers)
+        except httpx.TimeoutException as exc:
+            logger.warning(
+                "dependency_timeout",
+                event_type="dependency",
+                dependency=DEPENDENCY,
+                path=PLACES_PATH,
+            )
+            raise DependencyTimeout(
+                DEPENDENCY, message="Nearby facility search did not answer in time."
+            ) from exc
+        except httpx.HTTPError as exc:
+            logger.warning(
+                "dependency_unreachable",
+                event_type="dependency",
+                dependency=DEPENDENCY,
+                path=PLACES_PATH,
+                error_type=type(exc).__name__,
+            )
+            raise DependencyUnavailable(
+                DEPENDENCY, message="Nearby facility search is unavailable."
+            ) from exc
+
+        if response.status_code >= 500:
+            logger.warning(
+                "dependency_error_status",
+                event_type="dependency",
+                dependency=DEPENDENCY,
+                status=response.status_code,
+            )
+            raise DependencyUnavailable(
+                DEPENDENCY, message="Nearby facility search is unavailable."
+            )
+
+        if response.status_code >= 400:
+            logger.error(
+                "dependency_rejected_request",
+                event_type="dependency",
+                dependency=DEPENDENCY,
+                status=response.status_code,
+            )
+            raise DependencyUnavailable(
+                DEPENDENCY, message="Nearby facility search is unavailable."
+            )
+
+        try:
+            body = response.json()
+            data = body.get("data", {})
+            places_raw = data.get("places") if "places" in data else data.get("results", [])
+            places: list[dict[str, Any]] = list(places_raw) if isinstance(places_raw, list) else []
+        except (ValueError, KeyError, TypeError) as exc:
+            logger.error(
+                "dependency_schema_mismatch",
+                event_type="dependency",
+                dependency=DEPENDENCY,
+                path=PLACES_PATH,
+            )
+            raise DependencyUnavailable(
+                DEPENDENCY, message="Nearby facility search returned an unexpected response."
+            ) from exc
+
+        return places
+
+
+def get_external_data_client(request: Request) -> ExternalDataClient:
     """Build a client over the shared HTTP connection pool opened at startup."""
     return ExternalDataClient(request.app.state.internal_http, request.app.state.settings)
