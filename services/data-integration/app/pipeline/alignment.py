@@ -4,7 +4,14 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from math import cos, radians, sqrt
 
-from app.domain.canonical import DisasterEvent, RouteSegment, TransportStatus, WeatherForecastPoint
+from app.domain.canonical import (
+    DisasterEvent,
+    GeoPoint,
+    RouteSegment,
+    TransportStatus,
+    WeatherForecastPoint,
+)
+from app.pipeline.area import Area, distance_to_edges_m, point_in_area
 from app.pipeline.corridor import EARTH_RADIUS_M, RouteSample, geodesic_distance_m
 from app.pipeline.normalize import normalize_place
 
@@ -93,6 +100,19 @@ def nearest_route_eta(
     return best[0], best[1].astimezone(UTC)
 
 
+def nearest_area_eta(samples: list[RouteSample], area: Area) -> tuple[float, datetime]:
+    """Zero at the first sample inside the area, else the closest sample to any edge."""
+    if len(samples) < 2:
+        raise ValueError("route needs at least two samples")
+    for sample in samples:
+        if point_in_area((sample.longitude, sample.latitude), area):
+            return 0.0, sample.eta.astimezone(UTC)
+    distance, sample = min(
+        (distance_to_edges_m((s.longitude, s.latitude), area), s) for s in samples
+    )  # fmt: skip
+    return distance, sample.eta.astimezone(UTC)
+
+
 def align_weather(
     samples: list[RouteSample],
     record: WeatherForecastPoint,
@@ -124,7 +144,11 @@ def align_disaster(
 ) -> Alignment:
     if radius_m < 0:
         raise ValueError("disaster radius must be nonnegative")
-    distance, eta = nearest_route_eta(samples, record.geometry.coordinates)
+    geometry = record.geometry
+    if isinstance(geometry, GeoPoint):
+        distance, eta = nearest_route_eta(samples, geometry.coordinates)
+    else:
+        distance, eta = nearest_area_eta(samples, geometry)
     if distance > radius_m:
         status, reason = "OUTSIDE_COVERAGE", "DISTANCE"
     elif eta < record.effective_at or (record.ends_at is not None and eta > record.ends_at):
