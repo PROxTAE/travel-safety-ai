@@ -57,6 +57,25 @@ def real_e2e_settings(migrated_database_url: str) -> Settings:
     )
 
 
+@pytest.fixture(autouse=True)
+async def require_external_data(real_e2e_settings: Settings) -> None:
+    service_url = real_e2e_settings.external_data_service_url
+    try:
+        token = real_e2e_settings.internal_service_token.get_secret_value()
+        async with httpx.AsyncClient(timeout=1.0) as check_client:
+            r = await check_client.get(
+                f"{service_url}/internal/v1/providers/health",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            if r.status_code != 200:
+                pytest.skip(f"external-data at {service_url} not healthy")
+    except Exception:
+        pytest.skip(
+            f"no external-data service running at {service_url}. "
+            "Start it with: docker compose -f compose.yaml -f compose.dev.yaml up -d external-data"
+        )
+
+
 @pytest.fixture
 async def authed_real_app(
     real_e2e_settings: Settings, key: SigningKeyPair
