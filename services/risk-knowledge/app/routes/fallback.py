@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import cast
 from uuid import UUID
 
 from app.contracts import RouteCandidate
@@ -18,8 +19,10 @@ def enforce_hard_constraints_without_ranking(
     for route in routes:
         if route.route_id not in requested:
             continue
-        if route.exposure.closed or route.exposure.hard_constraint_codes:
-            unusable.append(route.route_id)
+        if route.exposure is not None and (
+            route.exposure.closed or route.exposure.hard_constraint_codes
+        ):
+            unusable.append(cast(UUID, route.route_id))
             continue
         label = route.label
         if label in {"RECOMMENDED", "FASTEST", "LOWEST_RISK"}:

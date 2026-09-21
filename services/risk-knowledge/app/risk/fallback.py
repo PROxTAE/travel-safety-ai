@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID, uuid4
 
 from app.contracts import (
@@ -32,15 +33,17 @@ def _assess_route(
     route: RouteCandidate,
     created_at: datetime,
 ) -> RiskAssessment:
-    route_id = route.route_id
+    route_id = cast(UUID, route.route_id)
     reason_codes: list[str] = ["MODEL_UNAVAILABLE", "FALLBACK_RULE_APPLIED"]
     overrides: list[SafetyOverride] = []
     source_ids: set[UUID] = set()
 
-    if route.exposure.closed or route.exposure.hard_constraint_codes:
+    if route.exposure is not None and (
+        route.exposure.closed or route.exposure.hard_constraint_codes
+    ):
         reason_codes.insert(0, "OFFICIAL_CLOSURE")
         for source in route.sources:
-            source_ids.add(source.source_id)
+            source_ids.add(cast(UUID, source.source_id))
         overrides.append(
             SafetyOverride(
                 code="OFFICIAL_CLOSURE",
@@ -118,6 +121,7 @@ def _assess_route(
         quality=DataQuality(
             status=DataStatus.PARTIAL,
             score=None,
+            score_version=None,
             flags=["MISSING", "INCOMPLETE"],
             coverage=snapshot.quality_summary.coverage,
             completeness=snapshot.quality_summary.completeness,

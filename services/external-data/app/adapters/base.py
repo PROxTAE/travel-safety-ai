@@ -159,6 +159,7 @@ class ProviderAdapter(abc.ABC, Generic[QueryT, RecordT]):
         published_at: datetime | None = None,
         source_url: str | None = None,
         payload_for_hash: Any | None = None,
+        license_override: str | None = None,
     ) -> SourceProvenance:
         fetched_at = datetime.fromtimestamp(response.fetched_at, tz=UTC)
         ttl = self.provider.entry.cache.effective_ttl
@@ -168,7 +169,10 @@ class ProviderAdapter(abc.ABC, Generic[QueryT, RecordT]):
             provider_record_id=provider_record_id,
             authority=self.provider.entry.authority,
             source_url=source_url or response.url,
-            license=self.provider.entry.license.spdx_or_name,
+            # A multi-feed provider carries its licence per feed, because two
+            # registered agencies do not share terms. Everyone else uses the
+            # provider-level one.
+            license=license_override or self.provider.entry.license.spdx_or_name,
             observed_at=observed_at,
             published_at=published_at,
             fetched_at=fetched_at,
