@@ -4,6 +4,7 @@ import hashlib
 import inspect
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_EVEN, Decimal
+from typing import Any, cast
 
 from app.domain.canonical import (
     GeoLineString,
@@ -12,6 +13,8 @@ from app.domain.canonical import (
     GeoPolygon,
     RecordModel,
     RouteCandidate,
+    SourceProvenance,
+    TransportStatus,
 )
 from app.repositories.snapshot_repo import canonical_hash
 
@@ -95,8 +98,8 @@ def normalize_severity(value: str | None) -> str:
     return value if value in SEVERITIES else "UNKNOWN"
 
 
-def normalize_line(line: GeoLineString) -> dict:
-    points = []
+def normalize_line(line: GeoLineString) -> dict[str, Any]:
+    points: list[tuple[float, float]] = []
     for point in line.coordinates:
         if not points or points[-1] != point:
             points.append(point)
@@ -105,7 +108,7 @@ def normalize_line(line: GeoLineString) -> dict:
     return {"type": "LineString", "coordinates": [list(point) for point in points]}
 
 
-def geometry_of(record: RecordModel) -> dict | None:
+def geometry_of(record: RecordModel) -> dict[str, Any] | None:
     geometry = getattr(record, "geometry", None) or getattr(record, "location", None)
     if isinstance(geometry, GeoLineString):
         return normalize_line(geometry)
@@ -114,12 +117,12 @@ def geometry_of(record: RecordModel) -> dict | None:
     return None
 
 
-def route_for_contract(route: RouteCandidate) -> dict:
+def route_for_contract(route: RouteCandidate) -> dict[str, Any]:
     """Preserve the producer's plural provenance in the shared route shape."""
-    return canonicalize_value(route.model_dump(mode="python"))
+    return cast(dict[str, Any], canonicalize_value(route.model_dump(mode="python")))
 
 
-def record_sources(record: RecordModel) -> list:
+def record_sources(record: RecordModel) -> list[SourceProvenance]:
     return record.sources if isinstance(record, RouteCandidate) else [record.source]
 
 
@@ -132,8 +135,8 @@ def transform_checksum() -> str:
     return "sha256:" + hashlib.sha256(source.encode()).hexdigest()
 
 
-def normalize_record(record: RecordModel) -> tuple[dict, dict]:
-    payload = canonicalize_value(record.model_dump(mode="python"))
+def normalize_record(record: RecordModel) -> tuple[dict[str, Any], dict[str, Any]]:
+    payload = cast(dict[str, Any], canonicalize_value(record.model_dump(mode="python")))
     sources = record_sources(record)
     geometry = geometry_of(record)
     if geometry is not None:
@@ -142,7 +145,7 @@ def normalize_record(record: RecordModel) -> tuple[dict, dict]:
         payload["canonical_severity"] = normalize_severity(record.severity)
     if hasattr(record, "name"):
         payload["canonical_place_key"] = normalize_place(record.name)
-    if hasattr(record, "origin_stop"):
+    if isinstance(record, TransportStatus):
         payload["canonical_origin_stop_key"] = normalize_place(record.origin_stop.name)
         payload["canonical_destination_stop_key"] = normalize_place(record.destination_stop.name)
     checksum = transform_checksum()
