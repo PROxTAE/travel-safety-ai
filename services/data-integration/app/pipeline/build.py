@@ -86,6 +86,27 @@ def _disaster_conflicts(
     return comparable, conflicts
 
 
+# Lead decision on #76: a capability that answered with no records is complete, normal evidence.
+ANSWERED_EMPTY = DataQuality(
+    status="FRESH",
+    coverage=1.0,
+    completeness=1.0,
+    freshness_seconds=0,
+    notes=["answered with no records (Lead decision #76)"],
+)
+
+
+def answered_empty_quality(
+    qualities: dict[str, DataQuality], evidence: dict[str, list | None]
+) -> dict[str, DataQuality]:
+    """Fill quality only for an answered-empty source the caller left out; never overwrite."""
+    filled = dict(qualities)
+    for name, records in evidence.items():
+        if records == [] and name not in filled:
+            filled[name] = ANSWERED_EMPTY
+    return filled
+
+
 def compute_route_features(
     evidence: RouteEvidence,
     *,
@@ -96,12 +117,18 @@ def compute_route_features(
     """The one feature path shared by the online API and the offline batch CLI."""
     route = evidence.route
     # Records learned after the recommendation stay out of features and the snapshot alike.
+    weather = before_cutoff(evidence.weather, recommendation_at)
+    disasters = before_cutoff(evidence.disasters, recommendation_at)
+    transport = before_cutoff(evidence.transport, recommendation_at)
     known = RouteEvidence(
         route,
-        before_cutoff(evidence.weather, recommendation_at),
-        before_cutoff(evidence.disasters, recommendation_at),
-        before_cutoff(evidence.transport, recommendation_at),
-        evidence.source_quality,
+        weather,
+        disasters,
+        transport,
+        answered_empty_quality(
+            evidence.source_quality,
+            {"weather": weather, "disaster": disasters, "transport": transport},
+        ),
     )
     fetched_at: dict[str, datetime | None] = {}
     for name, records in (
