@@ -20,3 +20,11 @@ npm run bundle    # -> ../generated/openapi/public-api.bundled.yaml
 ```
 
 Read plan: [`IMPLEMENTATION_PLANS/00_API_AND_DATA_CONTRACTS.md`](../../../IMPLEMENTATION_PLANS/00_API_AND_DATA_CONTRACTS.md)
+
+## Available contracts
+
+- `internal-risk-knowledge.yaml` — OpenAPI 3.1 contract version `1.0.0` for
+  Module 06. It references the matching JSON Schema vocabulary and defines
+  explicit degraded/unavailable behavior.
+
+Contracts for the remaining services are still owned by their module owners.

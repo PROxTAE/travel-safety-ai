@@ -1,0 +1,74 @@
+{
+  "_provenance": {
+    "fixture_id": "usgs_significant_month",
+    "source_url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson",
+    "captured_at": "2026-09-19T07:45:38Z",
+    "http_status": 200,
+    "license": "US Government public domain (USGS)",
+    "redaction": "public earthquake catalogue; no credential, no PII"
+  },
+  "_note": "Two events from each of the three hazard sources. Note that severity is UNKNOWN on all of them by design, the provider's own numbers live in magnitude/magnitude_unit/alert_level, and the same real event can appear in more than one source - see duplicate_groups in the endpoint response.",
+  "_generated_from": "real captured provider responses in services/external-data/tests/fixtures/real-sanitized/",
+  "_warning": "Sample output, not a contract. packages/contracts is the contract. Timestamps are from generation time and will look stale.",
+  "records": [
+    {
+      "event_id": "usgs_earthquake:us7000ti1p",
+      "event_type": "EARTHQUAKE",
+      "title": "M 6.5 - 169 km W of Nikolski, Alaska",
+      "description": "magnitude 6.5, depth 98.0 km, status reviewed",
+      "severity": "UNKNOWN",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -171.3756,
+          52.8594
+        ]
+      },
+      "effective_at": "2026-09-17T14:19:52.210000Z",
+      "ends_at": null,
+      "instruction": null,
+      "official": true,
+      "quality": {
+        "status": "STALE",
+        "score": null,
+        "score_version": null,
+        "flags": [
+          "STALE"
+        ],
+        "coverage": null,
+        "completeness": null,
+        "freshness_seconds": 121135,
+        "conflicts": [],
+        "notes": [
+          "from the USGS day summary feed",
+          "freshness is the age of the feed itself (generated 2026-09-19T07:45:37Z); how long ago the earthquake happened is effective_at"
+        ]
+      },
+      "source": {
+        "source_id": "usgs_earthquake:us7000ti1p",
+        "provider": "usgs_earthquake",
+        "provider_record_id": "us7000ti1p",
+        "authority": "OFFICIAL",
+        "source_url": "https://earthquake.usgs.gov/earthquakes/eventpage/us7000ti1p",
+        "license": "US Government public domain",
+        "observed_at": "2026-09-17T14:19:52.210000Z",
+        "published_at": "2026-09-18T14:29:54.553000Z",
+        "fetched_at": "2026-09-20T17:24:32.094906Z",
+        "expires_at": "2026-09-20T17:25:32.094906Z",
+        "content_hash": "sha256:83a6be8925082912ecf2ff020c012c453aebb8ae767fa2a25cfdc4aa3d596f01",
+        "schema_version": "1.0.0"
+      },
+      "magnitude": 6.5,
+      "magnitude_unit": "mww",
+      "depth_km": 98.0,
+      "alert_level": "green",
+      "tsunami": true,
+      "cross_reference_ids": [
+        "attliih5",
+        "aka2026slmipb"
+      ],
+      "reporting_networks": [],
+      "episode_id": null
+    }
+  ]
+}

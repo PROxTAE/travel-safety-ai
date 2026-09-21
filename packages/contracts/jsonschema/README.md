@@ -22,3 +22,12 @@ npm run validate:schemas   # compiles every file with the validator the services
 Who may change which field: [`docs/api/field-ownership-matrix.md`](../../../docs/api/field-ownership-matrix.md)
 
 Read plan: [`IMPLEMENTATION_PLANS/00_API_AND_DATA_CONTRACTS.md`](../../../IMPLEMENTATION_PLANS/00_API_AND_DATA_CONTRACTS.md)
+
+## Available schemas
+
+- `risk-knowledge/risk-knowledge-contract.schema.json` — Draft 2020-12
+  request/response and canonical risk/evidence/route vocabulary for contract
+  version `1.0.0`.
+
+Generated clients must be derived from these sources; generated files are not
+edited by hand.

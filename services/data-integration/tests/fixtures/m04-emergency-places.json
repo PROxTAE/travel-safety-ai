@@ -1,0 +1,63 @@
+{
+  "_provenance": {
+    "fixture_id": "ors_pois_emergency_bangkok",
+    "source_url": "https://api.openrouteservice.org/pois",
+    "captured_at": "2026-09-20T07:50:14Z",
+    "http_status": 200,
+    "license": "openrouteservice terms; upstream data © OpenStreetMap contributors (ODbL)",
+    "redaction": "no credential in the body (the key travels in the Authorization header, which is not part of the payload); public infrastructure records only, no PII"
+  },
+  "_note": "The second record is a real hospital with no name tag in OpenStreetMap - two of nineteen around Victory Monument are like this, one of them 335 m away. name is nullable for that reason. This is not an official emergency directory and the endpoint says so in the response body.",
+  "_generated_from": "real captured provider responses in services/external-data/tests/fixtures/real-sanitized/",
+  "_warning": "Sample output, not a contract. packages/contracts is the contract. Timestamps are from generation time and will look stale.",
+  "records": [
+    {
+      "poi_id": "ors_pois:osm:124851954",
+      "poi_type": "HOSPITAL",
+      "name": "โรงพยาบาลพญาไท 2",
+      "location": {
+        "type": "Point",
+        "coordinates": [
+          100.540575,
+          13.770155
+        ]
+      },
+      "distance_m": 631.279837,
+      "address": null,
+      "phone": null,
+      "website": null,
+      "opening_hours": null,
+      "provider_category": "hospital",
+      "quality": {
+        "status": "PARTIAL",
+        "score": null,
+        "score_version": null,
+        "flags": [
+          "INCOMPLETE"
+        ],
+        "coverage": null,
+        "completeness": null,
+        "freshness_seconds": null,
+        "conflicts": [],
+        "notes": [
+          "the POI service reports no extract build date, so how old the underlying OpenStreetMap data is cannot be measured here",
+          "no phone number in OpenStreetMap - this is not an official emergency directory and must not be presented as one"
+        ]
+      },
+      "source": {
+        "source_id": "ors_pois:124851954",
+        "provider": "ors_pois",
+        "provider_record_id": "124851954",
+        "authority": "LICENSED_PROVIDER",
+        "source_url": "https://www.openstreetmap.org/way/124851954",
+        "license": "openrouteservice terms",
+        "observed_at": null,
+        "published_at": null,
+        "fetched_at": "2026-09-20T17:24:32.124029Z",
+        "expires_at": "2026-09-21T17:24:32.124029Z",
+        "content_hash": "sha256:d1eb5fb40816421ca323b1980b5982fbb530df3686592c9e20b384ce5a2c944b",
+        "schema_version": "1.0.0"
+      }
+    }
+  ]
+}
