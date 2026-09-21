@@ -20,6 +20,7 @@ import pytest
 import respx
 from fastapi.testclient import TestClient
 
+from app.domain.errors import ProviderError, ProviderErrorCode
 from app.main import create_app
 from tests.conftest import TEST_TOKEN, load_fixture
 
@@ -285,3 +286,79 @@ def test_an_oversized_body_does_not_take_the_service_down(
     response = client.post(DISASTERS, headers=AUTH, json={})
 
     assert response.status_code == 200
+
+
+# ------------------------------- nothing answered, for different reasons
+
+
+def test_an_unreachable_source_outranks_a_source_that_does_not_cover_it() -> None:
+    """Which failure gets reported when no hazard source answered.
+
+    "Nobody publishes this" is 422 with `retryable: false`; "we could not reach
+    anybody" is a 5xx the caller should retry. The endpoint used to report
+    whichever error came *last* in iteration order, so the answer depended on
+    where a provider happened to sit in the registry file.
+
+    Tested at this level deliberately. With today's three sources the wrong
+    branch is not reachable through the API - every event type EONET declines,
+    GDACS declines too, so a coverage answer can never be the last one while a
+    real failure is present. That is a property of today's registry, not of the
+    code, and it stops being true the moment a fourth source is added or the
+    file is reordered. The two end-to-end tests below cover what is reachable
+    now; this one covers the rule itself.
+    """
+    from app.api.internal import _why_nothing_answered
+
+    timed_out = ProviderError(ProviderErrorCode.PROVIDER_TIMEOUT, "gdacs")
+    not_covered = ProviderError(ProviderErrorCode.OUTSIDE_COVERAGE, "nasa_eonet")
+
+    # The failure wins from either position, which is the whole point.
+    assert _why_nothing_answered([not_covered, timed_out]) is timed_out
+    assert _why_nothing_answered([timed_out, not_covered]) is timed_out
+
+
+def test_coverage_is_the_answer_only_when_every_source_gave_it() -> None:
+    from app.api.internal import _why_nothing_answered
+
+    first = ProviderError(ProviderErrorCode.OUTSIDE_COVERAGE, "usgs_earthquake")
+    second = ProviderError(ProviderErrorCode.OUTSIDE_COVERAGE, "nasa_eonet")
+
+    assert _why_nothing_answered([first, second]) is first
+
+
+@respx.mock
+def test_every_source_saying_not_covered_is_still_a_coverage_answer(
+    client: TestClient,
+) -> None:
+    """The other half: when nothing failed and every source simply does not
+    publish what was asked for, that is a real answer and not a retry."""
+    for url in (USGS_URL, GDACS_URL, EONET_URL):
+        respx.get(url).mock(
+            return_value=httpx.Response(200, json={"type": "FeatureCollection", "features": []})
+        )
+
+    response = client.post(DISASTERS, headers=AUTH, json={"event_types": ["TRANSPORT_CLOSURE"]})
+
+    assert response.status_code == 422
+    error = response.json()["error"]
+    assert error["code"] == "UNSUPPORTED_COVERAGE"
+    assert error["retryable"] is False
+
+
+@respx.mock
+def test_one_source_answering_still_wins_over_any_failure(
+    client: TestClient,
+) -> None:
+    """A partial answer is an answer. Two sources down must not turn one
+    source's real data into an error."""
+    _healthy_hazards()
+    respx.get(GDACS_URL).mock(side_effect=httpx.ReadTimeout("down"))
+    respx.get(EONET_URL).mock(side_effect=httpx.ReadTimeout("down"))
+
+    response = client.post(DISASTERS, headers=AUTH, json={})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["data"]["events"]
+    assert body["data"]["sources"] == ["usgs_earthquake"]
+    assert set(body["meta"]["degraded_services"]) == {"gdacs", "nasa_eonet"}

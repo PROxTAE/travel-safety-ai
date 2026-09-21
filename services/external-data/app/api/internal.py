@@ -279,6 +279,34 @@ async def weather_query(
     )
 
 
+def _why_nothing_answered(failures: list[ProviderError]) -> ProviderError:
+    """Which failure to report when no hazard source answered.
+
+    "Nobody publishes this" and "we could not reach anybody" are different
+    answers and must not be confused: the first is 422 UNSUPPORTED_COVERAGE and
+    `retryable: false`, the second is a 5xx the caller should retry.
+
+    Reporting the *last* error in iteration order mixed them. If a source that
+    declines the query is asked after one that could not be reached, "we could
+    not check" is delivered as "nobody publishes this, do not retry" - telling
+    a caller there is nothing to report when in truth nothing was checked. That
+    is the single failure mode this endpoint exists to prevent, arriving
+    through the error path instead of the data path.
+
+    No ordering of today's three sources produces it: every event type EONET
+    declines, GDACS declines too, so a coverage answer is never last while a
+    real failure is present. That is a property of the current registry file,
+    not of this function, and it expires the moment a fourth hazard source is
+    added or the file is reordered - neither of which should have to be
+    reviewed for its effect on an error code.
+
+    So a real failure always wins. Coverage is only the answer when every
+    source gave it.
+    """
+    real = [f for f in failures if f.code is not ProviderErrorCode.OUTSIDE_COVERAGE]
+    return real[0] if real else failures[0]
+
+
 @router.post("/internal/v1/disasters/query")
 async def disasters_query(
     request: Request, body: DisasterQueryRequest, _: InternalAuth
@@ -318,7 +346,7 @@ async def disasters_query(
     answered: list[str] = []
     degraded: list[str] = []
     not_applicable: list[str] = []
-    last_error: ProviderError | None = None
+    failures: list[ProviderError] = []
 
     # Fan out in parallel (shared context § 7): the sources are independent, so
     # the total cost should be the slowest of them, not the sum. Sequentially
@@ -330,7 +358,7 @@ async def disasters_query(
 
     for adapter, result in zip(available, results, strict=True):
         if isinstance(result, ProviderError):
-            last_error = result
+            failures.append(result)
             if result.code is ProviderErrorCode.OUTSIDE_COVERAGE:
                 # "This source publishes nothing about that" is not a failure.
                 # Counting it as degraded would mark USGS degraded on every
@@ -353,11 +381,8 @@ async def disasters_query(
             answered.append(adapter.provider_id)
 
     if not answered:
-        assert last_error is not None
-        # Every source failing and every source being irrelevant are different
-        # answers: one is "we could not find out", the other is "nobody
-        # publishes this". `last_error` already distinguishes them.
-        raise last_error
+        assert failures
+        raise _why_nothing_answered(failures)
 
     events.sort(key=lambda event: event.effective_at, reverse=True)
 
@@ -616,19 +641,19 @@ def _disaster_call(adapters: AdapterRegistry, body: ContextQueryRequest) -> Capa
         )
         events: list[Any] = []
         answered: list[str] = []
-        last_error: ProviderError | None = None
+        failures: list[ProviderError] = []
         for adapter, outcome in zip(available, results, strict=True):
             if isinstance(outcome, ProviderError):
-                last_error = outcome
+                failures.append(outcome)
             elif isinstance(outcome, BaseException):
                 raise outcome
             else:
                 events.extend(outcome)
                 answered.append(adapter.provider_id)
-        if not answered and last_error is not None:
+        if not answered and failures:
             # Every source failing is not the same as no hazards, and an empty
             # list is the one answer this module must never invent.
-            raise last_error
+            raise _why_nothing_answered(failures)
         events.sort(key=lambda event: event.effective_at, reverse=True)
         return events, answered
 
