@@ -10,6 +10,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
 
 from app import __version__
 from app.domain.models import DecisionRequest, DecisionResult
+from app.llm.service import explain_result
 from app.policy.evaluator import build_result, evaluate
 from app.policy.loader import Policy, load_policy
 from app.repositories.audit import write_audit
@@ -17,6 +18,7 @@ from app.repositories.migrations import apply_migrations
 from app.settings import Settings, get_settings
 
 DECISIONS = Counter("decision_engine_decisions_total", "Locked decisions", ["action"])
+EXPLANATION_FALLBACKS = Counter("decision_engine_explanation_fallbacks_total", "Explanation fallbacks")
 POLICY_FAILURES = Counter("decision_engine_policy_failures_total", "Policy load failures")
 
 
@@ -87,6 +89,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not isinstance(policy, Policy):
             raise HTTPException(status_code=503, detail="Approved decision policy is unavailable")
         result = build_result(payload, policy, evaluate(payload, policy))
+        explained_result = await explain_result(result, payload.locale, resolved)
+        if explained_result.versions.get("llm_model") is None:
+            EXPLANATION_FALLBACKS.inc()
+        result = explained_result
         database = state["database"]
         if isinstance(database, asyncpg.Pool):
             try:
