@@ -59,6 +59,14 @@ def _trace(rules: list[tuple[str, int, bool]]) -> list[RuleTrace]:
     ]
 
 
+def _policy_rule_trace(policy: Policy, matched_rule: str | None = None) -> list[RuleTrace]:
+    rules = [
+        (str(rule["id"]), int(rule["priority"]), str(rule["id"]) == matched_rule)
+        for rule in policy.rules
+    ]
+    return _trace(rules)
+
+
 def evaluate(payload: DecisionRequest, policy: Policy) -> Evaluation:
     errors = validate_consistency(payload)
     by_route = {item.route_id: item for item in payload.assessments}
@@ -79,16 +87,10 @@ def evaluate(payload: DecisionRequest, policy: Policy) -> Evaluation:
             "text": "Evidence quality requires review before travel.",
         })
 
-    all_rules = [
-        ("R001_OFFICIAL_CLOSURE", 1, bool(critical_alerts)),
-        ("R002_HIGH_RISK_NO_SAFE_ROUTE", 2, False),
-        ("R003_MATERIALLY_SAFER_ROUTE", 3, False),
-        ("R004_TIME_DEPENDENT_RISK", 4, False),
-        ("R005_LOW_RISK_USABLE_EVIDENCE", 5, False),
-    ]
     if critical_alerts:
         return Evaluation(
-            ActionCode.AVOID, RiskLevel.HIGH, 1.0, ["R001_OFFICIAL_CLOSURE"], _trace(all_rules),
+            ActionCode.AVOID, RiskLevel.HIGH, 1.0, ["R001_OFFICIAL_CLOSURE"],
+            _policy_rule_trace(policy, "R001_OFFICIAL_CLOSURE"),
             [DecisionReason(
                 code="OFFICIAL_CLOSURE",
                 text="An active official closure intersects the selected travel corridor.",
@@ -154,12 +156,8 @@ def evaluate(payload: DecisionRequest, policy: Policy) -> Evaluation:
         )
         selected_id = selected_route.route_id if selected_route else None
 
-    traced_rules = [
-        (rule_id, priority, rule_id == rule)
-        for rule_id, priority, _ in all_rules
-    ]
     return Evaluation(
-        action, risk_level, confidence, [rule], _trace(traced_rules), [reason],
+        action, risk_level, confidence, [rule], _policy_rule_trace(policy, rule), [reason],
         bool(escalation), escalation, selected_id, limitations,
     )
 
