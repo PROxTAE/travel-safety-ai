@@ -5,12 +5,16 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { navigationItems } from "./navigation";
+import { ConnectionStatus } from "@/components/ui/connection-status";
 
 function isActive(pathname: string, href: string) {
   return href === "/dashboard" ? pathname === href : pathname.startsWith(href.replace("/new", ""));
 }
 
-export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
+export function AppShell({
+  children,
+  profile,
+}: Readonly<{ children: ReactNode; profile?: ReactNode }>) {
   const pathname = usePathname();
 
   return (
@@ -60,9 +64,13 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
               ☀
             </span>
             <span className="profile-copy">
-              <strong>Hello, Traveler!</strong>
-              <br />
-              Explore the world safely
+              {profile || (
+                <>
+                  <strong>Hello, Traveler!</strong>
+                  <br />
+                  Explore the world safely
+                </>
+              )}
             </span>
             <span className="profile-avatar desktop-profile-avatar">
               <Image
@@ -100,7 +108,10 @@ export function AppShell({ children }: Readonly<{ children: ReactNode }>) {
             </details>
           </div>
         </header>
-        <div className="content-frame">{children}</div>
+        <div className="content-frame">
+          <ConnectionStatus />
+          {children}
+        </div>
       </main>
     </div>
   );

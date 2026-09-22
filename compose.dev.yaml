@@ -15,6 +15,11 @@ services:
 
   keycloak:
     ports: ["8080:8080"]
+    environment:
+      KC_HOSTNAME: http://keycloak.localhost:8080
+    networks:
+      default:
+        aliases: [keycloak.localhost]
 
   external-data:
     ports: ["8002:8002"]
@@ -58,6 +63,7 @@ services:
     environment:
       # The browser runs on the host, so the API must accept the host origin during development.
       API_CORS_ALLOWED_ORIGINS: http://localhost:3000
+      OIDC_ISSUER: http://keycloak.localhost:8080/realms/smart-travel
       # The maintenance database the test suite creates its throwaway databases from. Inside
       # compose there is no Docker socket, so Testcontainers cannot be used; this is the way in.
       TEST_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-smart_travel}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-smart_travel}
@@ -76,17 +82,9 @@ services:
       # and pointing them at the read-only source would fail before the first test ran.
       - api-dev-cache:/app/.cache
     command:
-      [
-        "uvicorn",
-        "app.main:create_app",
-        "--factory",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8000",
-        "--reload",
-        "--no-access-log",
-      ]
+      - sh
+      - -c
+      - alembic upgrade head && exec uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000 --reload --no-access-log
 
   web:
     # Development image keeps pnpm and source tooling; the production runtime
@@ -97,6 +95,13 @@ services:
     ports: ["3000:3000"]
     environment:
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+      API_BASE_URL: http://api:8000
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      AUTH_URL: http://localhost:3000
+      AUTH_TRUST_HOST: "true"
+      AUTH_KEYCLOAK_ID: web
+      AUTH_KEYCLOAK_ISSUER: http://keycloak.localhost:8080/realms/smart-travel
+      AUTH_KEYCLOAK_INTERNAL_ORIGIN: http://keycloak:8080
     volumes:
       - ./apps/web:/app
       - web-node-modules:/app/node_modules

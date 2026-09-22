@@ -51,8 +51,8 @@ class DisasterEvent(BaseModel):
     )
     depth_km: float | None = Field(
         None,
-        description='Hypocentre depth in kilometres, where the hazard type has one. A shallow earthquake and a deep one of equal magnitude do very different things at the surface, so the depth is part of the evidence rather than a detail.',
-        ge=0.0,
+        description='Hypocentre depth in kilometres, where the hazard type has one. A shallow earthquake and a deep one of equal magnitude do very different things at the surface, so the depth is part of the evidence rather than a detail. May be negative: USGS reports hypocentres above the sea-level reference (for example -3.48 km in mountain regions; 289 of 10,642 events in one month), and dropping them would lose real evidence. -15 km leaves a wide margin below the shallowest observed value. There is no upper bound, because deep subduction earthquakes reach about 700 km.',
+        ge=-15.0,
     )
     quality: data_quality_schema.DataQuality
     source: source_provenance_schema.SourceProvenance

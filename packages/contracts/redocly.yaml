@@ -11,6 +11,9 @@ extends:
 apis:
   public@v1:
     root: openapi/public-api.yaml
+  data-integration@v1:
+    root: openapi/internal-data-integration.yaml
+  # internal-risk-knowledge.yaml joins once its current lint errors are fixed (#70).
 
 rules:
   # Contract hygiene

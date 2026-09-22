@@ -11,5 +11,8 @@ export default defineConfig({
     environment: "jsdom",
     include: ["tests/**/*.test.{ts,tsx}"],
     setupFiles: ["./tests/setup.ts"],
+    // A cold Next.js module transform can exceed Vitest's 5s default in the
+    // Alpine Docker image even though the synchronous assertion is fast.
+    testTimeout: 15_000,
   },
 });

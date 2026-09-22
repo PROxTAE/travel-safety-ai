@@ -15,6 +15,7 @@ RUN pnpm build
 
 FROM dependencies AS development
 COPY --chown=node:node . .
+RUN chown node:node /app
 USER node
 
 FROM node:22.23.2-alpine3.24 AS runtime
