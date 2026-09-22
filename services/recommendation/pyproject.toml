@@ -1,0 +1,101 @@
+[project]
+name = "smart-travel-recommendation"
+version = "0.1.0"
+description = "Final recommendation delivery, verified emergency directory, live alerts, and feedback governance service"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "alembic==1.20.0",
+  "arq==0.26.1",
+  "asyncpg==0.31.0",
+  "cryptography==50.0.1",
+  "fastapi==0.141.1",
+  "httpx==0.28.1",
+  "opentelemetry-api==1.44.0",
+  "opentelemetry-exporter-otlp-proto-http==1.44.0",
+  "opentelemetry-instrumentation-fastapi==0.65b0",
+  "opentelemetry-sdk==1.44.0",
+  "prometheus-client==0.26.0",
+  "pydantic==2.13.5",
+  "pydantic-settings==2.15.0",
+  "pywebpush==2.0.1",
+  "pyyaml==6.0.3",
+  "redis==5.2.1",
+  "sqlalchemy[asyncio]==2.0.54",
+  "structlog==26.1.0",
+  "uvicorn[standard]==0.53.0",
+]
+
+[dependency-groups]
+dev = [
+  "aiosqlite==0.21.0",
+  "jsonschema[format]==4.25.1",
+  "mypy==1.18.1",
+  "openapi-spec-validator==0.7.2",
+  "pytest==9.1.1",
+  "pytest-asyncio==1.4.0",
+  "pytest-cov==7.1.0",
+  "respx==0.22.0",
+  "ruff==0.13.0",
+  "testcontainers[postgres]==4.13.0",
+  "types-pyyaml==6.0.12.20241230",
+  "types-jsonschema==4.25.1.20251009",
+]
+
+[project.scripts]
+recommendation-verify-directory = "app.cli.verify_emergency_directory:main"
+recommendation-export-feedback = "app.cli.export_feedback:main"
+recommendation-cleanup-retention = "app.cli.cleanup_retention:main"
+
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers -o cache_dir=/tmp/pytest-cache"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+  "integration: requires Docker and real local infrastructure",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+cache-dir = "/tmp/ruff-cache"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "S", "SIM", "RUF"]
+ignore = ["S101", "RUF012", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S105", "S106", "S311"]
+"migrations/*" = ["E501"]
+"app/cli/*" = ["T201", "S310", "ASYNC230"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+exclude = ["migrations/"]
+
+[[tool.mypy.overrides]]
+module = ["yaml", "pywebpush", "arq.*", "redis", "redis.*"]
+ignore_missing_imports = true
+disallow_untyped_calls = false
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+omit = [
+  "app/cli/*",
+  "app/main.py",
+  "app/observability.py",
+]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true

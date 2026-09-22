@@ -297,7 +297,39 @@ services:
       start_period: 20s
     restart: unless-stopped
 
-  # ---------------------------------------------------------------------------
+  recommendation:
+    image: smart-travel-recommendation:runtime
+    build:
+      context: ./services/recommendation
+      target: runtime
+    profiles: [app]
+    env_file: .env
+    environment:
+      SERVICE_NAME: recommendation
+      PORT: 8006
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-smart_travel}
+      POSTGRES_USER: ${POSTGRES_USER:-smart_travel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_SCHEMA: recommendation
+      REDIS_URL: redis://redis:6379/0
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
+      EMERGENCY_DIRECTORY_PATH: /app/emergency-directory/sources.yaml
+      CONTRACT_VERSION: ${CONTRACT_VERSION:-1.0.0}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8006/health/live', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
   # ตัวอย่าง service ของ module (เจ้าของคัดลอกไปเพิ่มใน PR ของตัวเอง แล้วลบคอมเมนต์นี้ออก)
   #
   # external-data:

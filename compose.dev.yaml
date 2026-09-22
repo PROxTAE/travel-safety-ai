@@ -127,7 +127,25 @@ services:
   mlflow:
     ports: ["5000:5000"]
 
-  # ตัวอย่าง override ของ module (เจ้าของเพิ่มพร้อม service ใน compose.yaml)
+  recommendation:
+    image: smart-travel-recommendation:dev
+    build:
+      target: dev
+    ports: ["8006:8006"]
+    environment:
+      TEST_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-smart_travel}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-smart_travel}
+    volumes:
+      - ./services/recommendation/app:/app/app:ro
+      - ./services/recommendation/tests:/app/tests:ro
+      - ./services/recommendation/migrations:/app/migrations:ro
+      - ./services/recommendation/emergency-directory:/app/emergency-directory:ro
+      - ./services/recommendation/alembic.ini:/app/alembic.ini:ro
+      - ./services/recommendation/pyproject.toml:/app/pyproject.toml:ro
+    command:
+      - sh
+      - -c
+      - alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8006 --reload
+
   #
   # external-data:
   #   ports: ["8002:8002"]
