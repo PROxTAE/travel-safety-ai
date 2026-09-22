@@ -15,7 +15,9 @@ def localized_summary(action: ActionCode, locale: str) -> str:
         ActionCode.NORMAL: "The validated evidence supports continuing the planned route.",
         ActionCode.CHANGE_ROUTE: "A materially safer validated route is available.",
         ActionCode.DELAY: "Delaying within the approved window may reduce the assessed risk.",
-        ActionCode.AVOID: "Do not use the affected route while the safety condition remains active.",
+        ActionCode.AVOID: (
+            "Do not use the affected route while the safety condition remains active."
+        ),
     }[action]
 
 

@@ -24,7 +24,9 @@ def validate_explanation(output: ExplanationOutput, locked: DecisionResult) -> E
     allowed_citations = {str(citation.get("source_id")) for citation in locked.citations}
     if any(citation not in allowed_citations for citation in output.citation_ids):
         raise ExplanationValidationError("explanation contains an unapproved citation")
-    text = " ".join([output.summary, *(reason.text for reason in output.reasons), *output.immediate_actions])
+    text = " ".join(
+        [output.summary, *(reason.text for reason in output.reasons), *output.immediate_actions]
+    )
     if any(phrase in text.lower() for phrase in BANNED_PHRASES):
         raise ExplanationValidationError("explanation contains a banned safety claim")
     if re.search(r"https?://|\b\d{3,}\b", text):

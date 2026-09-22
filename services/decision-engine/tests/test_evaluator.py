@@ -1,7 +1,8 @@
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from app.domain.models import DecisionRequest
 from app.policy.evaluator import build_result, evaluate, validate_consistency
@@ -14,13 +15,59 @@ ROUTE_A = UUID("00000000-0000-0000-0000-000000000003")
 ROUTE_B = UUID("00000000-0000-0000-0000-000000000004")
 
 
-def make_request(score_a: float, score_b: float | None = None, **overrides: object) -> DecisionRequest:
-    routes = [{"route_id": str(ROUTE_A), "duration_seconds": 3600, "quality": {"status": "FRESH", "score": 0.95}}]
-    assessments = [{"snapshot_id": str(SNAPSHOT_ID), "route_id": str(ROUTE_A), "score": score_a, "risk_level": "HIGH" if score_a >= 0.65 else "LOW", "quality": {"status": "FRESH", "score": 0.95}, "reason_codes": []}]
+def make_request(
+    score_a: float, score_b: float | None = None, **overrides: object
+) -> DecisionRequest:
+    routes = [
+        {
+            "route_id": str(ROUTE_A),
+            "duration_seconds": 3600,
+            "quality": {"status": "FRESH", "score": 0.95},
+        }
+    ]
+    assessments = [
+        {
+            "snapshot_id": str(SNAPSHOT_ID),
+            "route_id": str(ROUTE_A),
+            "score": score_a,
+            "risk_level": "HIGH" if score_a >= 0.65 else "LOW",
+            "quality": {"status": "FRESH", "score": 0.95},
+            "reason_codes": [],
+        }
+    ]
     if score_b is not None:
-        routes.append({"route_id": str(ROUTE_B), "duration_seconds": 4000, "quality": {"status": "FRESH", "score": 0.95}})
-        assessments.append({"snapshot_id": str(SNAPSHOT_ID), "route_id": str(ROUTE_B), "score": score_b, "risk_level": "LOW", "quality": {"status": "FRESH", "score": 0.95}, "reason_codes": []})
-    data = {"request_id": str(REQUEST_ID), "snapshot_id": str(SNAPSHOT_ID), "schema_version": "1.0.0", "feature_schema_version": "1.0.0", "travel_window": {"starts_at": "2026-09-22T09:00:00Z", "ends_at": "2026-09-22T10:00:00Z", "timezone": "UTC"}, "route_candidates": routes, "assessments": assessments, "quality_summary": {"status": "FRESH", "score": 0.95}, "selected_route_id": str(ROUTE_A)}
+        routes.append(
+            {
+                "route_id": str(ROUTE_B),
+                "duration_seconds": 4000,
+                "quality": {"status": "FRESH", "score": 0.95},
+            }
+        )
+        assessments.append(
+            {
+                "snapshot_id": str(SNAPSHOT_ID),
+                "route_id": str(ROUTE_B),
+                "score": score_b,
+                "risk_level": "LOW",
+                "quality": {"status": "FRESH", "score": 0.95},
+                "reason_codes": [],
+            }
+        )
+    data = {
+        "request_id": str(REQUEST_ID),
+        "snapshot_id": str(SNAPSHOT_ID),
+        "schema_version": "1.0.0",
+        "feature_schema_version": "1.0.0",
+        "travel_window": {
+            "starts_at": "2026-09-22T09:00:00Z",
+            "ends_at": "2026-09-22T10:00:00Z",
+            "timezone": "UTC",
+        },
+        "route_candidates": routes,
+        "assessments": assessments,
+        "quality_summary": {"status": "FRESH", "score": 0.95},
+        "selected_route_id": str(ROUTE_A),
+    }
     data.update(overrides)
     return DecisionRequest.model_validate(data)
 
@@ -40,7 +87,18 @@ def test_materially_safer_route_is_selected() -> None:
 
 
 def test_inconsistent_snapshot_is_conservative_and_escalates() -> None:
-    payload = make_request(0.1, assessments=[{"snapshot_id": str(uuid4()), "route_id": str(ROUTE_A), "score": 0.1, "risk_level": "LOW", "quality": {"status": "FRESH", "score": 0.95}}])
+    payload = make_request(
+        0.1,
+        assessments=[
+            {
+                "snapshot_id": str(uuid4()),
+                "route_id": str(ROUTE_A),
+                "score": 0.1,
+                "risk_level": "LOW",
+                "quality": {"status": "FRESH", "score": 0.95},
+            }
+        ],
+    )
     assert "assessment_snapshot_mismatch" in validate_consistency(payload)
     result = build_result(payload, POLICY, evaluate(payload, POLICY))
     assert result.action_code == "AVOID"
@@ -69,17 +127,27 @@ def test_materially_safer_delta_boundary_is_inclusive() -> None:
 def test_rule_trace_is_priority_ordered_and_single_match() -> None:
     evaluation = evaluate(make_request(0.8, 0.5), POLICY)
     assert [trace.priority for trace in evaluation.rules_evaluated] == [1, 2, 3, 4, 5]
-    assert [trace.rule_id for trace in evaluation.rules_evaluated if trace.matched] == ["R003_MATERIALLY_SAFER_ROUTE"]
+    assert [trace.rule_id for trace in evaluation.rules_evaluated if trace.matched] == [
+        "R003_MATERIALLY_SAFER_ROUTE"
+    ]
 
 
 def test_thai_fallback_is_deterministic() -> None:
-    result = build_result(make_request(0.1, locale="th-TH"), POLICY, evaluate(make_request(0.1, locale="th-TH"), POLICY))
+    result = build_result(
+        make_request(0.1, locale="th-TH"),
+        POLICY,
+        evaluate(make_request(0.1, locale="th-TH"), POLICY),
+    )
     assert result.summary.startswith("หลักฐาน")
 
 
 @st.composite
 def valid_scores(draw: st.DrawFn) -> tuple[float, float]:
-    return draw(st.tuples(st.floats(min_value=0, max_value=1, allow_nan=False, allow_infinity=False), st.just(0.0)))
+    return draw(
+        st.tuples(
+            st.floats(min_value=0, max_value=1, allow_nan=False, allow_infinity=False), st.just(0.0)
+        )
+    )
 
 
 @given(valid_scores())

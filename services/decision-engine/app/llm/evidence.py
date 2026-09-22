@@ -12,7 +12,10 @@ def build_evidence_package(result: DecisionResult) -> dict[str, Any]:
         "risk_level": result.risk_level.value,
         "confidence": result.confidence,
         "rules_fired": list(result.rules_fired),
-        "reasons": [{"code": reason.code, "source_ids": list(reason.source_ids)} for reason in result.reasons],
+        "reasons": [
+            {"code": reason.code, "source_ids": list(reason.source_ids)}
+            for reason in result.reasons
+        ],
         "citation_ids": [str(citation.get("source_id")) for citation in result.citations],
         "limitations": [limitation.get("code") for limitation in result.limitations],
     }

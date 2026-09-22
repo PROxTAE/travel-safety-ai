@@ -19,7 +19,10 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8005"]
 
 FROM runtime AS test
 USER root
-RUN pip install --no-cache-dir --disable-pip-version-check pytest==9.1.1 hypothesis==6.131.9 jsonschema[format]==4.25.1
+RUN pip install --no-cache-dir --disable-pip-version-check \
+    asyncpg-stubs==0.30.0 hypothesis==6.131.9 jsonschema[format]==4.25.1 \
+    mypy==1.18.1 pytest==9.1.1 ruff==0.13.0 \
+    types-jsonschema==4.25.1.20250822 types-PyYAML==6.0.12.20250915
 COPY tests ./tests
 USER appuser
 CMD ["pytest", "-q"]

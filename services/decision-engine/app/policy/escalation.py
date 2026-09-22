@@ -18,7 +18,10 @@ def escalation_reasons(
         return reasons
     if payload.quality_summary.status != DataStatus.FRESH:
         reasons.append("evidence_quality_not_fresh")
-    if assessment.uncertainty is not None and assessment.uncertainty >= policy.thresholds.max_uncertainty:
+    if (
+        assessment.uncertainty is not None
+        and assessment.uncertainty >= policy.thresholds.max_uncertainty
+    ):
         reasons.append("high_risk_uncertainty")
     if near_threshold(assessment, policy):
         reasons.append("risk_near_policy_threshold")

@@ -12,7 +12,11 @@ async def write_audit(pool: asyncpg.Pool, result: DecisionResult, policy_checksu
           (decision_id, request_id, snapshot_id, action_code, confidence,
            escalation_required, policy_version, policy_checksum, rules_fired,
            input_hash, output_hash)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, encode(sha256(convert_to($10, 'UTF8')), 'hex'), encode(sha256(convert_to($11, 'UTF8')), 'hex'))
+                VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9,
+                    encode(sha256(convert_to($10, 'UTF8')), 'hex'),
+                    encode(sha256(convert_to($11, 'UTF8')), 'hex')
+                )
         """,
         result.decision_id,
         result.request_id,

@@ -1,12 +1,11 @@
 import asyncio
-import json
 from pathlib import Path
 
 import pytest
+from test_evaluator import make_request
 
 from app.cache import DecisionCache, IdempotencyConflict, input_hash
 from app.policy.loader import load_policy
-from test_evaluator import make_request
 
 SERVICE_ROOT = Path(__file__).parents[1]
 POLICY, _ = load_policy(SERVICE_ROOT / "policies/v1/decision-table.yaml")

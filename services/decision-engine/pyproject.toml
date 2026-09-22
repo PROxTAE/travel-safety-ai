@@ -17,7 +17,16 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["hypothesis==6.131.9", "jsonschema[format]==4.25.1", "pytest==9.1.1", "ruff==0.13.0", "mypy==1.18.1"]
+dev = [
+  "asyncpg-stubs==0.30.0",
+  "hypothesis==6.131.9",
+  "jsonschema[format]==4.25.1",
+  "mypy==1.18.1",
+  "pytest==9.1.1",
+  "ruff==0.13.0",
+  "types-jsonschema==4.25.1.20250822",
+  "types-PyYAML==6.0.12.20250915",
+]
 
 [build-system]
 requires = ["hatchling==1.27.0"]

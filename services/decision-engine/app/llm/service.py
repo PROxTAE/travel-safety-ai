@@ -21,11 +21,31 @@ async def explain_result(result: DecisionResult, locale: str, settings: Settings
         try:
             output = await client.explain(build_evidence_package(result), locale)
             validated = validate_explanation(output, result)
-            return result.model_copy(update={
-                "summary": validated.summary,
-                "reasons": [reason.model_copy(update={"text": next((item.text for item in validated.reasons if item.code == reason.code), reason.text)}) for reason in result.reasons],
-                "versions": {**result.versions, "llm_model": settings.openai_explainer_model, "prompt": "1.0.0"},
-            })
+            return result.model_copy(
+                update={
+                    "summary": validated.summary,
+                    "reasons": [
+                        reason.model_copy(
+                            update={
+                                "text": next(
+                                    (
+                                        item.text
+                                        for item in validated.reasons
+                                        if item.code == reason.code
+                                    ),
+                                    reason.text,
+                                )
+                            }
+                        )
+                        for reason in result.reasons
+                    ],
+                    "versions": {
+                        **result.versions,
+                        "llm_model": settings.openai_explainer_model,
+                        "prompt": "1.0.0",
+                    },
+                }
+            )
         except (LLMExplanationError, ExplanationValidationError):
             continue
     return fallback_result(result, "LLM_VALIDATION_OR_PROVIDER_FAILURE", locale)

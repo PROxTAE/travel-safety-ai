@@ -37,7 +37,9 @@ def load_policy(path: Path, expected_checksum: str | None = None) -> tuple[Polic
     document = yaml.safe_load(raw)
     schema_path = path.parents[2] / "schemas" / "decision-policy.schema.json"
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    errors = sorted(Draft202012Validator(schema).iter_errors(document), key=lambda error: list(error.path))
+    errors = sorted(
+        Draft202012Validator(schema).iter_errors(document), key=lambda error: list(error.path)
+    )
     if errors:
         raise ValueError(f"decision policy schema validation failed: {errors[0].message}")
     policy = Policy.model_validate(document)

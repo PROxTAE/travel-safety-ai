@@ -2,7 +2,7 @@ schema_version: "1.0.0"
 active:
   version: "1.0.0"
   path: "v1/decision-table.yaml"
-  checksum_sha256: "10dd3717a7a5fe53b55153e23d60e29ebdddea84250062bb6a597f8d2eb6e709"
+  checksum_sha256: "8c05773a240273e4aa1cc9c3ea9a9b758cf286fcd6cedb97dcfb9a6febb7a788"
   runtime_status: APPROVED
   approval_status: PENDING_REVIEW
   approval_record: "v1/approval-record.yaml"

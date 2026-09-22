@@ -9,10 +9,16 @@ def evidence_confidence(payload: DecisionRequest, assessment: RiskAssessment) ->
     quality = payload.quality_summary
     route_quality = assessment.quality
     components = [
-        value for value in (
-            quality.score, route_quality.score, quality.coverage,
-            route_quality.coverage, quality.completeness, route_quality.completeness,
-        ) if value is not None
+        value
+        for value in (
+            quality.score,
+            route_quality.score,
+            quality.coverage,
+            route_quality.coverage,
+            quality.completeness,
+            route_quality.completeness,
+        )
+        if value is not None
     ]
     base = sum(components) / len(components) if components else 0.0
     uncertainty = assessment.uncertainty or 0.0
@@ -21,4 +27,7 @@ def evidence_confidence(payload: DecisionRequest, assessment: RiskAssessment) ->
 
 
 def near_threshold(assessment: RiskAssessment, policy: Policy) -> bool:
-    return abs(assessment.score - policy.thresholds.high_risk_score) <= policy.thresholds.threshold_margin
+    return (
+        abs(assessment.score - policy.thresholds.high_risk_score)
+        <= policy.thresholds.threshold_margin
+    )

@@ -22,7 +22,9 @@ class OpenAIExplainer:
         max_output_tokens: int,
         client: Any | None = None,
     ) -> None:
-        self._client = client or AsyncOpenAI(api_key=api_key, timeout=timeout_seconds, max_retries=0)
+        self._client = client or AsyncOpenAI(
+            api_key=api_key, timeout=timeout_seconds, max_retries=0
+        )
         self._model = model
         self._max_output_tokens = max_output_tokens
 

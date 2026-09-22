@@ -4,9 +4,9 @@ import json
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
-from fastapi.responses import Response
 import asyncpg
+from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.responses import Response
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel
 from redis.asyncio import Redis
@@ -24,19 +24,23 @@ from app.repositories.replay import load_audit_replay
 from app.settings import Settings, get_settings
 
 DECISIONS = Counter("decision_engine_decisions_total", "Locked decisions", ["action"])
-EXPLANATION_FALLBACKS = Counter("decision_engine_explanation_fallbacks_total", "Explanation fallbacks")
+EXPLANATION_FALLBACKS = Counter(
+    "decision_engine_explanation_fallbacks_total", "Explanation fallbacks"
+)
 CACHE_HITS = Counter("decision_engine_cache_hits_total", "Decision cache hits", ["kind"])
 CACHE_MISSES = Counter("decision_engine_cache_misses_total", "Decision cache misses", ["kind"])
-DECISION_LATENCY = Histogram(
-    "decision_engine_latency_seconds", "End-to-end decision latency"
-)
+DECISION_LATENCY = Histogram("decision_engine_latency_seconds", "End-to-end decision latency")
 POLICY_FAILURES = Counter("decision_engine_policy_failures_total", "Policy load failures")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved = settings or get_settings()
     state: dict[str, Policy | str | asyncpg.Pool | Redis | DecisionCache | None] = {
-        "policy": None, "checksum": None, "error": None, "database": None, "cache": None,
+        "policy": None,
+        "checksum": None,
+        "error": None,
+        "database": None,
+        "cache": None,
     }
 
     @asynccontextmanager
@@ -49,10 +53,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             state["error"] = str(exc)
         if resolved.database_url:
             try:
-                state["database"] = await asyncpg.create_pool(
+                pool = await asyncpg.create_pool(
                     resolved.database_url, min_size=1, max_size=5, command_timeout=3
                 )
-                await apply_migrations(state["database"], resolved.migrations_path)
+                assert pool is not None
+                state["database"] = pool
+                await apply_migrations(pool, resolved.migrations_path)
             except (OSError, asyncpg.PostgresError) as exc:
                 state["error"] = f"database unavailable: {exc.__class__.__name__}"
         if resolved.redis_url:
@@ -77,7 +83,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def require_internal_auth(authorization: str | None = Header(default=None)) -> None:
         if resolved.internal_service_token is None:
             if resolved.app_env == "production":
-                raise HTTPException(status_code=503, detail="Internal authentication is unavailable")
+                raise HTTPException(
+                    status_code=503, detail="Internal authentication is unavailable"
+                )
             return
         expected = f"Bearer {resolved.internal_service_token}"
         if authorization != expected:
@@ -90,12 +98,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/health/ready")
     async def ready() -> Response:
         policy = state["policy"]
-        database_ready = resolved.database_url is None or isinstance(state["database"], asyncpg.Pool)
-        ready_state = policy is not None and database_ready and (resolved.app_env != "production" or resolved.internal_auth_configured)
+        database_ready = resolved.database_url is None or isinstance(
+            state["database"], asyncpg.Pool
+        )
+        ready_state = (
+            policy is not None
+            and database_ready
+            and (resolved.app_env != "production" or resolved.internal_auth_configured)
+        )
         cache = state["cache"]
-        cache_status = "ready" if isinstance(cache, DecisionCache) else ("disabled" if resolved.redis_url is None else "unavailable")
-        body = {"status": "ready" if ready_state else "not_ready", "service": "decision-engine", "policy": getattr(policy, "version", None), "database": "ready" if database_ready else "unavailable", "cache": cache_status, "error": state["error"]}
-        return Response(content=json.dumps(body), media_type="application/json", status_code=200 if ready_state else 503)
+        cache_status = (
+            "ready"
+            if isinstance(cache, DecisionCache)
+            else ("disabled" if resolved.redis_url is None else "unavailable")
+        )
+        body = {
+            "status": "ready" if ready_state else "not_ready",
+            "service": "decision-engine",
+            "policy": getattr(policy, "version", None),
+            "database": "ready" if database_ready else "unavailable",
+            "cache": cache_status,
+            "error": state["error"],
+        }
+        return Response(
+            content=json.dumps(body),
+            media_type="application/json",
+            status_code=200 if ready_state else 503,
+        )
 
     @app.get("/metrics")
     async def metrics() -> Response:
@@ -106,10 +135,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         policy = state["policy"]
         if not isinstance(policy, Policy):
             raise HTTPException(status_code=503, detail="Approved decision policy is unavailable")
-        return {"version": policy.version, "contract_version": policy.contract_version, "status": policy.status, "checksum": state["checksum"], "thresholds": policy.thresholds.model_dump()}
+        return {
+            "version": policy.version,
+            "contract_version": policy.contract_version,
+            "status": policy.status,
+            "checksum": state["checksum"],
+            "thresholds": policy.thresholds.model_dump(),
+        }
 
     @app.get("/internal/v1/audit/{audit_id}")
-    async def audit_replay(audit_id: str, _: None = Depends(require_internal_auth)) -> dict[str, object]:
+    async def audit_replay(
+        audit_id: str, _: None = Depends(require_internal_auth)
+    ) -> dict[str, object]:
         database = state["database"]
         if not isinstance(database, asyncpg.Pool):
             raise HTTPException(status_code=503, detail="Audit database is unavailable")
@@ -128,10 +165,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         locked_action: str
 
     @app.post("/internal/v1/decisions/validate")
-    async def validate_decision(payload: ValidationRequest, _: None = Depends(require_internal_auth)) -> dict[str, object]:
+    async def validate_decision(
+        payload: ValidationRequest, _: None = Depends(require_internal_auth)
+    ) -> dict[str, object]:
         action_matches = payload.result.action_code.value == payload.locked_action
         valid = action_matches and all(payload.result.validation.values())
-        return {"valid": valid, "locked_action": action_matches, "schema": True, "citations": payload.result.validation.get("citations", False)}
+        return {
+            "valid": valid,
+            "locked_action": action_matches,
+            "schema": True,
+            "citations": payload.result.validation.get("citations", False),
+        }
 
     @app.post("/internal/v1/decisions", response_model=DecisionResult)
     async def decide(
@@ -144,7 +188,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not isinstance(policy, Policy):
             raise HTTPException(status_code=503, detail="Approved decision policy is unavailable")
         cache = state["cache"]
-        model = resolved.openai_explainer_model if resolved.openai_enabled and resolved.openai_api_key else None
+        model = (
+            resolved.openai_explainer_model
+            if resolved.openai_enabled and resolved.openai_api_key
+            else None
+        )
         request_hash = input_hash(payload, policy, "1.0.0", model)
         if isinstance(cache, DecisionCache):
             try:
@@ -181,7 +229,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             try:
                 await write_audit(database, result, str(state["checksum"]))
             except asyncpg.PostgresError as exc:
-                raise HTTPException(status_code=503, detail=f"Decision audit unavailable: {exc.__class__.__name__}") from exc
+                raise HTTPException(
+                    status_code=503, detail=f"Decision audit unavailable: {exc.__class__.__name__}"
+                ) from exc
         DECISIONS.labels(result.action_code.value).inc()
         DECISION_LATENCY.observe(time.perf_counter() - started)
         return result

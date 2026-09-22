@@ -20,7 +20,9 @@ async def apply_migrations(pool: asyncpg.Pool, migrations_path: Path) -> None:
         )
         applied = {
             row["migration_name"]
-            for row in await connection.fetch("SELECT migration_name FROM decision.schema_migrations")
+            for row in await connection.fetch(
+                "SELECT migration_name FROM decision.schema_migrations"
+            )
         }
         for migration_file in migration_files:
             if migration_file.name in applied:

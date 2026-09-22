@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any
 
 from redis.asyncio import Redis
 
@@ -14,7 +13,9 @@ class IdempotencyConflict(RuntimeError):
     pass
 
 
-def input_hash(payload: DecisionRequest, policy: Policy, prompt_version: str, model: str | None) -> str:
+def input_hash(
+    payload: DecisionRequest, policy: Policy, prompt_version: str, model: str | None
+) -> str:
     canonical = {
         "request": json.loads(payload.model_dump_json()),
         "policy_version": policy.version,
@@ -23,7 +24,9 @@ def input_hash(payload: DecisionRequest, policy: Policy, prompt_version: str, mo
         "model": model,
         "locale": payload.locale,
     }
-    return hashlib.sha256(json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    return hashlib.sha256(
+        json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
 
 
 class DecisionCache:
@@ -36,7 +39,9 @@ class DecisionCache:
         return DecisionResult.model_validate_json(value) if value else None
 
     async def set_explanation(self, cache_key: str, result: DecisionResult) -> None:
-        await self.redis.set(f"decision:explanation:{cache_key}", result.model_dump_json(), ex=self.ttl_seconds)
+        await self.redis.set(
+            f"decision:explanation:{cache_key}", result.model_dump_json(), ex=self.ttl_seconds
+        )
 
     async def reserve_idempotency(self, key: str, request_hash: str) -> DecisionResult | None:
         redis_key = f"decision:idempotency:{key}"
@@ -61,6 +66,8 @@ class DecisionCache:
     async def save_idempotency(self, key: str, request_hash: str, result: DecisionResult) -> None:
         await self.redis.set(
             f"decision:idempotency:{key}",
-            json.dumps({"input_hash": request_hash, "result": json.loads(result.model_dump_json())}),
+            json.dumps(
+                {"input_hash": request_hash, "result": json.loads(result.model_dump_json())}
+            ),
             ex=self.ttl_seconds,
         )
