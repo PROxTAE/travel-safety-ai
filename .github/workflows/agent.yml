@@ -1,0 +1,108 @@
+name: agent
+
+# Gate on services/agent (module 03). The agent controls the order of everything between a request
+# and a recommendation, so a regression here reaches every user: a loop that does not end, a stale
+# result reused, a step skipped.
+#
+# Ordered so a failure names what broke: lint and types, then the fast suite, then the Docker build
+# that proves the image is reproducible and non-root. The Docker steps run only once a Dockerfile
+# exists in the branch, so this workflow can land before the image does.
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - 'feat/**'
+      - 'fix/**'
+      - 'test/**'
+      - 'refactor/**'
+      - 'contract/**'
+
+defaults:
+  run:
+    working-directory: services/agent
+
+jobs:
+  agent:
+    name: agent
+    runs-on: ubuntu-latest
+    steps:
+      - name: ดึงโค้ดออกมา
+        uses: actions/checkout@v4
+
+      - name: ข้ามงานถ้าสาขานี้ยังไม่มี services/agent
+        id: present
+        working-directory: .
+        run: |
+          if [ -f services/agent/pyproject.toml ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "ยังไม่มี services/agent ในสาขานี้ ข้าม"
+          fi
+          if [ -f services/agent/Dockerfile ]; then
+            echo "docker=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "docker=false" >> "$GITHUB_OUTPUT"
+            echo "ยังไม่มี Dockerfile ข้ามขั้น build image"
+          fi
+
+      - name: ติดตั้ง uv
+        if: steps.present.outputs.run == 'true'
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: services/agent/uv.lock
+
+      - name: ติดตั้ง dependency จาก lockfile
+        if: steps.present.outputs.run == 'true'
+        run: uv sync --frozen
+
+      - name: ruff (lint + format)
+        if: steps.present.outputs.run == 'true'
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: mypy (strict)
+        if: steps.present.outputs.run == 'true'
+        run: uv run mypy app
+
+      # แยกจาก integration เพื่อให้ feedback เร็วและบอกได้ว่าพังเพราะโค้ดหรือเพราะ Docker
+      - name: unit tests
+        if: steps.present.outputs.run == 'true'
+        run: uv run pytest -m "not integration" --cov=app --cov-report=term-missing
+
+      - name: ตรวจว่าไม่มี runtime mock switch (09_INTEGRATION_ACCEPTANCE_RUNBOOK §3)
+        if: steps.present.outputs.run == 'true'
+        run: |
+          if grep -rnE "(USE_MOCK|mockMode|fakeRecommendation|hardcodedWeather|sampleCurrentData)" app; then
+            echo "::error::พบ mock switch ใน runtime code"
+            exit 1
+          fi
+          echo "ไม่พบ runtime mock switch"
+
+      - name: build image
+        if: steps.present.outputs.run == 'true' && steps.present.outputs.docker == 'true'
+        working-directory: .
+        run: docker build -t sta-agent:ci ./services/agent
+
+      - name: ตรวจว่า image ไม่ได้รันด้วย root และไม่มีไฟล์ที่ไม่ควรอยู่
+        if: steps.present.outputs.run == 'true' && steps.present.outputs.docker == 'true'
+        working-directory: .
+        run: |
+          uid=$(docker run --rm --entrypoint python sta-agent:ci -c "import os; print(os.getuid())")
+          if [ "$uid" = "0" ]; then
+            echo "::error::image รันด้วย root"
+            exit 1
+          fi
+          echo "image รันด้วย uid $uid"
+
+          for path in /app/.env /app/tests /app/.git /app/uv.lock /app/.venv/bin/uv; do
+            if docker run --rm --entrypoint sh sta-agent:ci -c "test -e $path"; then
+              echo "::error::image ไม่ควรมี $path"
+              exit 1
+            fi
+          done
+          echo "ไม่มีไฟล์ต้องห้ามใน image"
