@@ -15,6 +15,8 @@ class PolicyThresholds(BaseModel):
     delay_risk_score: float = Field(ge=0, le=1)
     max_delay_minutes: int = Field(gt=0)
     minimum_confidence: float = Field(ge=0, le=1)
+    threshold_margin: float = Field(default=0.05, ge=0, le=1)
+    max_uncertainty: float = Field(default=0.25, ge=0, le=1)
 
 
 class Policy(BaseModel):

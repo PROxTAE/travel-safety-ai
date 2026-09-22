@@ -8,6 +8,8 @@ thresholds:
   delay_risk_score: 0.45
   max_delay_minutes: 180
   minimum_confidence: 0.60
+  threshold_margin: 0.05
+  max_uncertainty: 0.25
 rules:
   - id: R001_OFFICIAL_CLOSURE
     priority: 1

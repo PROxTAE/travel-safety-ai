@@ -14,3 +14,10 @@ USER appuser
 EXPOSE 8005
 HEALTHCHECK --interval=10s --timeout=3s --retries=10 CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health/live', timeout=3)"
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8005"]
+
+FROM runtime AS test
+USER root
+RUN pip install --no-cache-dir --disable-pip-version-check pytest==9.1.1 hypothesis==6.131.9
+COPY tests ./tests
+USER appuser
+CMD ["pytest", "-q"]

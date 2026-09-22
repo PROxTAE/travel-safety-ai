@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest==9.1.1", "ruff==0.13.0", "mypy==1.18.1"]
+dev = ["hypothesis==6.131.9", "pytest==9.1.1", "ruff==0.13.0", "mypy==1.18.1"]
 
 [build-system]
 requires = ["hatchling==1.27.0"]
