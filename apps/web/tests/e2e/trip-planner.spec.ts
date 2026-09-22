@@ -1,5 +1,41 @@
 import { test, expect } from "./fixtures";
 
+test("keeps the trip planner panels and preview controls responsive", async ({ page }) => {
+  await page.setViewportSize({ width: 1672, height: 941 });
+  await page.goto("/trips/new");
+
+  const form = await page.locator(".trip-form").boundingBox();
+  const preview = await page.locator(".route-preview").boundingBox();
+  const options = await page.locator(".route-options").boundingBox();
+
+  expect(form).not.toBeNull();
+  expect(preview).not.toBeNull();
+  expect(options).not.toBeNull();
+  expect(form!.x + form!.width).toBeLessThanOrEqual(preview!.x);
+  expect(preview!.x + preview!.width).toBeLessThanOrEqual(options!.x);
+  expect(
+    await page.locator(".trip-form").evaluate((element) => element.scrollWidth),
+  ).toBeLessThanOrEqual(Math.ceil(form!.width));
+
+  const mapButton = page.getByRole("button", { name: "Map", exact: true });
+  const listButton = page.getByRole("button", { name: "List", exact: true });
+  await expect(mapButton).toBeVisible();
+  await expect(listButton).toBeVisible();
+  await listButton.click();
+  await expect(page.locator(".route-preview-list")).toBeVisible();
+  await mapButton.click();
+  await expect(page.locator(".trip-map")).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(mapButton).toBeVisible();
+  await expect(listButton).toBeVisible();
+  const mobilePreview = await page.locator(".route-preview").boundingBox();
+  const listControl = await listButton.boundingBox();
+  expect(listControl!.x + listControl!.width).toBeLessThanOrEqual(
+    mobilePreview!.x + mobilePreview!.width,
+  );
+});
+
 test("creates and updates a trip from real geocoding, then reports the unavailable assessment dependency", async ({
   page,
 }) => {

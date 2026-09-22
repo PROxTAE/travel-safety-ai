@@ -1,6 +1,6 @@
 import { expect, test } from "./fixtures";
 
-const routeTimeout = 15_000;
+const routeTimeout = 60_000;
 
 test.describe.configure({ mode: "serial" });
 

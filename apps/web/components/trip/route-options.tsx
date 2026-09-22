@@ -16,13 +16,21 @@ export function RouteOptions({
   recommendation: Schema["RecommendationResponse"] | null;
 }) {
   if (!recommendation)
-    return <EmptyState message="Route options will appear after the live assessment completes." />;
+    return (
+      <div className="route-options-empty">
+        <span aria-hidden="true">⌁</span>
+        <EmptyState message="Route options will appear after the live assessment completes." />
+      </div>
+    );
   const routes = [recommendation.primary_route, ...(recommendation.alternatives ?? [])].filter(
     (route): route is Schema["RouteCandidate"] => Boolean(route),
   );
   if (!routes.length)
     return (
-      <EmptyState message="No route options are available for the selected mode and provider coverage." />
+      <div className="route-options-empty">
+        <span aria-hidden="true">⌁</span>
+        <EmptyState message="No route options are available for the selected mode and provider coverage." />
+      </div>
     );
   return (
     <div className="route-options-list">

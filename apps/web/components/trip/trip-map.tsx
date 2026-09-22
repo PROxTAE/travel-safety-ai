@@ -24,8 +24,19 @@ function mapStyle(): StyleSpecification {
     };
   return {
     version: 8,
-    sources: {},
-    layers: [{ id: "background", type: "background", paint: { "background-color": "#dff7f2" } }],
+    sources: {
+      illustratedBase: {
+        type: "image",
+        url: "/assets/illustrations/global-map-background.png",
+        coordinates: [
+          [-180, 85],
+          [180, 85],
+          [180, -85],
+          [-180, -85],
+        ],
+      },
+    },
+    layers: [{ id: "illustrated-base", type: "raster", source: "illustratedBase" }],
   };
 }
 
@@ -47,8 +58,8 @@ export function TripMap({
     map.current = new maplibregl.Map({
       container: container.current,
       style: mapStyle(),
-      center: [100.5018, 13.7563],
-      zoom: 4,
+      center: [0, 0],
+      zoom: 0.35,
       attributionControl: {},
     });
     map.current.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-left");
@@ -122,8 +133,7 @@ export function TripMap({
       <div ref={container} className="trip-map" aria-label="Interactive trip route map" />
       {!process.env.NEXT_PUBLIC_MAP_TILE_URL && (
         <p className="map-unavailable-note">
-          Base map tiles are not configured. Confirmed provider coordinates and route geometry are
-          still shown.
+          Illustrated base map. Live provider coordinates and route geometry remain interactive.
         </p>
       )}
     </div>

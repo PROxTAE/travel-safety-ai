@@ -501,10 +501,10 @@ a {
 
 /* Phase 3 trip planner */
 .trip-page-heading {
-  min-height: 116px;
-  padding: 23px 12px 18px;
+  min-height: 114px;
+  padding: 22px 10px 14px;
   background: url("/assets/illustrations/hero-global-travel-banner.png") right 58% /
-    min(760px, 58vw) auto no-repeat;
+    min(820px, 58vw) auto no-repeat;
 }
 
 .trip-page-heading h1 {
@@ -517,20 +517,20 @@ a {
 .trip-page-heading p {
   margin: 6px 0 0;
   color: var(--muted-text);
-  font-size: 18px;
+  font-size: 17px;
 }
 
 .trip-planner-grid {
   display: grid;
   align-items: start;
-  gap: 12px;
-  grid-template-columns: minmax(310px, 0.78fr) minmax(410px, 1.12fr) minmax(315px, 0.88fr);
+  gap: 10px;
+  grid-template-columns: minmax(390px, 0.88fr) minmax(490px, 1.18fr) minmax(350px, 0.94fr);
 }
 
 .trip-panel {
   min-width: 0;
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 18px;
   background: rgb(255 255 255 / 96%);
   box-shadow: var(--shadow-card);
 }
@@ -542,15 +542,50 @@ a {
   letter-spacing: -0.025em;
 }
 
-.trip-panel h2 > span {
+.trip-panel h2 > span,
+.route-options-icon {
   margin-right: 8px;
   color: var(--primary-teal-dark);
 }
 
+.trip-heading-icon {
+  display: inline-grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--primary-teal);
+  color: white !important;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.trip-heading-pin {
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+}
+
 .trip-form {
   display: grid;
-  gap: 15px;
-  padding: 20px;
+  gap: 5px;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 14px;
+}
+
+#timezone-help {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.trip-form > *,
+.trip-field-grid,
+.trip-field-grid > label,
+.location-search {
+  min-width: 0;
 }
 
 .trip-form > label,
@@ -567,7 +602,8 @@ a {
 .trip-form input[type="datetime-local"],
 .trip-form > label > input {
   width: 100%;
-  min-height: 46px;
+  min-width: 0;
+  min-height: 44px;
   padding: 10px 12px;
   border: 1px solid #cddde6;
   border-radius: 11px;
@@ -579,7 +615,7 @@ a {
 .trip-field-grid {
   display: grid;
   gap: 10px;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .optional-label,
@@ -608,7 +644,7 @@ a {
 
 .location-input-wrap {
   display: flex;
-  min-height: 46px;
+  min-height: 44px;
   align-items: center;
   gap: 8px;
   padding: 0 9px;
@@ -729,9 +765,10 @@ a {
 
 .choice-row span {
   display: flex;
-  min-height: 42px;
+  min-height: 44px;
   align-items: center;
   justify-content: center;
+  gap: 5px;
   padding: 6px;
   border: 1px solid #cddde6;
   border-radius: 11px;
@@ -740,6 +777,17 @@ a {
   font-size: 12px;
   font-weight: 700;
   text-align: center;
+}
+
+.choice-row span img {
+  width: 21px;
+  height: 21px;
+  object-fit: contain;
+}
+
+.choice-row span i {
+  color: var(--deep-teal);
+  font-style: normal;
 }
 
 .choice-row input:checked + span {
@@ -755,7 +803,7 @@ a {
 
 .find-routes-button {
   display: flex;
-  min-height: 58px;
+  min-height: 52px;
   align-items: center;
   justify-content: center;
   gap: 12px;
@@ -769,6 +817,21 @@ a {
   box-shadow: 0 8px 18px rgb(7 166 127 / 20%);
 }
 
+.search-button-icon {
+  width: 18px;
+  height: 18px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+}
+
+.search-button-icon::after {
+  display: block;
+  width: 8px;
+  border-top: 3px solid currentColor;
+  content: "";
+  transform: translate(12px, 13px) rotate(45deg);
+}
+
 .find-routes-button:disabled {
   cursor: wait;
   opacity: 0.62;
@@ -776,7 +839,7 @@ a {
 
 .route-preview {
   overflow: hidden;
-  padding: 12px;
+  padding: 10px;
 }
 
 .trip-panel-heading {
@@ -798,13 +861,31 @@ a {
   white-space: nowrap;
 }
 
-.map-mode-pill {
-  padding: 8px 11px;
-  border-radius: 10px;
-  background: var(--mint-surface);
-  color: var(--deep-teal);
-  font-size: 12px;
+.preview-mode-switch {
+  display: flex;
+  padding: 4px;
+  border-radius: 12px;
+  background: #eef4f6;
+}
+
+.preview-mode-switch button {
+  min-width: 58px;
+  min-height: 34px;
+  padding: 6px 13px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
   font-weight: 800;
+}
+
+.preview-mode-switch button[aria-pressed="true"] {
+  background: linear-gradient(135deg, #0ec195, #05a980);
+  color: white;
+  box-shadow: 0 4px 10px rgb(7 166 127 / 20%);
 }
 
 .trip-map-shell {
@@ -815,7 +896,7 @@ a {
 
 .trip-map,
 .trip-map-loading {
-  min-height: 525px;
+  min-height: 505px;
 }
 
 .trip-map-loading {
@@ -847,7 +928,7 @@ a {
   margin: 0;
   padding: 8px 10px;
   border-radius: 8px;
-  background: rgb(255 255 255 / 92%);
+  background: rgb(255 255 255 / 88%);
   color: var(--muted-text);
   font-size: 11px;
 }
@@ -888,11 +969,104 @@ a {
 }
 
 .route-options {
+  min-height: 430px;
   padding: 18px 14px;
 }
 
 .route-options > h2 {
   margin-bottom: 15px;
+}
+
+.route-options-column {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 12px;
+}
+
+.route-options-empty {
+  display: grid;
+  min-height: 320px;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 28px;
+  border: 1px dashed #c8e5de;
+  border-radius: 15px;
+  background: linear-gradient(145deg, #fbfffe, #f1fcf8);
+  color: var(--muted-text);
+  text-align: center;
+}
+
+.route-options-empty > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--mint-surface);
+  color: var(--primary-teal-dark);
+  font-size: 25px;
+}
+
+.route-options-empty p {
+  max-width: 260px;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.route-preview-list {
+  min-height: 590px;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--mint-soft);
+}
+
+.trip-assistant {
+  position: relative;
+  min-height: 220px;
+  overflow: hidden;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgb(237 255 249 / 50%), rgb(201 244 228 / 72%));
+}
+
+.trip-assistant::after {
+  position: absolute;
+  right: -20px;
+  bottom: -58px;
+  left: -20px;
+  height: 150px;
+  background: url("/assets/illustrations/hero-global-travel-banner.png") center bottom / cover
+    no-repeat;
+  content: "";
+  opacity: 0.72;
+}
+
+.trip-assistant p {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  left: 8px;
+  max-width: 190px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px 14px 3px;
+  background: white;
+  color: var(--heading-navy);
+  font-size: 13px;
+  line-height: 1.4;
+  box-shadow: var(--shadow-card);
+}
+
+.trip-assistant img {
+  position: absolute;
+  z-index: 3;
+  right: -4px;
+  bottom: -18px;
+  width: 164px;
+  height: 196px;
+  object-fit: contain;
 }
 
 .route-options-list {
@@ -1033,12 +1207,12 @@ a {
   }
 }
 
-@media (max-width: 1380px) {
+@media (max-width: 1500px) {
   .trip-planner-grid {
     grid-template-columns: minmax(300px, 0.8fr) minmax(450px, 1.2fr);
   }
 
-  .route-options {
+  .route-options-column {
     grid-column: 1 / -1;
   }
 
@@ -1052,7 +1226,7 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .route-options {
+  .route-options-column {
     grid-column: auto;
   }
 
@@ -1192,9 +1366,14 @@ a {
   line-height: 1.5;
 }
 
+.login-card > form {
+  width: 100%;
+}
+
 .login-disabled-action,
 .login-outline-action {
   display: flex;
+  width: 100%;
   min-height: 57px;
   align-items: center;
   justify-content: center;
@@ -1211,7 +1390,15 @@ a {
 
 .login-outline-action {
   border: 2px solid var(--primary-teal);
+  background: white;
   color: var(--deep-teal);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.login-outline-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
 }
 
 .login-outline-action:hover {
@@ -1361,6 +1548,23 @@ a {
 
   .trip-form {
     padding: 17px 14px;
+  }
+
+  .preview-mode-switch {
+    margin-left: auto;
+    padding: 3px;
+  }
+
+  .route-preview .trip-panel-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .preview-mode-switch button {
+    min-width: 44px;
+    min-height: 34px;
+    padding: 5px 7px;
+    font-size: 12px;
   }
 
   .trip-field-grid {

@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { components } from "@/lib/api/generated/public-api";
@@ -47,6 +48,7 @@ function defaultDeparture() {
 }
 
 export function TripPlanner({ tripId = null }: { tripId?: string | null }) {
+  const [previewMode, setPreviewMode] = useState<"map" | "list">("map");
   const [origin, setOrigin] = useState<Location | null>(null);
   const [destination, setDestination] = useState<Location | null>(null);
   const [trip, setTrip] = useState<Schema["Trip"] | null>(null);
@@ -228,7 +230,10 @@ export function TripPlanner({ tripId = null }: { tripId?: string | null }) {
         <div className="trip-planner-grid">
           <form className="trip-panel trip-form" onSubmit={submit} noValidate>
             <h2>
-              <span aria-hidden="true">📅</span> Trip Details
+              <span className="trip-heading-icon" aria-hidden="true">
+                ▦
+              </span>{" "}
+              Trip Details
             </h2>
             <LocationSearch label="From" value={origin} onChange={setOrigin} />
             <LocationSearch label="To" value={destination} onChange={setDestination} />
@@ -260,7 +265,19 @@ export function TripPlanner({ tripId = null }: { tripId?: string | null }) {
                 {(["FLIGHT", "TRAIN", "BUS", "CAR"] as const).map((mode) => (
                   <label key={mode}>
                     <input type="radio" value={mode} {...register("travelMode")} />
-                    <span>{mode.charAt(0) + mode.slice(1).toLowerCase()}</span>
+                    <span>
+                      {mode === "FLIGHT" || mode === "TRAIN" ? (
+                        <Image
+                          src={`/assets/icons/transport-${mode.toLowerCase()}.png`}
+                          width={20}
+                          height={20}
+                          alt=""
+                        />
+                      ) : (
+                        <i aria-hidden="true">{mode === "BUS" ? "▣" : "◆"}</i>
+                      )}
+                      {mode.charAt(0) + mode.slice(1).toLowerCase()}
+                    </span>
                   </label>
                 ))}
               </div>
@@ -270,7 +287,10 @@ export function TripPlanner({ tripId = null }: { tripId?: string | null }) {
               <div className="choice-row preference-row">
                 <label>
                   <input type="checkbox" {...register("preferSaferRoute")} />
-                  <span>Safer route</span>
+                  <span>
+                    <Image src="/assets/icons/shield-safe.png" width={18} height={18} alt="" />
+                    Safer route
+                  </span>
                 </label>
                 <label>
                   <input type="checkbox" {...register("preferLowerEmissions")} />
@@ -288,7 +308,7 @@ export function TripPlanner({ tripId = null }: { tripId?: string | null }) {
               type="submit"
               disabled={isSubmitting || assessmentActive}
             >
-              <span aria-hidden="true">⌕</span>
+              <span className="search-button-icon" aria-hidden="true" />
               {isSubmitting
                 ? "Saving trip…"
                 : assessmentActive
@@ -301,59 +321,100 @@ export function TripPlanner({ tripId = null }: { tripId?: string | null }) {
             <div className="trip-panel-heading">
               <div>
                 <h2 id="route-preview-title">
-                  <span aria-hidden="true">📍</span> Route Preview
+                  <span className="trip-heading-icon trip-heading-pin" aria-hidden="true">
+                    ●
+                  </span>{" "}
+                  Route Preview
                 </h2>
                 <p>
                   {origin?.display_name ?? "Choose an origin"} →{" "}
                   {destination?.display_name ?? "choose a destination"}
                 </p>
               </div>
-              <span className="map-mode-pill">Interactive map</span>
-            </div>
-            <TripMap origin={origin} destination={destination} routes={routes} />
-            <div className="map-legend" aria-label="Map legend">
-              <span>
-                <i className="legend-line recommended" /> Recommended route
-              </span>
-              <span>
-                <i className="legend-line alternative" /> Alternative route
-              </span>
-              <span>
-                <i className="legend-pin origin" /> Origin
-              </span>
-              <span>
-                <i className="legend-pin destination" /> Destination
-              </span>
-            </div>
-          </section>
-
-          <aside className="trip-panel route-options" aria-labelledby="route-options-title">
-            <h2 id="route-options-title">
-              <span aria-hidden="true">⎇</span> Route Options
-            </h2>
-            {runId && !recommendation && !visibleError && (
-              <div className="assessment-progress" role="status" aria-live="polite">
-                <span className="assessment-spinner" aria-hidden="true" />
-                <strong>
-                  {progress ? stageLabels[progress.stage] : "Connecting to the assessment…"}
-                </strong>
-                {progress?.percent != null && (
-                  <progress max="100" value={progress.percent}>
-                    {progress.percent}%
-                  </progress>
-                )}
-                <p>Connection: {run.connection}</p>
-                <button type="button" onClick={run.cancel}>
-                  Stop watching progress
+              <div className="preview-mode-switch" aria-label="Route preview mode">
+                <button
+                  type="button"
+                  aria-pressed={previewMode === "map"}
+                  onClick={() => setPreviewMode("map")}
+                >
+                  Map
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={previewMode === "list"}
+                  onClick={() => setPreviewMode("list")}
+                >
+                  List
                 </button>
               </div>
-            )}
-            {needsInput && (
-              <div role="alert" className="assessment-needs-input">
-                More information is required: {needsInput.missing_fields.join(", ")}.
+            </div>
+            {previewMode === "map" ? (
+              <>
+                <TripMap origin={origin} destination={destination} routes={routes} />
+                <div className="map-legend" aria-label="Map legend">
+                  <span>
+                    <i className="legend-line recommended" /> Recommended route
+                  </span>
+                  <span>
+                    <i className="legend-line alternative" /> Alternative route
+                  </span>
+                  <span>
+                    <i className="legend-pin origin" /> Origin
+                  </span>
+                  <span>
+                    <i className="legend-pin destination" /> Destination
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="route-preview-list">
+                <RouteOptions recommendation={recommendation} />
               </div>
             )}
-            <RouteOptions recommendation={recommendation} />
+          </section>
+
+          <aside className="route-options-column" aria-labelledby="route-options-title">
+            <section className="trip-panel route-options">
+              <h2 id="route-options-title">
+                <span className="route-options-icon" aria-hidden="true">
+                  ⎇
+                </span>{" "}
+                Route Options
+              </h2>
+              {runId && !recommendation && !visibleError && (
+                <div className="assessment-progress" role="status" aria-live="polite">
+                  <span className="assessment-spinner" aria-hidden="true" />
+                  <strong>
+                    {progress ? stageLabels[progress.stage] : "Connecting to the assessment…"}
+                  </strong>
+                  {progress?.percent != null && (
+                    <progress max="100" value={progress.percent}>
+                      {progress.percent}%
+                    </progress>
+                  )}
+                  <p>Connection: {run.connection}</p>
+                  <button type="button" onClick={run.cancel}>
+                    Stop watching progress
+                  </button>
+                </div>
+              )}
+              {needsInput && (
+                <div role="alert" className="assessment-needs-input">
+                  More information is required: {needsInput.missing_fields.join(", ")}.
+                </div>
+              )}
+              <RouteOptions recommendation={recommendation} />
+            </section>
+            <div className="trip-assistant" aria-label="Trip planning assistant">
+              <p>I’ll check current weather, transport, and local risks.</p>
+              <Image
+                src="/assets/mascot/mascot-welcome.png"
+                width={260}
+                height={310}
+                alt="Smart Travel Assistant"
+              />
+              <span className="trip-assistant-ground" aria-hidden="true" />
+            </div>
           </aside>
         </div>
       )}
