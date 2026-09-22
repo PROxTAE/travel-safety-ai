@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     database_url: str | None = Field(default=None, validation_alias="DECISION_DATABASE_URL")
     policy_path: Path = Field(default=SERVICE_ROOT / "policies" / "v1" / "decision-table.yaml", validation_alias="DECISION_POLICY_PATH")
     policy_checksum: str | None = Field(default=None, validation_alias="DECISION_POLICY_CHECKSUM")
+    migrations_path: Path = Field(
+        default=SERVICE_ROOT / "migrations",
+        validation_alias="DECISION_MIGRATIONS_PATH",
+    )
 
     @property
     def internal_auth_configured(self) -> bool:

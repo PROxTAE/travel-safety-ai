@@ -13,6 +13,7 @@ from app.domain.models import DecisionRequest, DecisionResult
 from app.policy.evaluator import build_result, evaluate
 from app.policy.loader import Policy, load_policy
 from app.repositories.audit import write_audit
+from app.repositories.migrations import apply_migrations
 from app.settings import Settings, get_settings
 
 DECISIONS = Counter("decision_engine_decisions_total", "Locked decisions", ["action"])
@@ -33,7 +34,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             state["error"] = str(exc)
         if resolved.database_url:
             try:
-                state["database"] = await asyncpg.create_pool(resolved.database_url, min_size=1, max_size=5, command_timeout=3)
+                state["database"] = await asyncpg.create_pool(
+                    resolved.database_url, min_size=1, max_size=5, command_timeout=3
+                )
+                await apply_migrations(state["database"], resolved.migrations_path)
             except (OSError, asyncpg.PostgresError) as exc:
                 state["error"] = f"database unavailable: {exc.__class__.__name__}"
         yield
