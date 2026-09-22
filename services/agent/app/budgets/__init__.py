@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Protocol, TypeAlias
 
 from app.graph.state import AgentState, RunStatus
 from app.settings import Settings
@@ -33,7 +33,7 @@ from app.settings import Settings
 #: `ControlSection` (e.g. `{"status": RunStatus.NEEDS_INPUT}`). Nodes never construct
 #: `ControlSection` themselves and never touch `step_count` — `guard_node` owns both, so a node
 #: cannot accidentally skip the increment or race it.
-type NodeUpdate = dict[str, object]
+NodeUpdate: TypeAlias = dict[str, object]
 
 
 class NodeFn(Protocol):
