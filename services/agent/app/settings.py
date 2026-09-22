@@ -50,6 +50,27 @@ class Settings(BaseSettings):
     #: refuse every request while this is unset.
     internal_service_token: SecretStr | None = None
 
+    #: Postgres connection string for the LangGraph checkpointer and `agent.runs`
+    #: (app/checkpoints/postgres.py). Unset means the service still starts — `/health/ready`
+    #: reports it — but every run fails to persist rather than being invented in memory. Whoever
+    #: wires `compose.yaml`'s `agent:` service should set this the same way `decision-engine`
+    #: sets `DECISION_DATABASE_URL`, assembled from the shared `POSTGRES_*` variables.
+    database_url: str | None = None
+    #: Redis connection string for `app/progress/publisher.py`. Unset disables progress
+    #: publishing (`run.accepted`/`run.progress`/... are simply not sent) rather than failing the
+    #: run — SSE delivery degrading is not, by itself, a reason to refuse a request.
+    redis_url: str | None = None
+
+    # -- Tool base URLs (app/tools/registry.py, "base URL จาก env allowlist; agent ห้ามรับ URL จาก
+    # model/user") — the agent never accepts one of these from a request body or a model output.
+    # Defaults are each service's own Docker Compose network name and the port its own Dockerfile
+    # EXPOSEs; unset for the two with neither observed yet.
+    external_data_base_url: str = "http://external-data:8002"
+    data_integration_base_url: str = "http://data-integration:8003"
+    risk_knowledge_base_url: str = "http://risk-knowledge:8004"
+    decision_engine_base_url: str = "http://decision-engine:8005"
+    recommendation_base_url: str | None = None
+
     # -- Budgets and stop conditions (values from the plan) ------------------------------------
     max_agent_steps: int = Field(default=12, ge=1)
     max_tool_calls: int = Field(default=10, ge=1)
@@ -70,6 +91,11 @@ class Settings(BaseSettings):
     max_input_tokens: int | None = Field(default=None, gt=0)
     max_output_tokens: int | None = Field(default=None, gt=0)
     max_estimated_cost_usd: float | None = Field(default=None, gt=0)
+    #: Provider credential for app/intent/llm_classifier.py. Unset means the LLM path can never
+    #: run even if LLM_ENABLED is true — see OpenAIIntentClassifier's own fail-closed check.
+    openai_api_key: SecretStr | None = None
+    openai_intent_model: str = "gpt-4o-mini"
+    openai_timeout_seconds: float = Field(default=10.0, gt=0)
 
     @model_validator(mode="after")
     def _validate_consistency(self) -> Self:

@@ -274,6 +274,12 @@ class ControlSection(BaseModel):
     tool_call_count: int = Field(default=0, ge=0)
     token_usage: int = Field(default=0, ge=0)
     estimated_cost: float = Field(default=0.0, ge=0.0)
+    #: How many times `validate_evidence` has found the evidence package insufficient (Phase 4,
+    #: app/graph/nodes/validate_evidence.py). Distinct from `step_count`: this counts only trips
+    #: around the graph's one back-edge (`validate_evidence -> build_evidence`), which is what lets
+    #: `Settings.evidence_retry_max` bound that loop specifically rather than borrowing a counter
+    #: meant for something else (see the Phase 1 docstring this field replaces, in git history).
+    evidence_retry_count: int = Field(default=0, ge=0)
     started_at: AwareDatetime
     deadline_at: AwareDatetime
     cancelled: bool = False

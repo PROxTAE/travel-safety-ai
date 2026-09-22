@@ -42,7 +42,9 @@ flowchart TD
     START([START]) --> V["validate_input"]
     V -->|invalid| FAIL_V(["FAILED: VALIDATION_ERROR"])
     V --> C["classify_intent"]
-    C --> R["check_required_fields"]
+    C -->|EMERGENCY| EM["emergency_shortcut"]
+    EM --> FIN
+    C -->|other intent| R["check_required_fields"]
     R -->|missing critical| NI(["NEEDS_INPUT: emit run.needs_input, interrupt"])
     R -->|complete| F["fetch_external_data"]
     F --> I["integrate_data"]
@@ -62,17 +64,24 @@ flowchart TD
 
 หลักการที่ทำให้ graph จบเสมอ (ไม่มี unlimited loop):
 
-- มี **back-edge เดียว** คือ `validate_evidence -> build_evidence` และจำกัดจำนวนรอบด้วยค่า config **[ข้อเสนอ]** `EVIDENCE_RETRY_MAX=1`
+- มี **back-edge เดียว** คือ `validate_evidence -> build_evidence` จำกัดจำนวนรอบด้วย
+  `control.evidence_retry_count` เทียบกับ `EVIDENCE_RETRY_MAX` — กลไก implement แล้ว (Phase 4,
+  `app/graph/nodes/validate_evidence.py`, `app/graph/routing.build_after_validate_evidence`)
+  ค่าเริ่มต้น `1` ยัง **[ข้อเสนอ]** อยู่ (ดูข้อ 9.5)
 - ทุกครั้งที่เปลี่ยน node ต้องเพิ่ม `control.step_count` แล้วเช็ก budget (หัวข้อ 5) ก่อนเข้า node ถัดไป
 - retry ของ provider เกิดใน tool client เท่านั้น ไม่ย้อนกลับใน graph
+- `emergency_shortcut` (Phase 2) เป็นทางลัดที่ไป `finalize` ตรงๆ ข้าม `check_required_fields`,
+  `fetch_external_data`, `integrate_data`, `build_evidence` ทั้งหมด — ไม่ใช่ loop และไม่เพิ่ม cyclomatic
+  complexity ของ graph (ยังเป็น DAG)
 
 ## 3. Node table
 
 | Node | GraphStage ที่ publish | Tool ที่เรียก | อ่านจาก state | เขียนลง state |
 | --- | --- | --- | --- | --- |
 | `validate_input` | `VALIDATING` | ไม่มี | `input.travel_request`, `control` | `control.errors` (ถ้าไม่ผ่าน) |
-| `classify_intent` | `VALIDATING` | ไม่มี (deterministic ก่อน, LLM เฉพาะ ambiguous) | `input.travel_request.question` | `input.intent` |
-| `check_required_fields` | `VALIDATING` | ไม่มี | `input.intent`, `input.travel_request` | `input.missing_fields` |
+| `classify_intent` | `VALIDATING` | ไม่มี (deterministic ก่อน, LLM เฉพาะ ambiguous — ดู `docs/intent-and-required-fields.md`) | `input.travel_request.question`, `input.approved_context_refs` | `input.intent` |
+| `emergency_shortcut` | (ยังไม่กำหนด — รอ tool `recommendation.emergency_contacts` ที่ module 08 ยังไม่ publish spec) | ยังไม่มี (ไม่ใช่ 1 ใน 5 allowlisted MVP tools) | `input.travel_request.origin` | ยังไม่มี — ปัจจุบัน raise `NodeNotImplementedError` เสมอ |
+| `check_required_fields` | `VALIDATING` | ไม่มี | `input.intent`, `input.travel_request`, `input.approved_context_refs` | `input.missing_fields` |
 | `fetch_external_data` | `FETCHING_EXTERNAL_DATA` | `external_data.query_context@1` | `input.travel_request` | `observations.external_context_ref`, `quality.*` |
 | `integrate_data` | `INTEGRATING_DATA` | `data_integration.create_snapshot@1` | `observations.external_context_ref` | `observations.snapshot_id`, `quality.*` |
 | `build_evidence` | `ASSESSING_RISK`, `RETRIEVING_GUIDANCE`, `EVALUATING_ROUTES` | `risk_knowledge.build_evidence_package@1` | `observations.snapshot_id` | `observations.evidence_package_ref`, `result.risk_assessments`, `result.evidence_ids`, `result.route_ids` |
@@ -153,7 +162,8 @@ TTL เริ่มต้น (จาก `00_SHARED_PROJECT_CONTEXT.md` ส่ว
 | `FOLLOW_UP` | ถามต่อจาก conversation เดิม | ตรวจ freshness ตามหัวข้อ 7 |
 | `EMERGENCY` | เหตุฉุกเฉิน | ส่งทางลัดไปข้อมูลฉุกเฉิน **ห้ามติดต่อเจ้าหน้าที่เอง** |
 
-รายการ critical missing fields ต่อ intent และกฎ classifier จะอยู่ในเอกสารแยก (Phase 0 ข้อ 4)
+รายการ critical missing fields ต่อ intent, ลำดับกฎ classifier และ keyword list เต็มอยู่ที่
+[`docs/intent-and-required-fields.md`](../intent-and-required-fields.md) (Phase 0 ข้อ 4 + Phase 2)
 
 ## 9. คำถามที่ต้องตกลง
 
