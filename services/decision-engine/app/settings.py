@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     service_version: str = Field(default="0.1.0", validation_alias="DECISION_ENGINE_VERSION")
     contract_version: str = Field(default="1.0.0", validation_alias="CONTRACT_VERSION")
     internal_service_token: str | None = Field(default=None, validation_alias="INTERNAL_SERVICE_TOKEN")
+    database_url: str | None = Field(default=None, validation_alias="DECISION_DATABASE_URL")
     policy_path: Path = Field(default=SERVICE_ROOT / "policies" / "v1" / "decision-table.yaml", validation_alias="DECISION_POLICY_PATH")
     policy_checksum: str | None = Field(default=None, validation_alias="DECISION_POLICY_CHECKSUM")
 

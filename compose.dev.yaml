@@ -120,6 +120,7 @@ services:
     volumes:
       - ./services/decision-engine/app:/app/app:ro
       - ./services/decision-engine/policies:/app/policies:ro
+      - ./services/decision-engine/migrations:/app/migrations:ro
       - ./services/decision-engine/tests:/app/tests:ro
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8005", "--reload", "--no-access-log"]
 
