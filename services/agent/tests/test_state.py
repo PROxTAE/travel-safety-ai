@@ -137,9 +137,7 @@ def test_question_is_limited_to_2000_characters() -> None:
         TravelRequest.model_validate(data)
 
 
-@pytest.mark.parametrize(
-    "coordinates", [(200.0, 0.0), (-181.0, 0.0), (0.0, 91.0), (0.0, -91.0)]
-)
+@pytest.mark.parametrize("coordinates", [(200.0, 0.0), (-181.0, 0.0), (0.0, 91.0), (0.0, -91.0)])
 def test_coordinates_out_of_range_are_rejected(
     coordinates: tuple[float, float],
 ) -> None:

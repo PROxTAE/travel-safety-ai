@@ -130,9 +130,7 @@ def test_sensitive_fields_cannot_be_added_to_progress_payload(
         AGENT_EVENT_ADAPTER.validate_python(_envelope("run.progress", payload))
 
 
-@pytest.mark.parametrize(
-    "message_key", ["Checking weather now", "", "Stage.Fetching", "1abc"]
-)
+@pytest.mark.parametrize("message_key", ["Checking weather now", "", "Stage.Fetching", "1abc"])
 def test_message_key_must_be_a_key_not_free_text(message_key: str) -> None:
     with pytest.raises(ValidationError):
         AGENT_EVENT_ADAPTER.validate_python(
@@ -193,9 +191,7 @@ def test_failed_stage_requires_error_code() -> None:
 def test_needs_input_requires_at_least_one_missing_field() -> None:
     with pytest.raises(ValidationError):
         AGENT_EVENT_ADAPTER.validate_python(
-            _envelope(
-                "run.needs_input", {"missing_fields": [], "prompt_key": "input.missing"}
-            )
+            _envelope("run.needs_input", {"missing_fields": [], "prompt_key": "input.missing"})
         )
 
 
