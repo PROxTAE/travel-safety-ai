@@ -18,10 +18,16 @@ export function Profile() {
   if (profile.error)
     return <ErrorState error={profile.error} retry={() => void profile.refetch()} />;
   return (
-    <span>
+    <span className="profile-details">
       <strong>Hello, {profile.data.data.display_name || "Traveler"}!</strong>
-      <br />
-      <button onClick={() => void signOut({ callbackUrl: "/login" })}>Sign out</button>
+      <button
+        className="sign-out-button"
+        type="button"
+        onClick={() => void signOut({ callbackUrl: "/login" })}
+      >
+        <span aria-hidden="true">↪</span>
+        <span className="sign-out-label">Sign out</span>
+      </button>
     </span>
   );
 }

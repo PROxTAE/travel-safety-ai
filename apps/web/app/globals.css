@@ -275,6 +275,46 @@ a {
   font-weight: 800;
 }
 
+.profile-details {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+
+.sign-out-button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border: 1px solid rgb(11 158 126 / 24%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 76%);
+  color: #287163;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgb(22 102 88 / 8%);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.sign-out-button:hover {
+  border-color: rgb(4 169 129 / 48%);
+  background: white;
+  color: var(--deep-teal);
+  transform: translateY(-1px);
+}
+
+.sign-out-button:focus-visible {
+  outline: 3px solid rgb(13 185 143 / 30%);
+  outline-offset: 2px;
+}
+
 .header-sun {
   color: #ffbf2d;
   font-size: 28px;
@@ -501,10 +541,20 @@ a {
 
 /* Phase 3 trip planner */
 .trip-page-heading {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   min-height: 114px;
   padding: 22px 10px 14px;
-  background: url("/assets/illustrations/hero-global-travel-banner.png") right 58% /
-    min(820px, 58vw) auto no-repeat;
+  background:
+    linear-gradient(
+      90deg,
+      rgb(248 255 253 / 98%) 0%,
+      rgb(248 255 253 / 94%) 27%,
+      rgb(248 255 253 / 54%) 48%,
+      rgb(248 255 253 / 4%) 72%
+    ),
+    url("/assets/illustrations/hero-global-travel-banner.png") center 61% / cover no-repeat;
 }
 
 .trip-page-heading h1 {
@@ -1506,9 +1556,36 @@ a {
     height: 58px;
   }
 
-  .profile-copy,
   .header-sun {
     display: none;
+  }
+
+  .profile-copy {
+    display: block;
+  }
+
+  .profile-copy .profile-details strong {
+    display: none;
+  }
+
+  .profile-copy .sign-out-button {
+    width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    padding: 0;
+    font-size: 20px;
+  }
+
+  .profile-copy .sign-out-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .profile-avatar {
@@ -1537,8 +1614,10 @@ a {
   .trip-page-heading {
     min-height: 130px;
     padding: 22px 4px 18px;
-    background-position: right bottom;
-    background-size: 330px auto;
+    background-position:
+      center,
+      62% center;
+    background-size: auto, cover;
   }
 
   .trip-page-heading p {

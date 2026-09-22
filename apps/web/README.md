@@ -92,7 +92,9 @@ shows confirmed coordinates and server route geometry over the supplied
 illustrated world-map fallback with an explicit configuration notice. The
 illustration is presentation only and is never used as geographic data. Tile
 URLs may contain a `{token}` placeholder resolved from
-`NEXT_PUBLIC_MAP_TILE_TOKEN`.
+`NEXT_PUBLIC_MAP_TILE_TOKEN`. Set `NEXT_PUBLIC_MAP_TILE_ATTRIBUTION` to the
+visible attribution required by the selected provider. All three settings are
+browser-visible and must not contain a server-side secret.
 
 The current repository does not yet contain an M03 Agent runtime service. The
 real API therefore persists the trip/run and returns a terminal dependency error
@@ -131,7 +133,9 @@ corepack pnpm dev
 
 `NEXT_PUBLIC_API_BASE_URL` must point to the public API. Map tile configuration
 is optional; without it the interactive confirmation/route layers use the
-supplied illustrated world-map fallback. Do not use `NEXT_PUBLIC_` for secrets.
+supplied illustrated world-map fallback. Configure the provider's required
+visible attribution with `NEXT_PUBLIC_MAP_TILE_ATTRIBUTION`. Do not use
+`NEXT_PUBLIC_` for secrets.
 
 ## Verification
 

@@ -5,8 +5,9 @@
 Implements Phase 3 of the M01 web plan: real geocoding and pin confirmation,
 timezone-aware trip validation, persisted create/update operations, assessment
 submission and SSE progress, plus server-owned route map/list states. It also
-aligns the Trip Planner with the supplied screen reference and preserves an
-honest unavailable state while the M03 Agent runtime is absent.
+aligns the Trip Planner with the supplied screen reference, polishes the hero and
+responsive sign-out action, supports provider-required map attribution, and
+preserves an honest unavailable state while the M03 Agent runtime is absent.
 
 Open this PR as **Draft**: all available post-rebase checks pass, but Phase 3's
 login-to-route-options exit cannot pass until M03 is runnable.
@@ -44,8 +45,11 @@ Out of scope:
 - API/OpenAPI/JSON Schema: no shared contract change; generated consumer drift
   check passes.
 - Migration/table/index: none.
-- Environment variables: none added or changed. Existing optional
-  `NEXT_PUBLIC_MAP_TILE_URL` / `NEXT_PUBLIC_MAP_TILE_TOKEN` behavior is documented.
+- Environment variables: adds browser-visible
+  `NEXT_PUBLIC_MAP_TILE_ATTRIBUTION` so deployments can show the selected tile
+  provider's required attribution. Existing optional `NEXT_PUBLIC_MAP_TILE_URL`
+  / `NEXT_PUBLIC_MAP_TILE_TOKEN` behavior remains documented. No value or secret
+  is committed.
 - Shared development-stack changes from Phase 2 are already on main and are not
   part of this branch.
 - Backward compatibility/rollout: additive web route behavior; rollback is a web
@@ -90,9 +94,9 @@ command: node apps/web/scripts/test-docker.mjs
 result: contract drift check passed
 result: lint passed (exit 0)
 result: typecheck passed (exit 0)
-result: Test Files 10 passed (10); Tests 42 passed (42); Duration 48.48s
+result: Test Files 10 passed (10); Tests 42 passed (42); latest Duration 21.99s
 result: PostgreSQL, Redis, Keycloak, external-data, API, and web healthy
-result: Playwright 6 passed (5.2m), 0 failed, 0 skipped
+result: Playwright 6 passed (4.4m), 0 failed, 0 skipped
 
 command: docker build --target runtime -t smart-travel-web:m01-trip-planner apps/web
 result: compiled successfully; TypeScript finished; static pages 5/5 generated

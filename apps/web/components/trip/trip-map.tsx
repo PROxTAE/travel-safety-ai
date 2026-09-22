@@ -13,12 +13,13 @@ type Schema = components["schemas"];
 function mapStyle(): StyleSpecification {
   const configured = process.env.NEXT_PUBLIC_MAP_TILE_URL;
   const token = process.env.NEXT_PUBLIC_MAP_TILE_TOKEN ?? "";
+  const attribution = process.env.NEXT_PUBLIC_MAP_TILE_ATTRIBUTION ?? "Map data provider";
   const tile = configured?.replace("{token}", encodeURIComponent(token));
   if (tile)
     return {
       version: 8,
       sources: {
-        base: { type: "raster", tiles: [tile], tileSize: 256, attribution: "Map data provider" },
+        base: { type: "raster", tiles: [tile], tileSize: 256, attribution },
       },
       layers: [{ id: "base", type: "raster", source: "base" }],
     };

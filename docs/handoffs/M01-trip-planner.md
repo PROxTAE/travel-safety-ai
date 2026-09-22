@@ -176,10 +176,15 @@ are not stored in localStorage.
 
 ### Environment variables added/changed
 
-No environment variables were added or changed by this branch. It consumes the
-existing `NEXT_PUBLIC_MAP_TILE_URL` and optional `NEXT_PUBLIC_MAP_TILE_TOKEN`, plus
-the existing Phase 2 Auth/API settings documented in `apps/web/README.md` and
-`.env.example`. No secret value or `.env` file is in the diff.
+| Variable                           | Required                                    | Secret              | Default/example        | Used by                                  | Failure if missing                                                                          |
+| ---------------------------------- | ------------------------------------------- | ------------------- | ---------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_MAP_TILE_ATTRIBUTION` | Required when a tile provider is configured | No; browser-visible | Empty placeholder only | `TripMap` / MapLibre attribution control | Falls back to generic provider text; deployments must set the provider-required attribution |
+
+The branch continues to consume the existing `NEXT_PUBLIC_MAP_TILE_URL` and
+optional `NEXT_PUBLIC_MAP_TILE_TOKEN`, plus the existing Phase 2 Auth/API
+settings documented in `apps/web/README.md` and `.env.example`. No secret value
+or `.env` file is in the diff. A local ignored `.env.local` may select a tile
+provider for development; it is not part of the branch.
 
 ### Run commands
 
@@ -207,8 +212,8 @@ docker build --target runtime -t smart-travel-web:m01-trip-planner apps/web
 | Contract             | `node apps/web/scripts/test-docker.mjs` (`pnpm check:api`)                    |                1 command |          0 |                                0 | Generated client clean                                  |
 | Lint                 | same (`pnpm lint`)                                                            |                1 command |          0 |                                0 | Exit 0                                                  |
 | Typecheck            | same (`pnpm typecheck`)                                                       |                1 command |          0 |                                0 | Exit 0                                                  |
-| Unit/component       | same (`pnpm test`)                                                            |      42 tests / 10 files |          0 |                                0 | Vitest 48.48 s                                          |
-| Integration/E2E      | same (`npx playwright test`)                                                  |                        6 |          0 |                                0 | Playwright 5.2 min                                      |
+| Unit/component       | same (`pnpm test`)                                                            |      42 tests / 10 files |          0 |                                0 | Latest Vitest 21.99 s                                   |
+| Integration/E2E      | same (`npx playwright test`)                                                  |                        6 |          0 |                                0 | Latest Playwright 4.4 min                               |
 | Production build     | `docker build --target runtime -t smart-travel-web:m01-trip-planner apps/web` |                        1 |          0 |                                0 | Compile/type/static generation passed                   |
 | Security/privacy     | Staged/full diff secret audit                                                 |                  1 audit | 0 findings | Image/dependency scanner not run | No `.env`, credential, token, or password value in diff |
 | Accessibility/visual | Keyboard/touch/responsive Playwright plus manual 1672x941/390x844 inspection  | 3 relevant browser cases |          0 |      axe and pixel-diff deferred | No overflow/console error observed                      |
