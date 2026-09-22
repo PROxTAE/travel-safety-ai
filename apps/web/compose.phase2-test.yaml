@@ -39,6 +39,35 @@ services:
       interval: 5s
       timeout: 3s
       retries: 60
+  external-data:
+    image: smart-travel-external-data:web-phase3
+    build:
+      context: ../../services/external-data
+      target: runtime
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: web_test
+      POSTGRES_DB: web_test
+      POSTGRES_PASSWORD: ${PHASE2_PASSWORD}
+      REDIS_URL: redis://redis:6379/0
+      INTERNAL_SERVICE_TOKEN: ${PHASE2_PASSWORD}
+      PROVIDER_HEALTH_PROBE_SECONDS: "0"
+    command:
+      [sh, -c, "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8002"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test:
+        [
+          CMD,
+          python,
+          -c,
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/live', timeout=3)",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
   api:
     image: smart-travel-api:dev
     build:
@@ -51,6 +80,8 @@ services:
       POSTGRES_PASSWORD: ${PHASE2_PASSWORD}
       REDIS_URL: redis://redis:6379/0
       OIDC_ISSUER: http://keycloak:8080/realms/smart-travel
+      EXTERNAL_DATA_SERVICE_URL: http://external-data:8002
+      INTERNAL_SERVICE_TOKEN: ${PHASE2_PASSWORD}
     command:
       [
         sh,
@@ -61,6 +92,7 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       keycloak: { condition: service_healthy }
+      external-data: { condition: service_healthy }
     healthcheck:
       test:
         [

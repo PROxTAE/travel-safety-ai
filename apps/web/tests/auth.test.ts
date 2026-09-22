@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 import { encode } from "next-auth/jwt";
 import { safeReturnTo, sessionCookie } from "@/lib/auth/session";
 import { proxy } from "@/proxy";
-import { GET, POST } from "@/app/api/backend/[...path]/route";
+import { GET, PATCH, POST } from "@/app/api/backend/[...path]/route";
 
 const secret = "test-only-secret-with-at-least-thirty-two-characters";
 async function request(path = "/api/backend/api/v1/me", init: RequestInit = {}) {
@@ -106,6 +106,26 @@ describe("OIDC route and API boundary", () => {
     const response = await GET(await request());
     expect(response.status).toBe(401);
     expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+  });
+
+  it("forwards the trip revision precondition on updates", async () => {
+    vi.stubEnv("AUTH_SECRET", secret);
+    vi.stubEnv("API_BASE_URL", "http://api:8000");
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ data: {} }));
+    vi.stubGlobal("fetch", fetcher);
+    const response = await PATCH(
+      await request("/api/backend/api/v1/trips/00000000-0000-4000-8000-000000000001", {
+        method: "PATCH",
+        headers: {
+          origin: "http://localhost:3000",
+          "Content-Type": "application/json",
+          "If-Match": 'W/"1"',
+        },
+        body: JSON.stringify({ preferences: { prefer_lower_cost: true } }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(fetcher.mock.calls[0][1].headers.get("If-Match")).toBe('W/"1"');
   });
 
   it("forwards SSE replay headers and cancellation without buffering", async () => {

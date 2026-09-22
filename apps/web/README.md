@@ -24,8 +24,9 @@ Implemented routes:
 
 Phase 2 adds Auth.js Keycloak PKCE login, protected routes, application sign-out,
 the real `/me` profile, a typed public API client, SSE and shared data states.
-Later phases add live maps and feature vertical slices. See [`screen-inventory.md`](docs/screen-inventory.md) for the
-screen, interaction, and contract inventory.
+Phase 3 adds the real trip-planner vertical slice described below. See
+[`screen-inventory.md`](docs/screen-inventory.md) for the screen, interaction,
+and contract inventory.
 
 ## Phase 2 configuration and boundaries
 
@@ -39,8 +40,8 @@ SameSite=Lax. Never put OAuth credentials in `NEXT_PUBLIC_` settings.
 In Docker, the browser and API must agree on the canonical OIDC issuer. Set
 `AUTH_KEYCLOAK_INTERNAL_ORIGIN=http://keycloak:8080` only when Next.js needs a
 different transport address; it preserves the public Host/issuer. Configure the
-API's `OIDC_ISSUER` consistently. Root Compose files are intentionally unchanged;
-pass server settings through your local web environment or an explicit override.
+API's `OIDC_ISSUER` consistently. The shared development override supplies these
+settings for the normal local stack; other environments must provide equivalents.
 
 Browser calls go through `/api/backend/api/v1/*`. This route validates the
 encrypted session, rejects cross-origin mutations, adds bearer/correlation
@@ -71,7 +72,32 @@ run change or unmount. Cancellation stops observation, not the server's run.
 `DataSkeleton`, `EmptyState`, and `ErrorState` preserve missing/unknown values;
 they never derive a final action from a risk level.
 
-## Docker Phase 2 verification
+## Phase 3 trip planner
+
+`/trips/new` searches the authenticated public geocoding endpoint after a 400 ms
+debounce, cancels superseded searches, supports keyboard selection, and requires
+the traveller to confirm both provider pins on the interactive MapLibre preview.
+The RHF form validates wall-clock dates with Zod in the selected IANA timezone;
+it never silently interprets trip dates in the browser timezone.
+
+Submitting creates a persisted trip (or PATCHes an existing trip with its
+revision ETag), starts an idempotent assessment, follows progress over authenticated
+SSE, and fetches the completed recommendation. Route geometry, metrics, risk,
+quality, sources, and freshness are rendered only from that server response. A
+missing route is shown as unavailable rather than filled with a sample option.
+
+Map tiles are optional configuration because no unrestricted default provider is
+assumed. Without `NEXT_PUBLIC_MAP_TILE_URL`, MapLibre remains interactive and
+shows the confirmed coordinates and server route geometry over a neutral
+background with an explicit configuration notice. Tile URLs may contain a
+`{token}` placeholder resolved from `NEXT_PUBLIC_MAP_TILE_TOKEN`.
+
+The current repository does not yet contain an M03 Agent runtime service. The
+real API therefore persists the trip/run and returns a terminal dependency error
+after assessment submission; the final login-to-route-options acceptance path is
+blocked until M03 and its downstream recommendation pipeline are runnable.
+
+## Docker module verification
 
 From the repository root:
 
@@ -79,9 +105,11 @@ From the repository root:
 node apps/web/scripts/test-docker.mjs
 ```
 
-The isolated `smart-travel-web-phase2` project runs lint/typecheck/Vitest in the
-web image, then real browser OIDC/profile/logout and navigation tests against
-Keycloak, API, PostgreSQL, and Redis. It uses random credentials, temporary test
+The isolated `smart-travel-web-phase2` project runs contract drift, lint,
+typecheck, and Vitest in the web image, then browser tests against real Keycloak,
+API, PostgreSQL, Redis, and Open-Meteo geocoding through the external-data
+service. The Phase 3 browser check confirms real persisted trip/run behavior and
+the honest M03 dependency error. It uses random credentials, temporary test
 users and a separate in-memory test database, no host ports and no existing data
 volumes. It removes only its own containers on exit. Browser dependency/results
 volumes remain reusable. Test traces are disabled to avoid recording credentials.
@@ -99,9 +127,9 @@ corepack pnpm install --frozen-lockfile
 corepack pnpm dev
 ```
 
-`NEXT_PUBLIC_API_BASE_URL` must point to the public API. Map configuration is
-optional until the MapLibre feature is implemented. Do not use `NEXT_PUBLIC_` for
-secrets.
+`NEXT_PUBLIC_API_BASE_URL` must point to the public API. Map tile configuration
+is optional; without it the interactive confirmation/route layers use a neutral
+background. Do not use `NEXT_PUBLIC_` for secrets.
 
 ## Verification
 

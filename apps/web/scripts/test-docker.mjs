@@ -17,8 +17,8 @@ function compose(args) {
   });
 }
 try {
-  await compose(["build", "web", "api"]);
-  await compose(["run", "--rm", "--no-deps", "checks"]);
+  if (!process.env.WEB_TEST_SKIP_BUILD) await compose(["build", "web", "api", "external-data"]);
+  if (!process.env.WEB_TEST_SKIP_CHECKS) await compose(["run", "--rm", "--no-deps", "checks"]);
   await compose([
     "up",
     "-d",
@@ -28,13 +28,14 @@ try {
     "postgres",
     "redis",
     "keycloak",
+    "external-data",
     "api",
     "web",
   ]);
   await compose(["run", "--rm", "browser"]);
 } catch (error) {
   // Keep useful startup evidence; browser traces and credential payloads are never captured.
-  await compose(["logs", "--tail=40", "web", "api", "keycloak"]);
+  await compose(["logs", "--tail=40", "web", "api", "external-data", "keycloak"]);
   throw error;
 } finally {
   // Only this isolated project's containers are removed; shared stack and volumes are untouched.
