@@ -9,3 +9,9 @@ openapi/public-api.yaml:
   operation-4xx-response:
     - '#/paths/~1health~1live/get/responses'
     - '#/paths/~1health~1ready/get/responses'
+openapi/internal-recommendation.yaml:
+  operation-4xx-response:
+    - '#/paths/~1health~1live/get/responses'
+    - '#/paths/~1health~1ready/get/responses'
+    - '#/paths/~1metrics/get/responses'
+

@@ -1,0 +1,790 @@
+openapi: 3.1.0
+info:
+  title: Smart Travel Recommendation and Feedback Internal API
+  version: 1.0.0
+  description: |
+    Internal contract of Module 08 (§5.6). It composes immutable `RecommendationResponse`
+    objects from validated locked decisions and integrated travel contexts, attaches
+    verified emergency contacts and instructions, manages live alert subscriptions with
+    meaningful change detection and cooldown rules, accepts governed feedback into safety
+    review queues, and exports datasets for offline evaluation with zero live model retraining.
+    This API is not browser-facing.
+  contact:
+    name: Module 08 Recommendation and Feedback
+  license:
+    name: Internal project use
+servers:
+  - url: http://recommendation:8006
+    description: Docker internal network
+security:
+  - serviceBearer: []
+tags:
+  - name: recommendations
+    description: Create and read immutable recommendation responses.
+  - name: emergency
+    description: Lookup verified official emergency contacts.
+  - name: feedback
+    description: Explicit user feedback and safety review queue operations.
+  - name: subscriptions
+    description: Manage alert subscriptions and evaluate condition changes.
+  - name: health
+    description: Process liveness, dependency readiness, and Prometheus telemetry.
+paths:
+  /health/live:
+    get:
+      tags: [health]
+      summary: Check process liveness
+      description: Returns 200 when the process is running. Touches no external dependency.
+      security: []
+      operationId: getLiveness
+      responses:
+        "200":
+          description: Process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /health/ready:
+    get:
+      tags: [health]
+      summary: Check service readiness
+      description: Returns 200 when required dependencies (PostgreSQL, Redis) are reachable.
+      security: []
+      operationId: getReadiness
+      responses:
+        "200":
+          description: Service is ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          description: A required dependency is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+  /metrics:
+    get:
+      tags: [health]
+      summary: Export Prometheus metrics
+      description: Exposes application and delivery telemetry metrics.
+      security: []
+      operationId: getMetrics
+      responses:
+        "200":
+          description: Prometheus metrics in text format.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /internal/v1/recommendations:
+    post:
+      tags: [recommendations]
+      summary: Compose and persist final recommendation response
+      description: |
+        Validates the locked decision from module 07, ensures consistency with routes and
+        evidence, resolves verified emergency contacts, computes expiration and freshness,
+        and persists the immutable recommendation record.
+      operationId: createRecommendation
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/Traceparent"
+        - $ref: "#/components/parameters/ContractVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendationCreateRequest"
+      responses:
+        "201":
+          description: Recommendation successfully composed and stored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationEnvelope"
+        "200":
+          description: Replayed request returned existing recommendation idempotently.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /internal/v1/recommendations/{recommendation_id}:
+    get:
+      tags: [recommendations]
+      summary: Read a stored recommendation
+      description: Returns the immutable recommendation response by id.
+      operationId: getRecommendation
+      parameters:
+        - $ref: "#/components/parameters/RecommendationId"
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Stored recommendation response.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecommendationEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /internal/v1/emergency/contacts:
+    get:
+      tags: [emergency]
+      summary: Resolve verified official emergency contacts
+      description: |
+        Looks up official emergency contacts by country code, optional subdivision, and
+        service type. Expired or unverified entries are filtered out. If no verified contact
+        exists for the country, an empty list is returned with limitations metadata.
+      operationId: getEmergencyContacts
+      parameters:
+        - name: country_code
+          in: query
+          required: true
+          description: ISO-3166-1 alpha-2 uppercase country code.
+          schema:
+            type: string
+            pattern: "^[A-Z]{2}$"
+        - name: subdivision
+          in: query
+          required: false
+          description: ISO-3166-2 subdivision code.
+          schema:
+            type: string
+        - name: service_type
+          in: query
+          required: false
+          description: Optional emergency service type filter.
+          schema:
+            $ref: "../jsonschema/common/enums.schema.json#/$defs/EmergencyServiceType"
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: List of verified official emergency contacts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmergencyContactsEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /internal/v1/feedback:
+    post:
+      tags: [feedback]
+      summary: Submit explicit user feedback
+      description: |
+        Stores explicit user feedback with sanitized text. If category is UNSAFE or
+        indicates severe inaccuracy, a safety review record is automatically created in
+        the safety review queue and an alert event is published.
+      operationId: submitFeedback
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/CorrelationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackCreateRequest"
+      responses:
+        "201":
+          description: Feedback recorded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedbackEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /internal/v1/feedback/safety-review:
+    get:
+      tags: [feedback]
+      summary: List safety review queue items
+      description: Lists feedback items flagged for safety review.
+      operationId: listSafetyReviewItems
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [NEW, TRIAGED, IN_REVIEW, RESOLVED, DISMISSED]
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Safety review queue items.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SafetyReviewListEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /internal/v1/feedback/safety-review/{id}/transition:
+    post:
+      tags: [feedback]
+      summary: Transition safety review status
+      description: Updates the status of a safety review queue item with audit notes.
+      operationId: transitionSafetyReview
+      parameters:
+        - $ref: "#/components/parameters/SafetyReviewId"
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/CorrelationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SafetyReviewTransitionRequest"
+      responses:
+        "200":
+          description: Status transitioned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SafetyReviewEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /internal/v1/subscriptions:
+    post:
+      tags: [subscriptions]
+      summary: Create alert subscription
+      description: |
+        Creates an opt-in alert subscription for a trip under valid user consent.
+      operationId: createSubscription
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/CorrelationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubscriptionCreateRequest"
+      responses:
+        "201":
+          description: Subscription created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /internal/v1/subscriptions/{subscription_id}:
+    delete:
+      tags: [subscriptions]
+      summary: Cancel alert subscription
+      description: Cancels an alert subscription immediately on user opt-out or consent revocation.
+      operationId: deleteSubscription
+      parameters:
+        - $ref: "#/components/parameters/SubscriptionId"
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "204":
+          description: Subscription cancelled.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+  /internal/v1/alerts/evaluate:
+    post:
+      tags: [subscriptions]
+      summary: Evaluate reassessment for meaningful changes and deliver alerts
+      description: |
+        Compares previous and new recommendations. If a meaningful change is detected
+        (action change, severity increase, route closure, safer alternative) and cooldown
+        permits (cooldown is bypassed for higher severity escalation), sends notification
+        and logs delivery idempotently.
+      operationId: evaluateAlerts
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+        - $ref: "#/components/parameters/CorrelationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlertEvaluationRequest"
+      responses:
+        "200":
+          description: Evaluation completed with delivery decision results.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertEvaluationEnvelope"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          $ref: "#/components/responses/DependencyUnavailable"
+
+components:
+  securitySchemes:
+    serviceBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Shared internal service token.
+  parameters:
+    RequestId:
+      name: X-Request-ID
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CorrelationId:
+      name: X-Correlation-ID
+      in: header
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Traceparent:
+      name: traceparent
+      in: header
+      required: false
+      schema:
+        type: string
+    ContractVersion:
+      name: X-Contract-Version
+      in: header
+      required: false
+      schema:
+        type: string
+        default: "1"
+    RecommendationId:
+      name: recommendation_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SubscriptionId:
+      name: subscription_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SafetyReviewId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    MetaResponse:
+      type: object
+      required: [request_id, correlation_id, contract_version, generated_at]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        correlation_id:
+          type: string
+          format: uuid
+        contract_version:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        degraded_services:
+          type: array
+          items:
+            $ref: "../jsonschema/common/envelope.schema.json#/$defs/DegradedService"
+          default: []
+    HealthResponse:
+      type: object
+      required: [status, service, version]
+      properties:
+        status: { type: string, example: "ok" }
+        service: { type: string, example: "recommendation" }
+        version: { type: string, example: "1.0.0" }
+    ReadinessResponse:
+      type: object
+      required: [status, service, dependencies]
+      properties:
+        status: { type: string, enum: ["ready", "degraded", "unhealthy"] }
+        service: { type: string, example: "recommendation" }
+        dependencies:
+          type: object
+          additionalProperties:
+            type: object
+            required: [status]
+            properties:
+              status: { type: string, enum: ["ok", "degraded", "unreachable"] }
+              latency_ms: { type: number }
+              message: { type: string }
+
+    RecommendationCreateRequest:
+      type: object
+      required: [request_id, trip_id, decision, context]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        trip_id:
+          type: string
+          format: uuid
+        conversation_id:
+          type: ["string", "null"]
+          format: uuid
+        decision:
+          $ref: "../jsonschema/common/decision-result.schema.json"
+        context:
+          type: object
+          description: Structured travel and evidence context summary.
+          required: [routes]
+          properties:
+            routes:
+              type: array
+              items:
+                $ref: "../jsonschema/common/route-candidate.schema.json"
+            alerts:
+              type: array
+              items:
+                $ref: "../jsonschema/common/disaster-event.schema.json"
+              default: []
+            emergency_instructions:
+              type: array
+              items:
+                $ref: "../jsonschema/common/recommendation-response.schema.json#/$defs/EmergencyInstruction"
+              default: []
+            sources:
+              type: array
+              items:
+                $ref: "../jsonschema/common/source-provenance.schema.json"
+              default: []
+            country_code:
+              type: ["string", "null"]
+              pattern: "^[A-Z]{2}$"
+            subdivision:
+              type: ["string", "null"]
+            observed_at:
+              type: ["string", "null"]
+              format: date-time
+            expires_at:
+              type: ["string", "null"]
+              format: date-time
+            degraded_services:
+              type: array
+              items:
+                $ref: "../jsonschema/common/envelope.schema.json#/$defs/DegradedService"
+              default: []
+
+    RecommendationEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "../jsonschema/common/recommendation-response.schema.json"
+        meta:
+          $ref: "#/components/schemas/MetaResponse"
+
+    EmergencyContactsEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "../jsonschema/common/official-contact.schema.json"
+        meta:
+          $ref: "#/components/schemas/MetaResponse"
+
+    FeedbackCreateRequest:
+      type: object
+      required: [user_id, recommendation_id, category]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        recommendation_id:
+          type: string
+          format: uuid
+        category:
+          $ref: "../jsonschema/common/enums.schema.json#/$defs/FeedbackCategory"
+        text:
+          type: ["string", "null"]
+          maxLength: 2000
+          description: Raw feedback text before server-side redaction.
+
+    FeedbackEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "../jsonschema/common/feedback-event.schema.json"
+        meta:
+          $ref: "#/components/schemas/MetaResponse"
+
+    SafetyReviewItem:
+      type: object
+      required: [id, feedback_id, severity, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        feedback_id:
+          type: string
+          format: uuid
+        severity:
+          $ref: "../jsonschema/common/enums.schema.json#/$defs/Severity"
+        status:
+          type: string
+          enum: [NEW, TRIAGED, IN_REVIEW, RESOLVED, DISMISSED]
+        assigned_to:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        created_at:
+          type: string
+          format: date-time
+        resolved_at:
+          type: ["string", "null"]
+          format: date-time
+        feedback:
+          $ref: "../jsonschema/common/feedback-event.schema.json"
+
+    SafetyReviewListEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/SafetyReviewItem"
+        meta:
+          $ref: "#/components/schemas/MetaResponse"
+        page:
+          type: object
+          properties:
+            page: { type: integer }
+            page_size: { type: integer }
+            total: { type: integer }
+
+    SafetyReviewTransitionRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [TRIAGED, IN_REVIEW, RESOLVED, DISMISSED]
+        assigned_to:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+
+    SafetyReviewEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/SafetyReviewItem"
+        meta:
+          $ref: "#/components/schemas/MetaResponse"
+
+    SubscriptionCreateRequest:
+      type: object
+      required: [user_id, trip_id, consent_id, channel]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        trip_id:
+          type: string
+          format: uuid
+        consent_id:
+          type: string
+          format: uuid
+        channel:
+          $ref: "../jsonschema/common/enums.schema.json#/$defs/DeliveryChannel"
+        min_severity:
+          $ref: "../jsonschema/common/enums.schema.json#/$defs/Severity"
+          default: "MODERATE"
+        expires_at:
+          type: ["string", "null"]
+          format: date-time
+
+    SubscriptionEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "../jsonschema/common/alert-subscription.schema.json"
+        meta:
+          $ref: "#/components/schemas/MetaResponse"
+
+    AlertEvaluationRequest:
+      type: object
+      required: [trip_id, previous_recommendation, new_recommendation]
+      properties:
+        trip_id:
+          type: string
+          format: uuid
+        previous_recommendation:
+          $ref: "../jsonschema/common/recommendation-response.schema.json"
+        new_recommendation:
+          $ref: "../jsonschema/common/recommendation-response.schema.json"
+        force_delivery:
+          type: boolean
+          default: false
+
+    AlertEvaluationResult:
+      type: object
+      required: [meaningful_change, change_reasons, delivered_channels, suppressed_channels]
+      properties:
+        meaningful_change:
+          type: boolean
+        change_reasons:
+          type: array
+          items:
+            type: string
+        delivered_channels:
+          type: array
+          items:
+            type: string
+        suppressed_channels:
+          type: array
+          items:
+            type: string
+        cooldown_bypassed:
+          type: boolean
+          description: True when escalation to higher severity bypassed active cooldown.
+        event_hash:
+          type: string
+
+    AlertEvaluationEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/AlertEvaluationResult"
+        meta:
+          $ref: "#/components/schemas/MetaResponse"
+
+    ErrorDetail:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          $ref: "../jsonschema/common/enums.schema.json#/$defs/ErrorCode"
+        message:
+          type: string
+        field_errors:
+          type: array
+          items:
+            type: object
+            required: [path, code]
+            properties:
+              path: { type: string }
+              code: { type: string }
+              message: { type: string }
+        retryable:
+          type: boolean
+          default: false
+        retry_after_seconds:
+          type: ["integer", "null"]
+
+    ErrorEnvelope:
+      type: object
+      required: [error, meta]
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorDetail"
+        meta:
+          $ref: "#/components/schemas/MetaResponse"
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters or payload.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    Unauthorized:
+      description: Authentication required or invalid service token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    NotFound:
+      description: Requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    ValidationError:
+      description: Schema validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    DependencyUnavailable:
+      description: Required storage or upstream dependency is unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"

@@ -5,7 +5,7 @@
   "description": "Source of truth for the Smart Travel Assistant API and entity contracts. Everything under generated/ is produced from openapi/ and jsonschema/ and must never be hand-edited.",
   "type": "module",
   "scripts": {
-    "lint": "redocly lint public@v1 data-integration@v1",
+    "lint": "redocly lint public@v1 data-integration@v1 recommendation@v1",
     "bundle": "node scripts/bundle.mjs",
     "validate:schemas": "node scripts/validate-schemas.mjs",
     "validate:examples": "node scripts/validate-examples.mjs",
