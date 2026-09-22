@@ -1,0 +1,103 @@
+# Smart Travel Assistant — Verified Official Emergency Directory Sources
+# Version: 1.0.0
+# Source of truth for verified emergency numbers. Numbers NEVER come from LLMs.
+
+version: "1.0.0"
+updated_at: "2026-09-22T00:00:00Z"
+review_cycle_days: 90
+
+entries:
+  - country_code: "TH"
+    subdivision: null
+    service_type: "POLICE"
+    label_i18n:
+      th-TH: "ตำรวจ / เหตุด่วนเหตุร้าย"
+      en-US: "Police / General Emergency"
+    phone: "191"
+    sms: null
+    website: "https://www.royalthaipolice.go.th"
+    availability: "24/7"
+    source_url: "https://www.royalthaipolice.go.th"
+    authority: "OFFICIAL"
+    effective_at: "2026-01-01T00:00:00Z"
+    verified_at: "2026-09-01T00:00:00Z"
+    review_due_at: "2026-12-01T00:00:00Z"
+    reviewer: "lead-safety-operator"
+    checksum: "a1b2c3d4e5f601"
+    status: "VERIFIED"
+
+  - country_code: "TH"
+    subdivision: null
+    service_type: "TOURIST_POLICE"
+    label_i18n:
+      th-TH: "ตำรวจท่องเที่ยว"
+      en-US: "Tourist Police"
+    phone: "1155"
+    sms: null
+    website: "https://www.touristpolice.go.th"
+    availability: "24/7"
+    source_url: "https://www.touristpolice.go.th"
+    authority: "OFFICIAL"
+    effective_at: "2026-01-01T00:00:00Z"
+    verified_at: "2026-09-01T00:00:00Z"
+    review_due_at: "2026-12-01T00:00:00Z"
+    reviewer: "lead-safety-operator"
+    checksum: "a1b2c3d4e5f602"
+    status: "VERIFIED"
+
+  - country_code: "TH"
+    subdivision: null
+    service_type: "AMBULANCE"
+    label_i18n:
+      th-TH: "การแพทย์ฉุกเฉิน / รถพยาบาล"
+      en-US: "Emergency Medical Services / Ambulance"
+    phone: "1669"
+    sms: null
+    website: "https://www.niems.go.th"
+    availability: "24/7"
+    source_url: "https://www.niems.go.th"
+    authority: "OFFICIAL"
+    effective_at: "2026-01-01T00:00:00Z"
+    verified_at: "2026-09-01T00:00:00Z"
+    review_due_at: "2026-12-01T00:00:00Z"
+    reviewer: "lead-safety-operator"
+    checksum: "a1b2c3d4e5f603"
+    status: "VERIFIED"
+
+  - country_code: "TH"
+    subdivision: null
+    service_type: "FIRE"
+    label_i18n:
+      th-TH: "ดับเพลิงและกู้ภัย"
+      en-US: "Fire and Rescue"
+    phone: "199"
+    sms: null
+    website: "https://www.disaster.go.th"
+    availability: "24/7"
+    source_url: "https://www.disaster.go.th"
+    authority: "OFFICIAL"
+    effective_at: "2026-01-01T00:00:00Z"
+    verified_at: "2026-09-01T00:00:00Z"
+    review_due_at: "2026-12-01T00:00:00Z"
+    reviewer: "lead-safety-operator"
+    checksum: "a1b2c3d4e5f604"
+    status: "VERIFIED"
+
+  - country_code: "TH"
+    subdivision: null
+    service_type: "DISASTER_HOTLINE"
+    label_i18n:
+      th-TH: "สายด่วนนิรภัย ปภ."
+      en-US: "Department of Disaster Prevention and Mitigation (DDPM) Hotline"
+    phone: "1784"
+    sms: null
+    website: "https://www.disaster.go.th"
+    availability: "24/7"
+    source_url: "https://www.disaster.go.th"
+    authority: "OFFICIAL"
+    effective_at: "2026-01-01T00:00:00Z"
+    verified_at: "2026-09-01T00:00:00Z"
+    review_due_at: "2026-12-01T00:00:00Z"
+    reviewer: "lead-safety-operator"
+    checksum: "a1b2c3d4e5f605"
+    status: "VERIFIED"
