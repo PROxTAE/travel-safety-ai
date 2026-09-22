@@ -5,7 +5,7 @@ WORKDIR /app
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir --disable-pip-version-check \
     asyncpg==0.31.0 fastapi==0.141.1 jinja2==3.1.6 jsonschema[format]==4.25.1 openai==1.109.1 pydantic==2.13.5 pydantic-settings==2.15.0 \
-    prometheus-client==0.26.0 pyyaml==6.0.3 uvicorn[standard]==0.53.0
+    prometheus-client==0.26.0 pyyaml==6.0.3 redis==5.2.1 uvicorn[standard]==0.53.0
 COPY app ./app
 COPY policies ./policies
 COPY prompts ./prompts

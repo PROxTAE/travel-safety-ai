@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     openai_timeout_seconds: float = Field(default=15.0, gt=0, le=60, validation_alias="OPENAI_TIMEOUT_SECONDS")
     openai_max_output_tokens: int = Field(default=800, gt=0, le=4000, validation_alias="OPENAI_MAX_OUTPUT_TOKENS")
     openai_enabled: bool = Field(default=True, validation_alias="OPENAI_EXPLAINER_ENABLED")
+    redis_url: str | None = Field(default=None, validation_alias="DECISION_REDIS_URL")
+    cache_ttl_seconds: int = Field(default=300, gt=0, le=3600, validation_alias="DECISION_CACHE_TTL_SECONDS")
 
     @property
     def internal_auth_configured(self) -> bool:
