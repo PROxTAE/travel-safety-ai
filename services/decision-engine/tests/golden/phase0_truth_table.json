@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0.0",
+  "policy_version": "1.0.0",
+  "cases": [
+    { "id": "official-closure-wins", "inputs": { "official_closure": true, "risk_score": 0.10 }, "expected_action": "AVOID", "expected_rule": "R001_OFFICIAL_CLOSURE" },
+    { "id": "high-without-alternative", "inputs": { "official_closure": false, "risk_score": 0.65, "safer_alternative": false }, "expected_action": "AVOID", "expected_rule": "R002_HIGH_RISK_NO_SAFE_ROUTE" },
+    { "id": "safer-delta-at-boundary", "inputs": { "official_closure": false, "risk_score": 0.80, "alternative_score": 0.65, "alternative_quality": 0.60 }, "expected_action": "CHANGE_ROUTE", "expected_rule": "R003_MATERIALLY_SAFER_ROUTE" },
+    { "id": "time-dependent-delay", "inputs": { "official_closure": false, "risk_score": 0.45, "time_dependent": true, "duration_minutes": 180 }, "expected_action": "DELAY", "expected_rule": "R004_TIME_DEPENDENT_RISK" },
+    { "id": "fresh-low-risk", "inputs": { "official_closure": false, "risk_score": 0.20, "quality": "FRESH" }, "expected_action": "NORMAL", "expected_rule": "R005_LOW_RISK_USABLE_EVIDENCE" },
+    { "id": "inconsistent-input", "inputs": { "snapshot_match": false, "risk_score": 0.10 }, "expected_action": "AVOID", "expected_rule": "R000_INPUT_INCONSISTENCY", "escalation_required": true }
+  ]
+}

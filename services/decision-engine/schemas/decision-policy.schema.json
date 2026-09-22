@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DecisionPolicy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "contract_version", "status", "thresholds", "rules"],
+  "properties": {
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "contract_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "status": { "enum": ["DRAFT", "PENDING_REVIEW", "APPROVED", "RETIRED"] },
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["high_risk_score", "materially_safer_delta", "alternative_min_quality", "delay_risk_score", "max_delay_minutes", "minimum_confidence", "threshold_margin", "max_uncertainty"],
+      "properties": {
+        "high_risk_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "materially_safer_delta": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "alternative_min_quality": { "type": "number", "minimum": 0, "maximum": 1 },
+        "delay_risk_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "max_delay_minutes": { "type": "integer", "exclusiveMinimum": 0 },
+        "minimum_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "threshold_margin": { "type": "number", "minimum": 0, "maximum": 1 },
+        "max_uncertainty": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "priority", "action"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^R[0-9]{3}_[A-Z0-9_]+$" },
+          "priority": { "type": "integer", "minimum": 1 },
+          "action": { "enum": ["NORMAL", "CHANGE_ROUTE", "DELAY", "AVOID"] }
+        }
+      }
+    }
+  }
+}

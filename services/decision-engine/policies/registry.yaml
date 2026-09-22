@@ -1,0 +1,11 @@
+schema_version: "1.0.0"
+active:
+  version: "1.0.0"
+  path: "v1/decision-table.yaml"
+  checksum_sha256: "10dd3717a7a5fe53b55153e23d60e29ebdddea84250062bb6a597f8d2eb6e709"
+  runtime_status: APPROVED
+  approval_status: PENDING_REVIEW
+  approval_record: "v1/approval-record.yaml"
+rollback:
+  previous: null
+  procedure: "Verify the previous checksum, obtain policy-owner approval, then activate the registry entry atomically."

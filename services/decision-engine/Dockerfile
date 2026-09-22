@@ -4,11 +4,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir --disable-pip-version-check \
-    asyncpg==0.31.0 fastapi==0.141.1 pydantic==2.13.5 pydantic-settings==2.15.0 \
+    asyncpg==0.31.0 fastapi==0.141.1 jsonschema[format]==4.25.1 pydantic==2.13.5 pydantic-settings==2.15.0 \
     prometheus-client==0.26.0 pyyaml==6.0.3 uvicorn[standard]==0.53.0
 COPY app ./app
 COPY policies ./policies
 COPY migrations ./migrations
+COPY schemas ./schemas
 RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /app
 USER appuser
 EXPOSE 8005
@@ -17,7 +18,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8005"]
 
 FROM runtime AS test
 USER root
-RUN pip install --no-cache-dir --disable-pip-version-check pytest==9.1.1 hypothesis==6.131.9
+RUN pip install --no-cache-dir --disable-pip-version-check pytest==9.1.1 hypothesis==6.131.9 jsonschema[format]==4.25.1
 COPY tests ./tests
 USER appuser
 CMD ["pytest", "-q"]

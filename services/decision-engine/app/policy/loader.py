@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 from typing import Any
 
 import yaml
+from jsonschema import Draft202012Validator
 from pydantic import BaseModel, Field
 
 
@@ -32,7 +34,13 @@ def load_policy(path: Path, expected_checksum: str | None = None) -> tuple[Polic
     checksum = hashlib.sha256(raw).hexdigest()
     if expected_checksum and checksum != expected_checksum:
         raise ValueError("decision policy checksum does not match configured checksum")
-    policy = Policy.model_validate(yaml.safe_load(raw))
+    document = yaml.safe_load(raw)
+    schema_path = path.parents[2] / "schemas" / "decision-policy.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    errors = sorted(Draft202012Validator(schema).iter_errors(document), key=lambda error: list(error.path))
+    if errors:
+        raise ValueError(f"decision policy schema validation failed: {errors[0].message}")
+    policy = Policy.model_validate(document)
     if policy.status != "APPROVED":
         raise ValueError("decision policy is not approved")
     return policy, checksum
