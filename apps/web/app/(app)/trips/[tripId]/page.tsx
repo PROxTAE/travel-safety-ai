@@ -1,11 +1,6 @@
-import { RoutePlaceholder } from "@/components/ui/route-placeholder";
+import { TripPlanner } from "@/features/trips/trip-planner";
 
-export default function TripPage() {
-  return (
-    <RoutePlaceholder
-      title="Trip details"
-      description="Trip details and current assessment status will appear here."
-      iconSrc="/assets/icons/route.png"
-    />
-  );
+export default async function TripPage({ params }: { params: Promise<{ tripId: string }> }) {
+  const { tripId } = await params;
+  return <TripPlanner tripId={tripId} />;
 }

@@ -88,6 +88,7 @@ async function forward(request: NextRequest) {
     "Content-Type",
     "Accept",
     "Idempotency-Key",
+    "If-Match",
     "Last-Event-ID",
     "traceparent",
   ]) {

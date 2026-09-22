@@ -4,19 +4,32 @@ import { consumeRunEvents, type RunEvent } from "@/lib/api/run-events";
 
 export function useRunEvents(requestId: string | null) {
   const active = useRef<AbortController | null>(null);
-  const [state, setState] = useState<{ event?: RunEvent; connection: string; error?: Error }>({
-    connection: "idle",
-  });
+  const [state, setState] = useState<{
+    event?: RunEvent;
+    connection: string;
+    error?: Error;
+    degradedServices: string[];
+  }>({ connection: "idle", degradedServices: [] });
   useEffect(() => {
     if (!requestId) return;
     const controller = new AbortController();
     active.current = controller;
     void consumeRunEvents(requestId, {
       signal: controller.signal,
-      onEvent: (event) => setState((previous) => ({ ...previous, event })),
+      onEvent: (event) =>
+        setState((previous) => ({
+          ...previous,
+          event,
+          degradedServices:
+            event.event === "run.degraded"
+              ? Array.from(new Set([...previous.degradedServices, event.data.service]))
+              : previous.degradedServices,
+        })),
       onConnection: (connection) =>
         setState((previous) =>
-          connection === "connecting" ? { connection } : { ...previous, connection },
+          connection === "connecting"
+            ? { connection, degradedServices: [] }
+            : { ...previous, connection },
         ),
     }).catch((error: Error) => {
       if (!controller.signal.aborted)
@@ -28,5 +41,5 @@ export function useRunEvents(requestId: string | null) {
     active.current?.abort();
     setState((previous) => ({ ...previous, connection: "cancelled" }));
   }, []);
-  return requestId ? { ...state, cancel } : { connection: "idle", cancel };
+  return requestId ? { ...state, cancel } : { connection: "idle", degradedServices: [], cancel };
 }
