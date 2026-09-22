@@ -35,9 +35,7 @@ async def refresh_active_subscriptions_job(ctx: dict[str, Any] | None = None) ->
         for sub in subscriptions:
             unique_trips[str(sub.trip_id)] = str(sub.user_id)
 
-        r = aioredis.from_url(
-            settings.REDIS_URL, decode_responses=True
-        )  # type: ignore[no-untyped-call]
+        r = aioredis.from_url(settings.REDIS_URL, decode_responses=True)  # type: ignore[no-untyped-call]
         try:
             for trip_id, user_id in unique_trips.items():
                 event = {

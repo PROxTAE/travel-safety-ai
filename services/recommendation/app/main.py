@@ -172,9 +172,7 @@ async def health_ready(response: Response) -> dict[str, Any]:
 
     # Check Redis (non-fatal if degraded, but reported)
     try:
-        r = aioredis.from_url(
-            settings.REDIS_URL, decode_responses=True
-        )  # type: ignore[no-untyped-call]
+        r = aioredis.from_url(settings.REDIS_URL, decode_responses=True)  # type: ignore[no-untyped-call]
         await r.ping()
         await r.aclose()
         dependencies["redis"] = {"status": "ok"}

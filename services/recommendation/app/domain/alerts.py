@@ -34,10 +34,14 @@ ACTION_RANKS: dict[str, int] = {
 # Cooldown durations by severity
 COOLDOWN_DURATIONS: dict[str, timedelta] = {
     "INFO": timedelta(minutes=60),
+    "LOW": timedelta(minutes=60),
     "MINOR": timedelta(minutes=30),
     "MODERATE": timedelta(minutes=15),
+    "MEDIUM": timedelta(minutes=15),
     "SEVERE": timedelta(minutes=5),
+    "HIGH": timedelta(minutes=5),
     "EXTREME": timedelta(minutes=2),
+    "CRITICAL": timedelta(minutes=2),
     "UNKNOWN": timedelta(minutes=15),
 }
 
@@ -62,6 +66,7 @@ class AlertSubscription(BaseModel):
     user_id: str
     trip_id: str
     channel: DeliveryChannel
+    destination: str | None = None
     consent_id: str
     status: Literal["ACTIVE", "PAUSED", "CANCELLED", "EXPIRED"] = "ACTIVE"
     min_severity: SeverityLevel = "MODERATE"

@@ -1,0 +1,87 @@
+name: recommendation
+
+# Gate on services/recommendation (module 08). Recommendation and feedback delivery service.
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - 'feat/**'
+      - 'fix/**'
+      - 'test/**'
+      - 'refactor/**'
+      - 'contract/**'
+
+defaults:
+  run:
+    working-directory: services/recommendation
+
+jobs:
+  recommendation:
+    name: recommendation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check if services/recommendation exists
+        id: present
+        working-directory: .
+        run: |
+          if [ -f services/recommendation/pyproject.toml ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "services/recommendation does not exist in this branch, skipping."
+          fi
+
+      - name: Install uv
+        if: steps.present.outputs.run == 'true'
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: services/recommendation/uv.lock
+
+      - name: Install dependencies from lockfile
+        if: steps.present.outputs.run == 'true'
+        run: uv sync --frozen
+
+      - name: ruff (lint + format)
+        if: steps.present.outputs.run == 'true'
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: mypy (type checks)
+        if: steps.present.outputs.run == 'true'
+        run: uv run mypy app
+
+      - name: unit tests
+        if: steps.present.outputs.run == 'true'
+        run: uv run pytest --cov=app --cov-report=term-missing
+
+      - name: build image
+        if: steps.present.outputs.run == 'true'
+        working-directory: .
+        run: docker build -t sta-recommendation:ci ./services/recommendation
+
+      - name: Check non-root execution and excluded files
+        if: steps.present.outputs.run == 'true'
+        working-directory: .
+        run: |
+          uid=$(docker run --rm --entrypoint python sta-recommendation:ci -c "import os; print(os.getuid())")
+          if [ "$uid" = "0" ]; then
+            echo "::error::Image runs as root"
+            exit 1
+          fi
+          echo "Image runs with uid $uid"
+
+      - name: Check no runtime mock switches
+        if: steps.present.outputs.run == 'true'
+        run: |
+          if grep -rnE "(USE_MOCK|mockMode|fakeRecommendation|sampleCurrentData)" app; then
+            echo "::error::Found runtime mock switch in app"
+            exit 1
+          fi
+          echo "No runtime mock switches found"

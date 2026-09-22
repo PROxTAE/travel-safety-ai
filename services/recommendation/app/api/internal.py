@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -40,8 +41,17 @@ def get_meta_envelope(
 def verify_service_token(
     authorization: str | None = Header(default=None, alias="Authorization"),
 ) -> None:
-    expected = get_settings().INTERNAL_SERVICE_TOKEN
+    settings = get_settings()
+    expected = settings.INTERNAL_SERVICE_TOKEN
     if not expected:
+        if settings.APP_ENV == "production":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={
+                    "code": "AUTHENTICATION_REQUIRED",
+                    "message": "Service token required in production",
+                },
+            )
         # If no internal service token configured in dev mode, allow
         return
     if not authorization or not authorization.startswith("Bearer "):
@@ -50,7 +60,7 @@ def verify_service_token(
             detail={"code": "AUTHENTICATION_REQUIRED", "message": "Missing Bearer token"},
         )
     token = authorization.split("Bearer ", 1)[1].strip()
-    if token != expected:
+    if not hmac.compare_digest(token, expected):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"code": "FORBIDDEN", "message": "Invalid internal service token"},
@@ -87,6 +97,7 @@ class SubscriptionCreateBody(BaseModel):
     trip_id: str
     consent_id: str
     channel: DeliveryChannel
+    destination: str | None = None
     min_severity: SeverityLevel = "MODERATE"
     expires_at: datetime | None = None
 
@@ -330,6 +341,7 @@ async def create_subscription(
         trip_id=body.trip_id,
         consent_id=body.consent_id,
         channel=body.channel,
+        destination=body.destination,
         min_severity=body.min_severity,
         expires_at=body.expires_at,
     )

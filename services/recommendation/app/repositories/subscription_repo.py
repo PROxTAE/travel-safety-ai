@@ -22,6 +22,7 @@ class SubscriptionRepository:
         trip_id: str,
         consent_id: str,
         channel: DeliveryChannel,
+        destination: str | None = None,
         min_severity: SeverityLevel = "MODERATE",
         expires_at: datetime | None = None,
     ) -> AlertSubscription:
@@ -33,6 +34,7 @@ class SubscriptionRepository:
             user_id=uuid.UUID(user_id),
             trip_id=uuid.UUID(trip_id),
             channel=channel,
+            destination=destination,
             consent_id=uuid.UUID(consent_id),
             status="ACTIVE",
             min_severity=min_severity,
@@ -49,6 +51,7 @@ class SubscriptionRepository:
             user_id=str(db_sub.user_id),
             trip_id=str(db_sub.trip_id),
             channel=cast(Any, db_sub.channel),
+            destination=db_sub.destination,
             consent_id=str(db_sub.consent_id),
             status=cast(Any, db_sub.status),
             min_severity=cast(Any, db_sub.min_severity),
@@ -87,6 +90,7 @@ class SubscriptionRepository:
                 user_id=str(r.user_id),
                 trip_id=str(r.trip_id),
                 channel=cast(Any, r.channel),
+                destination=r.destination,
                 consent_id=str(r.consent_id),
                 status=cast(Any, r.status),
                 min_severity=cast(Any, r.min_severity),
@@ -121,10 +125,13 @@ class SubscriptionRepository:
         error_message: str | None = None,
     ) -> DeliveryLogModel:
         now = datetime.now(UTC)
-        # Check if already delivered (idempotency by event_hash)
-        query = select(DeliveryLogModel).where(DeliveryLogModel.event_hash == event_hash)
+        # Check if already delivered (idempotency by subscription_id and event_hash)
+        query = select(DeliveryLogModel).where(
+            DeliveryLogModel.event_hash == event_hash,
+            DeliveryLogModel.subscription_id == subscription_id,
+        )
         existing_res = await self.session.execute(query)
-        existing = existing_res.scalar_one_or_none()
+        existing = existing_res.scalars().first()
 
         if existing:
             return existing

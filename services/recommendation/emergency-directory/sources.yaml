@@ -23,7 +23,7 @@ entries:
     verified_at: "2026-09-01T00:00:00Z"
     review_due_at: "2026-12-01T00:00:00Z"
     reviewer: "lead-safety-operator"
-    checksum: "a1b2c3d4e5f601"
+    checksum: "a365f972ab8c2962"
     status: "VERIFIED"
 
   - country_code: "TH"
@@ -42,7 +42,7 @@ entries:
     verified_at: "2026-09-01T00:00:00Z"
     review_due_at: "2026-12-01T00:00:00Z"
     reviewer: "lead-safety-operator"
-    checksum: "a1b2c3d4e5f602"
+    checksum: "7dc402cb93ee70cb"
     status: "VERIFIED"
 
   - country_code: "TH"
@@ -61,7 +61,7 @@ entries:
     verified_at: "2026-09-01T00:00:00Z"
     review_due_at: "2026-12-01T00:00:00Z"
     reviewer: "lead-safety-operator"
-    checksum: "a1b2c3d4e5f603"
+    checksum: "b9be77f87a206dd4"
     status: "VERIFIED"
 
   - country_code: "TH"
@@ -80,7 +80,7 @@ entries:
     verified_at: "2026-09-01T00:00:00Z"
     review_due_at: "2026-12-01T00:00:00Z"
     reviewer: "lead-safety-operator"
-    checksum: "a1b2c3d4e5f604"
+    checksum: "5e47854ef2b9ccbb"
     status: "VERIFIED"
 
   - country_code: "TH"
@@ -98,6 +98,5 @@ entries:
     effective_at: "2026-01-01T00:00:00Z"
     verified_at: "2026-09-01T00:00:00Z"
     review_due_at: "2026-12-01T00:00:00Z"
-    reviewer: "lead-safety-operator"
-    checksum: "a1b2c3d4e5f605"
+    checksum: "4314a2e8345023cb"
     status: "VERIFIED"

@@ -93,31 +93,37 @@ class AlertDeliveryService:
                     status = res.get("status", "FAILED")
                 elif sub.channel == "PUSH":
                     res = await self.webpush.dispatch_push(
-                        subscription_info=None,
+                        subscription_info={"endpoint": sub.destination}
+                        if sub.destination
+                        else None,
                         trip_id=trip_id,
                         recommendation=new_rec,
                     )
                     status = res.get("status", "FAILED")
                 elif sub.channel == "EMAIL":
                     res = await self.email.dispatch_email(
-                        recipient_email=None,
+                        recipient_email=sub.destination,
                         trip_id=trip_id,
                         recommendation=new_rec,
                     )
                     status = res.get("status", "FAILED")
                 elif sub.channel == "SMS":
                     res = await self.sms.dispatch_sms(
-                        recipient_phone=None,
+                        recipient_phone=sub.destination,
                         trip_id=trip_id,
                         recommendation=new_rec,
                     )
                     status = res.get("status", "FAILED")
 
-                # Update subscription cooldown
-                cooldown_dur = COOLDOWN_DURATIONS.get(
-                    new_rec.risk_level, COOLDOWN_DURATIONS["MODERATE"]
-                )
-                await self.repo.update_cooldown(sub_uuid, now + cooldown_dur)
+                # Update subscription cooldown only if delivery succeeded or was dry-run/mock
+                if status in ("DELIVERED", "SKIPPED_UNCONFIGURED"):
+                    cooldown_dur = COOLDOWN_DURATIONS.get(
+                        new_rec.risk_level, COOLDOWN_DURATIONS["MODERATE"]
+                    )
+                    await self.repo.update_cooldown(sub_uuid, now + cooldown_dur)
+                    delivered_channels.append(sub.channel)
+                else:
+                    suppressed_channels.append(f"{sub.channel}: delivery failed")
 
                 # Log delivery idempotently
                 await self.repo.log_delivery(
@@ -127,11 +133,6 @@ class AlertDeliveryService:
                     status=status,
                     payload_summary=payload_summary,
                 )
-
-                if status in ("DELIVERED", "SKIPPED_UNCONFIGURED"):
-                    delivered_channels.append(sub.channel)
-                else:
-                    suppressed_channels.append(f"{sub.channel}: delivery failed")
             else:
                 suppressed_channels.append(f"{sub.channel}: {suppress_reason}")
 

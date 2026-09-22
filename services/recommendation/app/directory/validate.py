@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -12,9 +12,21 @@ from app.domain.contacts import EmergencyContactEntry
 
 
 def compute_entry_checksum(entry: dict[str, Any]) -> str:
+    eff = entry.get("effective_at")
+    if isinstance(eff, datetime):
+        eff_str = (
+            eff.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            if eff.tzinfo
+            else f"{eff.isoformat()}Z"
+        )
+    elif isinstance(eff, str):
+        eff_str = eff.replace("+00:00", "Z")
+    else:
+        eff_str = str(eff)
+
     raw = (
         f"{entry.get('country_code')}:{entry.get('subdivision')}:{entry.get('service_type')}:"
-        f"{entry.get('phone')}:{entry.get('authority')}:{entry.get('effective_at')}:"
+        f"{entry.get('phone')}:{entry.get('authority')}:{eff_str}:"
         f"{entry.get('source_url')}"
     )
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
@@ -46,6 +58,14 @@ def validate_sources_manifest(file_path: str | Path) -> list[EmergencyContactEnt
             if entry.authority not in ("OFFICIAL", "INTERGOVERNMENTAL", "LICENSED_PROVIDER"):
                 msg = f"Entry {idx} authority '{entry.authority}' is not an approved authority"
                 raise ValueError(msg)
+
+            # Verify checksum
+            expected_checksum = compute_entry_checksum(raw_entry)
+            if entry.checksum != expected_checksum:
+                raise ValueError(
+                    f"Entry {idx} ({entry.service_type}) checksum mismatch: "
+                    f"expected {expected_checksum}, got {entry.checksum}"
+                )
 
             entries.append(entry)
         except (ValidationError, ValueError) as e:

@@ -112,6 +112,7 @@ def upgrade() -> None:
         sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("trip_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("channel", sa.String(length=32), nullable=False),
+        sa.Column("destination", sa.String(length=255), nullable=True),
         sa.Column("consent_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False, server_default="ACTIVE"),
         sa.Column("min_severity", sa.String(length=32), nullable=False, server_default="MODERATE"),
@@ -157,13 +158,13 @@ def upgrade() -> None:
         ),
         sa.Column("delivered_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("error_message", sa.Text(), nullable=True),
+        sa.UniqueConstraint("subscription_id", "event_hash", name="uq_delivery_sub_event"),
         schema=SCHEMA,
     )
     op.create_index(
         "ix_recommendation_delivery_log_event_hash",
         "delivery_log",
         ["event_hash"],
-        unique=True,
         schema=SCHEMA,
     )
     op.create_index(

@@ -67,29 +67,32 @@ class RecommendationBuilder:
             reasons: list[DecisionReason] = []
             seen_reason_codes: set[str] = set()
             for r in raw_reasons:
-                code = r.get("code", "GENERAL")
+                code = r.get("code", "SPARSE_DATA_COVERAGE")
                 if code not in seen_reason_codes:
                     seen_reason_codes.add(code)
+                    text_val = r.get("text") or r.get("message") or ""
                     reasons.append(
                         DecisionReason(
                             code=code,
-                            message=r.get("message", ""),
+                            text=text_val,
                             severity=r.get("severity", "INFO"),
-                            evidence_ids=r.get("evidence_ids", []),
+                            source_ids=r.get("source_ids") or r.get("evidence_ids") or [],
                         )
                     )
 
             # 3. Extract Immediate Actions
             raw_immediate = decision.get("immediate_actions", [])
-            immediate_actions: list[ImmediateAction] = [
-                ImmediateAction(
-                    action_type=ia.get("action_type", "INFO"),
-                    description=ia.get("description", ""),
-                    priority=ia.get("priority", 1),
-                    target_time=ia.get("target_time"),
-                )
-                for ia in raw_immediate
-            ]
+            immediate_actions: list[ImmediateAction] = []
+            for ia in raw_immediate:
+                text_val = ia.get("text") or ia.get("description") or ""
+                if text_val:
+                    immediate_actions.append(
+                        ImmediateAction(
+                            text=text_val,
+                            priority=ia.get("priority", 5),
+                            evidence_id=ia.get("evidence_id"),
+                        )
+                    )
 
             # 4. Resolve Route Candidates and Route/Action Consistency
             routes_data = context.get("routes", [])
@@ -113,30 +116,43 @@ class RecommendationBuilder:
                 alternatives = route_candidates[1:]
 
             # Route/Action Consistency Validations
+            valid_limitation_codes = {
+                "NO_RELIABLE_KNOWLEDGE_EVIDENCE",
+                "PARTIAL_PROVIDER_COVERAGE",
+                "STALE_EVIDENCE_USED",
+                "NO_ROUTE_ALTERNATIVE_AVAILABLE",
+                "MODE_NOT_SUPPORTED_IN_REGION",
+                "FORECAST_HORIZON_EXCEEDED",
+                "MODEL_UNAVAILABLE_CONSERVATIVE_RESULT",
+                "EXPLANATION_FALLBACK_TEMPLATE",
+                "CONFLICTING_SOURCES",
+            }
             limitations_list: list[Limitation] = []
             raw_limits = decision.get("limitations", [])
             for lim in raw_limits:
-                limitations_list.append(
-                    Limitation(
-                        code=lim.get("code", "GENERAL_LIMITATION"),
-                        message=lim.get("message", ""),
-                        severity=lim.get("severity", "INFO"),
+                if isinstance(lim, str):
+                    code = lim if lim in valid_limitation_codes else "PARTIAL_PROVIDER_COVERAGE"
+                    limitations_list.append(Limitation(code=code, text=None))
+                elif isinstance(lim, dict):
+                    raw_code = lim.get("code", "")
+                    code = (
+                        raw_code
+                        if raw_code in valid_limitation_codes
+                        else "PARTIAL_PROVIDER_COVERAGE"
                     )
-                )
+                    text = lim.get("text") or lim.get("message")
+                    limitations_list.append(Limitation(code=code, text=text))
 
             is_closed = bool(
-                primary_route
-                and primary_route.exposure
-                and primary_route.exposure.get("closed")
+                primary_route and primary_route.exposure and primary_route.exposure.get("closed")
             )
             if action_code == "CHANGE_ROUTE" and (not primary_route or is_closed):
                 limitations_list.append(
                     Limitation(
-                        code="NO_VIABLE_SAFER_ROUTE",
-                        message=(
+                        code="NO_ROUTE_ALTERNATIVE_AVAILABLE",
+                        text=(
                             "Recommended action is CHANGE_ROUTE but no unclosed route is available."
                         ),
-                        severity="WARNING",
                     )
                 )
 
@@ -185,9 +201,8 @@ class RecommendationBuilder:
                 msg = f"No verified official emergency directory available for '{country_code}'."
                 limitations_list.append(
                     Limitation(
-                        code="UNSUPPORTED_EMERGENCY_DIRECTORY_COVERAGE",
-                        message=msg,
-                        severity="INFO",
+                        code="PARTIAL_PROVIDER_COVERAGE",
+                        text=msg,
                     )
                 )
 
@@ -206,25 +221,30 @@ class RecommendationBuilder:
             default_ttl = current_time + timedelta(hours=6)
             expiry_candidates: list[datetime] = [default_ttl]
 
+            def ensure_utc(dt: datetime) -> datetime:
+                if dt.tzinfo is None:
+                    return dt.replace(tzinfo=UTC)
+                return dt.astimezone(UTC)
+
             if context.get("expires_at"):
                 ctx_exp = context.get("expires_at")
                 if isinstance(ctx_exp, str):
                     ctx_exp = datetime.fromisoformat(ctx_exp.replace("Z", "+00:00"))
                 if isinstance(ctx_exp, datetime):
-                    expiry_candidates.append(ctx_exp)
+                    expiry_candidates.append(ensure_utc(ctx_exp))
 
             for s in sources:
                 if s.expires_at:
-                    expiry_candidates.append(s.expires_at)
+                    expiry_candidates.append(ensure_utc(s.expires_at))
 
             for a in alerts:
                 if a.ends_at:
-                    expiry_candidates.append(a.ends_at)
+                    expiry_candidates.append(ensure_utc(a.ends_at))
 
             computed_expires_at = min(expiry_candidates)
 
             # Compute observed_at (oldest observed time among sources)
-            observed_times = [s.observed_at for s in sources if s.observed_at]
+            observed_times = [ensure_utc(s.observed_at) for s in sources if s.observed_at]
             oldest_observed = min(observed_times) if observed_times else None
 
             freshness = Freshness(
@@ -242,7 +262,7 @@ class RecommendationBuilder:
             lim_codes = {lim.code for lim in limitations_list}
             status = (
                 "PARTIAL"
-                if degraded_services or "UNSUPPORTED_EMERGENCY_DIRECTORY_COVERAGE" in lim_codes
+                if degraded_services or "PARTIAL_PROVIDER_COVERAGE" in lim_codes
                 else "COMPLETED"
             )
 

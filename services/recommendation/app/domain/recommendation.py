@@ -35,26 +35,24 @@ class DecisionReason(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     code: str
-    message: str
+    text: str
     severity: str = "INFO"
-    evidence_ids: list[str] = Field(default_factory=list)
+    source_ids: list[str] = Field(default_factory=list)
 
 
 class ImmediateAction(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    action_type: str
-    description: str
-    priority: int = 1
-    target_time: datetime | None = None
+    text: str
+    priority: int = 5
+    evidence_id: str | None = None
 
 
 class Limitation(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     code: str
-    message: str
-    severity: str = "INFO"
+    text: str | None = None
 
 
 class DegradedService(BaseModel):

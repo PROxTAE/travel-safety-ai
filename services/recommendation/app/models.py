@@ -82,6 +82,7 @@ class SubscriptionModel(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID_TYPE, nullable=False, index=True)
     trip_id: Mapped[uuid.UUID] = mapped_column(UUID_TYPE, nullable=False, index=True)
     channel: Mapped[str] = mapped_column(String(32), nullable=False)
+    destination: Mapped[str | None] = mapped_column(String(255), nullable=True)
     consent_id: Mapped[uuid.UUID] = mapped_column(UUID_TYPE, nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="ACTIVE", index=True)
     min_severity: Mapped[str] = mapped_column(String(32), nullable=False, default="MODERATE")
@@ -97,11 +98,14 @@ class SubscriptionModel(Base):
 
 class DeliveryLogModel(Base):
     __tablename__ = "delivery_log"
-    __table_args__ = {"schema": RECOMMENDATION_SCHEMA}
+    __table_args__ = (
+        UniqueConstraint("subscription_id", "event_hash", name="uq_delivery_sub_event"),
+        {"schema": RECOMMENDATION_SCHEMA},
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID_TYPE, primary_key=True, default=uuid.uuid4)
     subscription_id: Mapped[uuid.UUID | None] = mapped_column(UUID_TYPE, nullable=True, index=True)
-    event_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    event_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     channel: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     provider_message_id: Mapped[str | None] = mapped_column(String(128), nullable=True)

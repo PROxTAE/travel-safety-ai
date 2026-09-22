@@ -18,9 +18,7 @@ class InAppNotificationDispatcher:
     async def get_redis(self) -> aioredis.Redis:
         if self._redis is None:
             settings = get_settings()
-            self._redis = aioredis.from_url(
-                settings.REDIS_URL, decode_responses=True
-            )  # type: ignore[no-untyped-call]
+            self._redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)  # type: ignore[no-untyped-call]
         return self._redis
 
     async def dispatch_in_app_alert(
