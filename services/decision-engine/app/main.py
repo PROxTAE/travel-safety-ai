@@ -20,6 +20,7 @@ from app.policy.evaluator import build_result, evaluate
 from app.policy.loader import Policy, load_policy
 from app.repositories.audit import write_audit
 from app.repositories.migrations import apply_migrations
+from app.repositories.replay import load_audit_replay
 from app.settings import Settings, get_settings
 
 DECISIONS = Counter("decision_engine_decisions_total", "Locked decisions", ["action"])
@@ -106,6 +107,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not isinstance(policy, Policy):
             raise HTTPException(status_code=503, detail="Approved decision policy is unavailable")
         return {"version": policy.version, "contract_version": policy.contract_version, "status": policy.status, "checksum": state["checksum"], "thresholds": policy.thresholds.model_dump()}
+
+    @app.get("/internal/v1/audit/{audit_id}")
+    async def audit_replay(audit_id: str, _: None = Depends(require_internal_auth)) -> dict[str, object]:
+        database = state["database"]
+        if not isinstance(database, asyncpg.Pool):
+            raise HTTPException(status_code=503, detail="Audit database is unavailable")
+        try:
+            from uuid import UUID
+
+            replay = await load_audit_replay(database, UUID(audit_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Invalid audit id") from exc
+        if replay is None:
+            raise HTTPException(status_code=404, detail="Audit event not found")
+        return replay.model_dump(mode="json")
 
     class ValidationRequest(BaseModel):
         result: DecisionResult
