@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import asyncpg
@@ -44,7 +45,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     }
 
     @asynccontextmanager
-    async def lifespan(_app: FastAPI):
+    async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         try:
             policy, checksum = load_policy(resolved.policy_path, resolved.policy_checksum)
             state.update(policy=policy, checksum=checksum, error=None)
