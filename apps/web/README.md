@@ -88,9 +88,11 @@ missing route is shown as unavailable rather than filled with a sample option.
 
 Map tiles are optional configuration because no unrestricted default provider is
 assumed. Without `NEXT_PUBLIC_MAP_TILE_URL`, MapLibre remains interactive and
-shows the confirmed coordinates and server route geometry over a neutral
-background with an explicit configuration notice. Tile URLs may contain a
-`{token}` placeholder resolved from `NEXT_PUBLIC_MAP_TILE_TOKEN`.
+shows confirmed coordinates and server route geometry over the supplied
+illustrated world-map fallback with an explicit configuration notice. The
+illustration is presentation only and is never used as geographic data. Tile
+URLs may contain a `{token}` placeholder resolved from
+`NEXT_PUBLIC_MAP_TILE_TOKEN`.
 
 The current repository does not yet contain an M03 Agent runtime service. The
 real API therefore persists the trip/run and returns a terminal dependency error
@@ -128,8 +130,8 @@ corepack pnpm dev
 ```
 
 `NEXT_PUBLIC_API_BASE_URL` must point to the public API. Map tile configuration
-is optional; without it the interactive confirmation/route layers use a neutral
-background. Do not use `NEXT_PUBLIC_` for secrets.
+is optional; without it the interactive confirmation/route layers use the
+supplied illustrated world-map fallback. Do not use `NEXT_PUBLIC_` for secrets.
 
 ## Verification
 
