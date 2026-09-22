@@ -115,6 +115,14 @@ services:
       - ./services/risk-knowledge/knowledge:/app/knowledge:ro
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8004", "--reload", "--no-server-header", "--no-access-log"]
 
+  decision-engine:
+    ports: ["8005:8005"]
+    volumes:
+      - ./services/decision-engine/app:/app/app:ro
+      - ./services/decision-engine/policies:/app/policies:ro
+      - ./services/decision-engine/tests:/app/tests:ro
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8005", "--reload", "--no-access-log"]
+
   mlflow:
     ports: ["5000:5000"]
 

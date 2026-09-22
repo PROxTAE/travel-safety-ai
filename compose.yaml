@@ -244,6 +244,31 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  decision-engine:
+    build:
+      context: ./services/decision-engine
+      target: runtime
+    profiles: [app]
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      DECISION_ENGINE_VERSION: ${DECISION_ENGINE_VERSION:-0.1.0}
+      CONTRACT_VERSION: ${CONTRACT_VERSION:-1.0.0}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
+      DECISION_POLICY_CHECKSUM: ${DECISION_POLICY_CHECKSUM:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health/live', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.19.0
     profiles: [training]

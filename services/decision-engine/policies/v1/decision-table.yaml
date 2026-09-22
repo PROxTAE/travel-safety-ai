@@ -1,0 +1,26 @@
+version: "1.0.0"
+contract_version: "1.0.0"
+status: APPROVED
+thresholds:
+  high_risk_score: 0.65
+  materially_safer_delta: 0.15
+  alternative_min_quality: 0.60
+  delay_risk_score: 0.45
+  max_delay_minutes: 180
+  minimum_confidence: 0.60
+rules:
+  - id: R001_OFFICIAL_CLOSURE
+    priority: 1
+    action: AVOID
+  - id: R002_HIGH_RISK_NO_SAFE_ROUTE
+    priority: 2
+    action: AVOID
+  - id: R003_MATERIALLY_SAFER_ROUTE
+    priority: 3
+    action: CHANGE_ROUTE
+  - id: R004_TIME_DEPENDENT_RISK
+    priority: 4
+    action: DELAY
+  - id: R005_LOW_RISK_USABLE_EVIDENCE
+    priority: 5
+    action: NORMAL
