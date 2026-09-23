@@ -234,34 +234,7 @@ async def start(
     client can poll, which is the whole reason the commit came first.
     """
     try:
-        accepted = await agent.create_run(
-            {
-                "travel_request": {
-                    key: value
-                    for key, value in payload.items()
-                    if key
-                    in {
-                        "trip_id",
-                        "conversation_id",
-                        "origin",
-                        "destination",
-                        "departure_time",
-                        "return_time",
-                        "timezone",
-                        "travel_modes",
-                        "preferences",
-                        "question",
-                        "locale",
-                        "live_location_consent_id",
-                    }
-                }
-                | {"request_id": str(row.id)},
-                "correlation_id": correlation_id or str(row.id),
-                "user_scope_hash": hashlib.sha256(str(row.user_id).encode()).hexdigest(),
-                "approved_context_refs": [],
-            },
-            request_id=str(row.id),
-        )
+        accepted = await agent.create_run(payload, request_id=str(row.id))
     except AgentRejectedRequest as exc:
         # The agent understood the request and refused it. Retrying would be refused again, so the
         # run ends here rather than being left QUEUED for a poller to keep hoping over.

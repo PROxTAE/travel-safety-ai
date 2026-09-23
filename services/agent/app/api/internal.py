@@ -171,23 +171,31 @@ async def _publish_terminal_event(runtime: AppRuntime, state: AgentState) -> Non
 
 @router.post("", response_model=RunRef, dependencies=[Depends(require_internal_auth)])
 async def create_run(
-    payload: CreateRunRequest, runtime: Annotated[AppRuntime, Depends(get_runtime)]
+    payload: CreateRunRequest | TravelRequest, runtime: Annotated[AppRuntime, Depends(get_runtime)]
 ) -> RunRef:
     settings = runtime.settings
-    request = payload.travel_request
     now = datetime.now(UTC)
+
+    if isinstance(payload, CreateRunRequest):
+        request = payload.travel_request
+        correlation_id = payload.correlation_id
+        user_scope_hash = payload.user_scope_hash
+        approved_context_refs = payload.approved_context_refs
+    else:
+        request = payload
+        correlation_id = request.request_id
+        user_scope_hash = ""
+        approved_context_refs = []
 
     state = AgentState(
         identity=IdentitySection(
             request_id=request.request_id,
-            correlation_id=payload.correlation_id,
+            correlation_id=correlation_id,
             trip_id=request.trip_id,
             conversation_id=request.conversation_id,
-            user_scope_hash=payload.user_scope_hash,
+            user_scope_hash=user_scope_hash,
         ),
-        input=InputSection(
-            travel_request=request, approved_context_refs=payload.approved_context_refs
-        ),
+        input=InputSection(travel_request=request, approved_context_refs=approved_context_refs),
         plan=PlanSection(graph_version=GRAPH_VERSION),
         control=ControlSection(
             started_at=now,
