@@ -45,8 +45,8 @@ router = APIRouter(prefix="/api/v1/emergency", tags=["emergency"])
 async def get_emergency_contacts(
     request: Request,
     principal: TravelPrincipal,
-    latitude: Annotated[float, Query(alias="lat", ge=-90.0, le=90.0)],
-    longitude: Annotated[float, Query(alias="lon", ge=-180.0, le=180.0)],
+    latitude: Annotated[float, Query(ge=-90.0, le=90.0)],
+    longitude: Annotated[float, Query(ge=-180.0, le=180.0)],
     locale: Annotated[str | None, Query()] = None,
 ) -> DataResponse[list[OfficialContactModel]]:
     """Return reviewed emergency numbers for a location."""
@@ -76,10 +76,10 @@ async def get_emergency_nearby(
     principal: TravelPrincipal,
     session: DbSession,
     client: Annotated[ExternalDataClient, Depends(get_external_data_client)],
-    latitude: Annotated[float, Query(alias="lat", ge=-90.0, le=90.0)],
-    longitude: Annotated[float, Query(alias="lon", ge=-180.0, le=180.0)],
+    latitude: Annotated[float, Query(ge=-90.0, le=90.0)],
+    longitude: Annotated[float, Query(ge=-180.0, le=180.0)],
     poi_type: Annotated[EmergencyPoiType, Query(alias="type")],
-    radius_m: Annotated[int, Query(ge=100, le=2000)] = 2000,
+    radius_m: Annotated[int, Query(ge=100, le=50000)] = 5000,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> DataResponse[list[EmergencyPoiModel]]:
     """Search nearby facilities using module 04, enforcing active location consent."""

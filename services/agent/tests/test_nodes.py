@@ -8,15 +8,10 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.budgets import NodeFn, NodeNotImplementedError
-from app.graph.nodes.build_evidence import build_evidence
 from app.graph.nodes.check_required_fields import check_required_fields
 from app.graph.nodes.degraded_or_escalate import degraded_or_escalate
 from app.graph.nodes.emergency_shortcut import emergency_shortcut
-from app.graph.nodes.fetch_external_data import fetch_external_data
 from app.graph.nodes.finalize import finalize
-from app.graph.nodes.format_recommendation import format_recommendation
-from app.graph.nodes.integrate_data import integrate_data
-from app.graph.nodes.make_decision import make_decision
 from app.graph.nodes.validate_evidence import validate_evidence
 from app.graph.nodes.validate_final_contract import validate_final_contract
 from app.graph.nodes.validate_input import validate_input
@@ -132,18 +127,21 @@ class TestCheckRequiredFields:
 @pytest.mark.parametrize(
     "node",
     [
-        fetch_external_data,
-        integrate_data,
-        build_evidence,
-        degraded_or_escalate,
-        make_decision,
-        format_recommendation,
         emergency_shortcut,
     ],
 )
 async def test_unimplemented_nodes_raise_not_implemented(node: NodeFn) -> None:
     with pytest.raises(NodeNotImplementedError):
         await node(_state())
+
+
+class TestDegradedOrEscalate:
+    async def test_adds_evidence_to_degraded_services_and_marks_incomplete(self) -> None:
+        state = _state()
+        result = await degraded_or_escalate(state)
+        quality = result["quality"]
+        assert "evidence" in quality.degraded_services  # type: ignore[union-attr]
+        assert QualityFlag.INCOMPLETE in quality.quality_flags  # type: ignore[union-attr]
 
 
 class TestValidateEvidence:

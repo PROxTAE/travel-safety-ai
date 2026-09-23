@@ -342,7 +342,7 @@ async def query_safety_events(
     layers: Annotated[list[SafetyLayer] | None, Query(description="Layers to include.")] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> ListResponse[SafetyEventModel]:
-    """Fetch safety events for the map viewport across real weather, transit, and disaster feeds."""
+    """Fetch safety events for the map viewport."""
     parsed_bbox = _parse_and_validate_bbox(bbox)
     west, south, east, north = parsed_bbox
 

@@ -475,7 +475,7 @@ async def test_safety_events_viewport(client: httpx.AsyncClient, token: str) -> 
 async def test_emergency_contacts_directory(client: httpx.AsyncClient, token: str) -> None:
     # Bangkok coordinates -> TH emergency numbers
     resp = await client.get(
-        "/api/v1/emergency/contacts?lat=13.7563&lon=100.5018", headers=auth(token)
+        "/api/v1/emergency/contacts?latitude=13.7563&longitude=100.5018", headers=auth(token)
     )
     assert resp.status_code == 200
     contacts = resp.json()["data"]
@@ -485,7 +485,7 @@ async def test_emergency_contacts_directory(client: httpx.AsyncClient, token: st
 
     # Middle of ocean -> empty list (unavailable state)
     resp_empty = await client.get(
-        "/api/v1/emergency/contacts?lat=0.0&lon=0.0",
+        "/api/v1/emergency/contacts?latitude=0.0&longitude=0.0",
         headers=auth(token),
     )
     assert resp_empty.status_code == 200
@@ -502,7 +502,7 @@ async def test_emergency_nearby_consent_gating(
 
     # 1. Without location consent -> 403
     resp_403 = await client.get(
-        "/api/v1/emergency/nearby?lat=13.7563&lon=100.5018&type=HOSPITAL",
+        "/api/v1/emergency/nearby?latitude=13.7563&longitude=100.5018&type=HOSPITAL",
         headers=auth(token),
     )
     assert resp_403.status_code == 403
@@ -569,7 +569,7 @@ async def test_emergency_nearby_consent_gating(
         )
 
         resp_ok = await client.get(
-            "/api/v1/emergency/nearby?lat=13.7563&lon=100.5018&type=HOSPITAL",
+            "/api/v1/emergency/nearby?latitude=13.7563&longitude=100.5018&type=HOSPITAL",
             headers=auth(token),
         )
         assert resp_ok.status_code == 200

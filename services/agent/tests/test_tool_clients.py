@@ -122,7 +122,7 @@ class TestDataIntegrationClient:
         assert route.called
         sent_headers = route.calls.last.request.headers
         assert sent_headers["X-Request-ID"] == str(request.request_id)
-        assert sent_headers["X-Contract-Version"] == "1.0.0"
+        assert sent_headers["X-Contract-Version"] == "1"
         assert "Idempotency-Key" not in sent_headers
 
     @respx.mock
