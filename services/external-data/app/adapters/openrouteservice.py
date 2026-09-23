@@ -201,15 +201,12 @@ class OpenRouteServiceAdapter(ProviderAdapter[RouteQuery, RouteCandidate]):
             "language": ors_language,
             "preference": query.preference,
         }
-        # ORS caps alternative routes at 100km (100,000 m) distance
-        if query.alternatives and len(query.waypoints) >= 2:
-            dist = _haversine_distance_m(query.waypoints[0], query.waypoints[-1])
-            if dist <= 85000:
-                body["alternative_routes"] = {
-                    "target_count": min(3, max(2, query.alternatives + 1)),
-                    "share_factor": 0.6,
-                    "weight_factor": 1.4,
-                }
+        if query.alternatives:
+            body["alternative_routes"] = {
+                "target_count": query.alternatives,
+                "share_factor": 0.6,
+                "weight_factor": 1.4,
+            }
         if query.avoid_polygons is not None:
             body["options"] = {"avoid_polygons": query.avoid_polygons}
 
