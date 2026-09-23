@@ -567,27 +567,6 @@
       ]
     }
   ],
-  "users": [
-    {
-      "id": "11111111-1111-1111-1111-111111111111",
-      "username": "traveler",
-      "email": "traveler@example.com",
-      "firstName": "Smart",
-      "lastName": "Traveler",
-      "enabled": true,
-      "emailVerified": true,
-      "credentials": [
-        {
-          "type": "password",
-          "value": "password123",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "traveller",
-        "default-roles-smart-travel"
-      ]
-    }
-  ],
+  "users": [],
   "groups": []
 }
