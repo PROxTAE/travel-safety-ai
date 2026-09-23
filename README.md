@@ -4,21 +4,21 @@
 ดึงอากาศ / ขนส่ง / ภัยพิบัติ / เส้นทางปิด จากแหล่งจริง แล้วสรุปเป็น 1 ใน 4 คำตอบ
 🟢 `NORMAL` · 🟡 `CHANGE_ROUTE` · 🟠 `DELAY` · 🔴 `AVOID` พร้อมเหตุผลและแหล่งที่มา
 
-> ภาพรวมแบบภาษาคน + หน้าจอทุกหน้า + ใครทำอะไร อยู่ในห้อง Discord `📖│project-summary`
+> 📖 **ดูภาพรวมโปรเจกต์ โครงสร้างสถาปัตยกรรม และสมาชิกทีมฉบับเต็มได้ที่ [`PROJECT_OVERVIEW.md`](PROJECT_OVERVIEW.md)**
 > แผนฉบับเต็มอยู่ใน [`IMPLEMENTATION_PLANS/`](IMPLEMENTATION_PLANS/README.md)
 
 ## ทีม 8 คน = 8 module
 
-| คน | โฟลเดอร์ | Discord | แผน |
-|---|---|---|---|
-| 1 | `apps/web/` | `01-web` | [01](IMPLEMENTATION_PLANS/01_WEB_APP_IMPLEMENTATION.md) |
-| 2 | `services/api/` + `packages/contracts/` | `02-api` | [02](IMPLEMENTATION_PLANS/02_API_BACKEND_IMPLEMENTATION.md) |
-| 3 | `services/agent/` | `03-agent` | [03](IMPLEMENTATION_PLANS/03_TRAVEL_AI_AGENT_IMPLEMENTATION.md) |
-| 4 | `services/external-data/` | `04-external-data` | [04](IMPLEMENTATION_PLANS/04_EXTERNAL_DATA_SERVICES_IMPLEMENTATION.md) |
-| 5 | `services/data-integration/` | `05-data-integration` | [05](IMPLEMENTATION_PLANS/05_DATA_INTEGRATION_IMPLEMENTATION.md) |
-| 6 | `services/risk-knowledge/` | `06-risk-knowledge` | [06](IMPLEMENTATION_PLANS/06_RISK_KNOWLEDGE_SERVICES_IMPLEMENTATION.md) |
-| 7 | `services/decision-engine/` | `07-decision-engine` | [07](IMPLEMENTATION_PLANS/07_DECISION_LLM_ENGINE_IMPLEMENTATION.md) |
-| 8 | `services/recommendation/` | `08-recommendation` | [08](IMPLEMENTATION_PLANS/08_RECOMMENDATION_FEEDBACK_IMPLEMENTATION.md) |
+| Module | ผู้รับผิดชอบ | รหัสนักศึกษา | GitHub | โฟลเดอร์ | แผน |
+|---|---|---|---|---|---|
+| **01** | เตชิษฏ์ จาดยางโทน | `116730462040-0` | [@TJANDFRIEND](https://github.com/TJANDFRIEND) | `apps/web/` | [01](IMPLEMENTATION_PLANS/01_WEB_APP_IMPLEMENTATION.md) |
+| **02** | กฤษณพงศ์ พรภู่ | `116730462018-6` | [@9kritsanapong9](https://github.com/9kritsanapong9) | `services/api/` + `packages/contracts/` | [02](IMPLEMENTATION_PLANS/02_API_BACKEND_IMPLEMENTATION.md) |
+| **03** | วิทยา จำรูญนุรักษ์ | `116610462040-4` | [@Wittaya211204](https://github.com/Wittaya211204) | `services/agent/` | [03](IMPLEMENTATION_PLANS/03_TRAVEL_AI_AGENT_IMPLEMENTATION.md) |
+| **04** | ประภากรณ์ ภิธรรมมา | `116730462033-5` | [@BBosX](https://github.com/BBosX) | `services/external-data/` | [04](IMPLEMENTATION_PLANS/04_EXTERNAL_DATA_SERVICES_IMPLEMENTATION.md) |
+| **05** | สิรวิชญ์ ศิริสลุง | `116730462023-6` | [@Peemaxnaja](https://github.com/Peemaxnaja) | `services/data-integration/` | [05](IMPLEMENTATION_PLANS/05_DATA_INTEGRATION_IMPLEMENTATION.md) |
+| **06** | รัชชานนท์ ศรีไชย | `116730462005-3` | [@Racharnon-Srichai](https://github.com/Racharnon-Srichai) | `services/risk-knowledge/` | [06](IMPLEMENTATION_PLANS/06_RISK_KNOWLEDGE_SERVICES_IMPLEMENTATION.md) |
+| **07** | ปกครอง ทับโทน | `116730462041-8` | [@24madcap](https://github.com/24madcap) | `services/decision-engine/` | [07](IMPLEMENTATION_PLANS/07_DECISION_LLM_ENGINE_IMPLEMENTATION.md) |
+| **08** | นิธิศ มะโนรา *(Lead)* | `116730462042-6` | [@PROxTAE](https://github.com/PROxTAE) | `services/recommendation/` | [08](IMPLEMENTATION_PLANS/08_RECOMMENDATION_FEEDBACK_IMPLEMENTATION.md) |
 
 ใครรอใคร: ![team dependency](docs/diagrams/team-dependency.png)
 

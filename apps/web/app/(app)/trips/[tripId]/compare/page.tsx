@@ -1,12 +1,13 @@
-import { RoutePlaceholder } from "@/components/ui/route-placeholder";
+import { RouteComparison } from "@/features/trips/route-comparison";
 
-export default function CompareRoutesPage() {
-  return (
-    <RoutePlaceholder
-      title="Compare routes"
-      description="Server-provided route alternatives will be compared here before you make a choice."
-      iconSrc="/assets/icons/route.png"
-      mascotSrc="/assets/mascot/mascot-warning.png"
-    />
-  );
+export default async function CompareRoutesPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ tripId: string }>;
+  searchParams?: Promise<{ candidate?: string }>;
+}) {
+  const { tripId } = await params;
+  const search = await searchParams;
+  return <RouteComparison tripId={tripId} candidateRouteId={search?.candidate} />;
 }

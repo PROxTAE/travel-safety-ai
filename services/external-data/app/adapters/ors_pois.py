@@ -61,8 +61,8 @@ DEFAULT_PLACE_TYPES: tuple[PlaceType, ...] = (
 )
 
 # The provider's buffer parameter is metres and it rejects very large values;
-# 10 km is well inside that and already far past "nearby" for an emergency.
-MAX_RADIUS_M = 10_000
+# The live endpoint rejects buffer values above 2,000 metres.
+MAX_RADIUS_M = 2_000
 
 # OSM edits land continuously but the extract behind the POI service is rebuilt
 # on its own schedule, and the response carries no build date - only the time it

@@ -432,23 +432,50 @@ async def test_safety_events_viewport(client: httpx.AsyncClient, token: str) -> 
         },
     )
 
+    respx.post("http://external-data:8002/internal/v1/weather/query").respond(
+        status_code=200,
+        json={
+            "data": {
+                "forecasts": [],
+                "attribution": [],
+            },
+            "meta": {
+                "request_id": str(uuid.uuid4()),
+                "correlation_id": str(uuid.uuid4()),
+                "contract_version": "1.0.0",
+                "generated_at": now.isoformat(),
+                "degraded_services": [],
+            },
+        },
+    )
+
     # 1. Invalid bbox -> 400
     bad_resp = await client.get("/api/v1/safety/events?bbox=abc,def", headers=auth(token))
     assert bad_resp.status_code == 400
 
-    # 2. Valid bbox -> 200
+    # 2. Valid bbox with DISASTER layer -> 200
+    resp_disaster = await client.get(
+        "/api/v1/safety/events?bbox=98.0,5.0,105.0,20.0&layers=DISASTER",
+        headers=auth(token),
+    )
+    assert resp_disaster.status_code == 200
+    events_disaster = resp_disaster.json()["data"]
+    assert len(events_disaster) == 1
+    assert events_disaster[0]["event_id"] == "flood-101"
+    assert events_disaster[0]["layer"] == "DISASTER"
+
+    # 3. Valid bbox with all layers -> 200
     resp = await client.get("/api/v1/safety/events?bbox=98.0,5.0,105.0,20.0", headers=auth(token))
     assert resp.status_code == 200
     events = resp.json()["data"]
-    assert len(events) == 1
-    assert events[0]["event_id"] == "flood-101"
-    assert events[0]["layer"] == "DISASTER"
+    assert len(events) >= 1
+    assert any(e["event_id"] == "flood-101" for e in events)
 
 
 async def test_emergency_contacts_directory(client: httpx.AsyncClient, token: str) -> None:
     # Bangkok coordinates -> TH emergency numbers
     resp = await client.get(
-        "/api/v1/emergency/contacts?latitude=13.7563&longitude=100.5018", headers=auth(token)
+        "/api/v1/emergency/contacts?lat=13.7563&lon=100.5018", headers=auth(token)
     )
     assert resp.status_code == 200
     contacts = resp.json()["data"]
@@ -458,7 +485,7 @@ async def test_emergency_contacts_directory(client: httpx.AsyncClient, token: st
 
     # Middle of ocean -> empty list (unavailable state)
     resp_empty = await client.get(
-        "/api/v1/emergency/contacts?latitude=0.0&longitude=0.0",
+        "/api/v1/emergency/contacts?lat=0.0&lon=0.0",
         headers=auth(token),
     )
     assert resp_empty.status_code == 200
@@ -475,7 +502,7 @@ async def test_emergency_nearby_consent_gating(
 
     # 1. Without location consent -> 403
     resp_403 = await client.get(
-        "/api/v1/emergency/nearby?latitude=13.7563&longitude=100.5018&type=HOSPITAL",
+        "/api/v1/emergency/nearby?lat=13.7563&lon=100.5018&type=HOSPITAL",
         headers=auth(token),
     )
     assert resp_403.status_code == 403
@@ -542,7 +569,7 @@ async def test_emergency_nearby_consent_gating(
         )
 
         resp_ok = await client.get(
-            "/api/v1/emergency/nearby?latitude=13.7563&longitude=100.5018&type=HOSPITAL",
+            "/api/v1/emergency/nearby?lat=13.7563&lon=100.5018&type=HOSPITAL",
             headers=auth(token),
         )
         assert resp_ok.status_code == 200

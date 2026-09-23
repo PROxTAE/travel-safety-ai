@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { components } from "@/lib/api/generated/public-api";
-import { api, ApiError, createSubmission } from "@/lib/api/client";
+import { api, createSubmission } from "@/lib/api/client";
 import { createRequestId } from "@/lib/api/id";
 import { useRunEvents } from "@/features/assessment/use-run-events";
 import { LocationSearch } from "./location-search";
@@ -17,12 +17,21 @@ import {
 } from "@/lib/trips/form";
 import { DegradedBanner, ErrorState } from "@/components/ui/data-states";
 import { RouteOptions } from "@/components/trip/route-options";
+import {
+  IconShield,
+  IconFlight,
+  IconTrain,
+  IconBus,
+  IconCar,
+  IconRoute,
+  IconMapPin,
+} from "@/components/ui/icons";
 
 const TripMap = dynamic(
   () => import("@/components/trip/trip-map").then((module) => module.TripMap),
   {
     ssr: false,
-    loading: () => <div className="trip-map-loading">Loading interactive map…</div>,
+    loading: () => <div className="trip-map-loading">กำลังโหลดแผนที่เส้นทาง…</div>,
   },
 );
 
@@ -30,15 +39,15 @@ type Schema = components["schemas"];
 type Location = Schema["LocationRef"];
 
 const stageLabels: Record<Schema["RunStage"], string> = {
-  VALIDATING: "Validating your trip",
-  FETCHING_EXTERNAL_DATA: "Checking current weather, transport, and hazards",
-  INTEGRATING_DATA: "Matching current conditions to your route",
-  ASSESSING_RISK: "Assessing route risk",
-  RETRIEVING_GUIDANCE: "Retrieving verified guidance",
-  EVALUATING_ROUTES: "Evaluating route options",
-  MAKING_DECISION: "Applying travel safety policy",
-  EXPLAINING: "Preparing a clear explanation",
-  FORMATTING_RESPONSE: "Finalizing route options",
+  VALIDATING: "กำลังตรวจสอบข้อมูลทริปการเดินทาง…",
+  FETCHING_EXTERNAL_DATA: "กำลังดึงข้อมูลสภาพอากาศ การคมนาคม และภัยพิบัติ…",
+  INTEGRATING_DATA: "กำลังประมวลผลสภาพพื้นที่กับเส้นทาง…",
+  ASSESSING_RISK: "กำลังประเมินระดับความปลอดภัยและวิเคราะห์ความเสี่ยง…",
+  RETRIEVING_GUIDANCE: "กำลังดึงข้อมูลและคำแนะนำที่ได้รับการรับรอง…",
+  EVALUATING_ROUTES: "กำลังประเมินและเปรียบเทียบตัวเลือกเส้นทาง…",
+  MAKING_DECISION: "กำลังประยุกต์ใช้นโยบายความปลอดภัยการท่องเที่ยว…",
+  EXPLAINING: "กำลังเตรียมคำอธิบายและข้อแนะนำ…",
+  FORMATTING_RESPONSE: "กำลังจัดเตรียมตัวเลือกเส้นทางที่สมบูรณ์…",
 };
 
 function defaultDeparture() {
@@ -165,7 +174,7 @@ export function TripPlanner({ tripId = null }: { tripId?: string | null }) {
       return;
     }
     if (!origin?.confirmed_by_user || !destination?.confirmed_by_user) {
-      setError(new Error("Select and confirm both location pins before finding routes."));
+      setError(new Error("กรุณาเลือกและกดยืนยันหมุดพิกัดต้นทางและปลายทางก่อนค้นหาเส้นทาง"));
       return;
     }
     const payload = toTripPayload(parsed.data, origin, destination);
@@ -207,7 +216,9 @@ export function TripPlanner({ tripId = null }: { tripId?: string | null }) {
   const progress = run.event?.event === "run.progress" ? run.event.data : null;
   const needsInput = run.event?.event === "run.needs_input" ? run.event.data : null;
   const runFailure =
-    run.event?.event === "run.failed" ? new ApiError(run.event.data.error.code, 502) : null;
+    run.event?.event === "run.failed"
+      ? new Error("ระบบยังไม่สามารถประเมินความปลอดภัยและเส้นทางจากข้อมูลจริงได้ กรุณาลองใหม่ภายหลัง")
+      : null;
   const visibleError = error ?? runFailure;
   const degradedServices = Array.from(new Set([...degraded, ...run.degradedServices]));
   const assessmentActive = Boolean(
@@ -220,85 +231,85 @@ export function TripPlanner({ tripId = null }: { tripId?: string | null }) {
   return (
     <section className="route-screen trip-planner-screen">
       <div className="trip-page-heading">
-        <h1>{tripId ? "Update your trip" : "Plan a New Trip"}</h1>
-        <p>Confirm real places and let the live services check current route conditions.</p>
+        <h1>{tripId ? "แก้ไขแผนการเดินทาง (Update Trip)" : "วางแผนการเดินทางใหม่ (Plan a New Trip)"}</h1>
+        <p>ระบุและยืนยันสถานที่จริง ระบบจะตรวจสอบสภาพอากาศ เส้นทางคมนาคม และความเสี่ยงแบบเรียลไทม์</p>
       </div>
       <DegradedBanner services={degradedServices} updatedAt={recommendation?.created_at} />
       {loadingTrip ? (
-        <div className="trip-panel trip-map-loading">Loading your trip…</div>
+        <div className="trip-panel trip-map-loading">กำลังโหลดข้อมูลทริป…</div>
       ) : (
         <div className="trip-planner-grid">
           <form className="trip-panel trip-form" onSubmit={submit} noValidate>
             <h2>
               <span className="trip-heading-icon" aria-hidden="true">
-                ▦
+                <IconRoute width={18} height={18} />
               </span>{" "}
-              Trip Details
+              รายละเอียดทริป (Trip Details)
             </h2>
-            <LocationSearch label="From" value={origin} onChange={setOrigin} />
-            <LocationSearch label="To" value={destination} onChange={setDestination} />
+            <LocationSearch label="ต้นทาง (From)" value={origin} onChange={setOrigin} />
+            <LocationSearch label="ปลายทาง (To)" value={destination} onChange={setDestination} />
             <div className="trip-field-grid">
               <label>
-                Departure
+                วัน-เวลาออกเดินทาง (Departure)
                 <input type="datetime-local" {...register("departure")} />
                 {errors.departure && (
                   <span className="field-error">{errors.departure.message}</span>
                 )}
               </label>
               <label>
-                Return <span className="optional-label">Optional</span>
+                วัน-เวลากลับ (Return) <span className="optional-label">ไม่บังคับ</span>
                 <input type="datetime-local" {...register("returnAt")} />
                 {errors.returnAt && <span className="field-error">{errors.returnAt.message}</span>}
               </label>
             </div>
             <label>
-              Trip timezone
+              เขตเวลาทริป (Trip Timezone)
               <input {...register("timezone")} aria-describedby="timezone-help" />
               <span id="timezone-help" className="field-help">
-                IANA timezone for the trip’s local dates.
+                IANA timezone สำหรับคำนวณวันและเวลาท้องถิ่น
               </span>
               {errors.timezone && <span className="field-error">{errors.timezone.message}</span>}
             </label>
             <fieldset className="trip-choice-group">
-              <legend>Travel mode</legend>
+              <legend>รูปแบบการเดินทาง (Travel Mode)</legend>
               <div className="choice-row">
                 {(["FLIGHT", "TRAIN", "BUS", "CAR"] as const).map((mode) => (
                   <label key={mode}>
                     <input type="radio" value={mode} {...register("travelMode")} />
                     <span>
-                      {mode === "FLIGHT" || mode === "TRAIN" ? (
-                        <Image
-                          src={`/assets/icons/transport-${mode.toLowerCase()}.png`}
-                          width={20}
-                          height={20}
-                          alt=""
-                        />
-                      ) : (
-                        <i aria-hidden="true">{mode === "BUS" ? "▣" : "◆"}</i>
-                      )}
-                      {mode.charAt(0) + mode.slice(1).toLowerCase()}
+                      {mode === "FLIGHT" && <IconFlight width={18} height={18} />}
+                      {mode === "TRAIN" && <IconTrain width={18} height={18} />}
+                      {mode === "BUS" && <IconBus width={18} height={18} />}
+                      {mode === "CAR" && <IconCar width={18} height={18} />}
+                      {mode === "FLIGHT"
+                        ? "เครื่องบิน"
+                        : mode === "TRAIN"
+                          ? "รถไฟ"
+                          : mode === "BUS"
+                            ? "รถบัส"
+                            : "รถยนต์"}
                     </span>
                   </label>
                 ))}
               </div>
             </fieldset>
             <fieldset className="trip-choice-group">
-              <legend>Preferences</legend>
+              <legend>การตั้งค่าความปลอดภัยและตัวเลือก (Preferences)</legend>
               <div className="choice-row preference-row">
                 <label>
                   <input type="checkbox" {...register("preferSaferRoute")} />
                   <span>
-                    <Image src="/assets/icons/shield-safe.png" width={18} height={18} alt="" />
-                    Safer route
+                    <IconShield width={16} height={16} />
+                    เน้นเส้นทางปลอดภัย (Safer route)
                   </span>
                 </label>
                 <label>
                   <input type="checkbox" {...register("preferLowerEmissions")} />
-                  <span>Eco-friendly</span>
+                  <span>เป็นมิตรต่อสิ่งแวดล้อม (Eco)</span>
                 </label>
                 <label>
                   <input type="checkbox" {...register("preferLowerCost")} />
-                  <span>Lower cost</span>
+                  <span>ประหยัดค่าใช้จ่าย (Low cost)</span>
                 </label>
               </div>
             </fieldset>
@@ -310,10 +321,10 @@ export function TripPlanner({ tripId = null }: { tripId?: string | null }) {
             >
               <span className="search-button-icon" aria-hidden="true" />
               {isSubmitting
-                ? "Saving trip…"
+                ? "กำลังบันทึกทริป…"
                 : assessmentActive
-                  ? "Assessment running…"
-                  : "Find safe routes"}
+                  ? "กำลังวิเคราะห์ความปลอดภัย…"
+                  : "ค้นหาเส้นทางปลอดภัย (Find safe routes)"}
             </button>
           </form>
 
@@ -322,47 +333,47 @@ export function TripPlanner({ tripId = null }: { tripId?: string | null }) {
               <div>
                 <h2 id="route-preview-title">
                   <span className="trip-heading-icon trip-heading-pin" aria-hidden="true">
-                    ●
+                    <IconMapPin width={16} height={16} />
                   </span>{" "}
-                  Route Preview
+                  ภาพรวมเส้นทาง (Route Preview)
                 </h2>
                 <p>
-                  {origin?.display_name ?? "Choose an origin"} →{" "}
-                  {destination?.display_name ?? "choose a destination"}
+                  {origin?.display_name ?? "เลือกต้นทาง"} →{" "}
+                  {destination?.display_name ?? "เลือกปลายทาง"}
                 </p>
               </div>
-              <div className="preview-mode-switch" aria-label="Route preview mode">
+              <div className="preview-mode-switch" aria-label="โหมดแสดงผลเส้นทาง">
                 <button
                   type="button"
                   aria-pressed={previewMode === "map"}
                   onClick={() => setPreviewMode("map")}
                 >
-                  Map
+                  แผนที่ (Map)
                 </button>
                 <button
                   type="button"
                   aria-pressed={previewMode === "list"}
                   onClick={() => setPreviewMode("list")}
                 >
-                  List
+                  รายการ (List)
                 </button>
               </div>
             </div>
             {previewMode === "map" ? (
               <>
                 <TripMap origin={origin} destination={destination} routes={routes} />
-                <div className="map-legend" aria-label="Map legend">
+                <div className="map-legend" aria-label="คำอธิบายสัญลักษณ์แผนที่">
                   <span>
-                    <i className="legend-line recommended" /> Recommended route
+                    <i className="legend-line recommended" /> เส้นทางแนะนำ (Recommended)
                   </span>
                   <span>
-                    <i className="legend-line alternative" /> Alternative route
+                    <i className="legend-line alternative" /> เส้นทางทางเลือก (Alternative)
                   </span>
                   <span>
-                    <i className="legend-pin origin" /> Origin
+                    <i className="legend-pin origin" /> จุดเริ่มต้น (Origin)
                   </span>
                   <span>
-                    <i className="legend-pin destination" /> Destination
+                    <i className="legend-pin destination" /> จุดหมาย (Destination)
                   </span>
                 </div>
               </>
@@ -377,41 +388,41 @@ export function TripPlanner({ tripId = null }: { tripId?: string | null }) {
             <section className="trip-panel route-options">
               <h2 id="route-options-title">
                 <span className="route-options-icon" aria-hidden="true">
-                  ⎇
+                  <IconRoute width={18} height={18} />
                 </span>{" "}
-                Route Options
+                ตัวเลือกเส้นทาง (Route Options)
               </h2>
               {runId && !recommendation && !visibleError && (
                 <div className="assessment-progress" role="status" aria-live="polite">
                   <span className="assessment-spinner" aria-hidden="true" />
                   <strong>
-                    {progress ? stageLabels[progress.stage] : "Connecting to the assessment…"}
+                    {progress ? stageLabels[progress.stage] : "กำลังเชื่อมต่อระบบประเมินความปลอดภัย…"}
                   </strong>
                   {progress?.percent != null && (
                     <progress max="100" value={progress.percent}>
                       {progress.percent}%
                     </progress>
                   )}
-                  <p>Connection: {run.connection}</p>
+                  <p>สถานะการเชื่อมต่อ: {run.connection}</p>
                   <button type="button" onClick={run.cancel}>
-                    Stop watching progress
+                    หยุดติดตามความคืบหน้า
                   </button>
                 </div>
               )}
               {needsInput && (
                 <div role="alert" className="assessment-needs-input">
-                  More information is required: {needsInput.missing_fields.join(", ")}.
+                  ต้องการข้อมูลเพิ่มเติม: {needsInput.missing_fields.join(", ")}.
                 </div>
               )}
               <RouteOptions recommendation={recommendation} />
             </section>
-            <div className="trip-assistant" aria-label="Trip planning assistant">
-              <p>I’ll check current weather, transport, and local risks.</p>
+            <div className="trip-assistant" aria-label="ผู้ช่วยวางแผนการเดินทาง">
+              <p>ระบบพร้อมช่วยตรวจสอบสภาพอากาศ การคมนาคม และความเสี่ยงตลอดเส้นทางของคุณ</p>
               <Image
                 src="/assets/mascot/mascot-welcome.png"
                 width={260}
                 height={310}
-                alt="Smart Travel Assistant"
+                alt="มาสคอตผู้ช่วยการเดินทาง"
               />
               <span className="trip-assistant-ground" aria-hidden="true" />
             </div>

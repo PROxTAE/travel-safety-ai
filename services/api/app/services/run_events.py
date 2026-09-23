@@ -215,8 +215,8 @@ async def read_after(
     key = stream_key(settings, request_id)
     try:
         result = await redis.xread({key: last_id}, count=64, block=block_ms)
-    except Exception:  # the caller degrades to heartbeats and polling
-        logger.warning("run_event_read_failed", event_type="sse", request_id=str(request_id))
+    except Exception as exc:  # the caller degrades to heartbeats and polling
+        logger.warning("run_event_read_failed", event_type="sse", request_id=str(request_id), error_type=type(exc).__name__)
         return []
 
     entries: list[tuple[str, dict[Any, Any]]] = []

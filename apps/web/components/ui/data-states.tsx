@@ -55,6 +55,13 @@ export function SourceList({ sources }: { sources: Schema["SourceProvenance"][] 
     </ul>
   );
 }
+import {
+  IconAlertTriangle,
+  IconCheck,
+  IconClock,
+  IconShield,
+} from "@/components/ui/icons";
+
 export function DegradedBanner({
   services = [],
   offline = false,
@@ -66,47 +73,65 @@ export function DegradedBanner({
 }) {
   if (!offline && !services.length) return null;
   return (
-    <aside role="status" className="data-warning">
-      ⚠{" "}
-      {offline
-        ? "You are offline. Current information is unavailable."
-        : `Partial data: ${services.join(", ")} unavailable.`}
-      {updatedAt && (
-        <p>
-          Last updated: <time dateTime={updatedAt}>{updatedAt}</time>
-        </p>
-      )}
+    <aside role="status" className="data-warning" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <IconAlertTriangle width={18} height={18} />
+      <div>
+        {offline
+          ? "You are offline. Current information is unavailable. (คุณกำลังออฟไลน์)"
+          : `Partial data: ${services.join(", ")} unavailable.`}
+        {updatedAt && (
+          <p>
+            อัปเดตล่าสุด (Last updated): <time dateTime={updatedAt}>{updatedAt}</time>
+          </p>
+        )}
+      </div>
     </aside>
   );
 }
 const risks = {
-  LOW: ["●", "Low"],
-  MEDIUM: ["▲", "Moderate"],
-  HIGH: ["!", "High"],
-  UNKNOWN: ["?", "Unknown"],
+  LOW: ["Low", "#08B88A"],
+  MEDIUM: ["Moderate", "#FF9D1F"],
+  HIGH: ["High", "#F24E54"],
+  UNKNOWN: ["Unknown", "#64748b"],
 } as const;
+
 const actions = {
-  NORMAL: ["✓", "Travel as planned"],
-  CHANGE_ROUTE: ["↪", "Change route"],
-  DELAY: ["◷", "Delay travel"],
-  AVOID: ["⛔", "Avoid travel"],
+  NORMAL: ["Travel as planned (เดินทางตามแผน)", <IconCheck key="n" width={14} height={14} />],
+  CHANGE_ROUTE: ["Change route (เปลี่ยนเส้นทาง)", <IconShield key="cr" width={14} height={14} />],
+  DELAY: ["Delay travel (ชะลอการเดินทาง)", <IconClock key="d" width={14} height={14} />],
+  AVOID: ["Avoid travel (หลีกเลี่ยงการเดินทาง)", <IconAlertTriangle key="a" width={14} height={14} />],
 } as const;
+
 export function RiskBadge({ risk }: { risk: Schema["RiskLevel"] }) {
-  const [icon, label] = risks[risk] || risks.UNKNOWN;
+  const [label, color] = risks[risk] || risks.UNKNOWN;
   return (
     <span className="data-badge" data-risk={risk}>
-      <span aria-hidden="true">{icon}</span> {label} risk
+      <span
+        aria-hidden="true"
+        style={{
+          display: "inline-block",
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          backgroundColor: color,
+          marginRight: 4,
+        }}
+      />
+      {label} risk
     </span>
   );
 }
+
 export function ActionBadge({ action }: { action: Schema["ActionCode"] }) {
   const item = actions[action];
   return (
-    <span className="data-badge">
-      <span aria-hidden="true">{item?.[0] || "?"}</span> {item?.[1] || "Action unavailable"}
+    <span className="data-badge" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+      {item?.[1] || <span aria-hidden="true">?</span>}
+      <span>{item?.[0] || "Action unavailable"}</span>
     </span>
   );
 }
+
 export function DataSkeleton({ label = "Loading data…" }: { label?: string }) {
   return (
     <div role="status" aria-busy="true" className="data-skeleton">

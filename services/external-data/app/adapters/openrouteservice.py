@@ -63,6 +63,23 @@ _INVALID_PARAMETER_VALUE = 2003
 _ROUTE_NOT_FOUND = 2009
 
 
+import math
+
+ORS_SUPPORTED_LANGUAGES = frozenset({
+    "en", "de", "cn", "es", "ru", "dk", "fr", "it", "ja", "nl", "pt", "tr", "gr", "zh-cn"
+})
+
+def _haversine_distance_m(p1: tuple[float, float], p2: tuple[float, float]) -> float:
+    lon1, lat1 = p1
+    lon2, lat2 = p2
+    r = 6371000
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    return 2 * r * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
 class OrsSummary(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -171,20 +188,28 @@ class OpenRouteServiceAdapter(ProviderAdapter[RouteQuery, RouteCandidate]):
         template = self.provider.entry.endpoints.get(
             "directions", "/v2/directions/{profile}/geojson"
         )
+        ors_language = (
+            query.language
+            if query.language in ORS_SUPPORTED_LANGUAGES
+            else ("en" if query.language else "en")
+        )
         body: dict[str, Any] = {
             "coordinates": [list(point) for point in query.waypoints],
             # Metres and seconds, so nothing downstream has to guess the unit.
             "units": "m",
             "instructions": True,
-            "language": query.language,
+            "language": ors_language,
             "preference": query.preference,
         }
-        if query.alternatives:
-            body["alternative_routes"] = {
-                "target_count": query.alternatives,
-                "share_factor": 0.6,
-                "weight_factor": 1.4,
-            }
+        # ORS caps alternative routes at 100km (100,000 m) distance
+        if query.alternatives and len(query.waypoints) >= 2:
+            dist = _haversine_distance_m(query.waypoints[0], query.waypoints[-1])
+            if dist <= 85000:
+                body["alternative_routes"] = {
+                    "target_count": min(3, max(2, query.alternatives + 1)),
+                    "share_factor": 0.6,
+                    "weight_factor": 1.4,
+                }
         if query.avoid_polygons is not None:
             body["options"] = {"avoid_polygons": query.avoid_polygons}
 
@@ -198,7 +223,7 @@ class OpenRouteServiceAdapter(ProviderAdapter[RouteQuery, RouteCandidate]):
                 "waypoints": [[round(c, 6) for c in point] for point in query.waypoints],
                 "alternatives": query.alternatives,
                 "preference": query.preference,
-                "language": query.language,
+                "language": ors_language,
                 "avoid_polygons": query.avoid_polygons,
             },
         )
@@ -246,7 +271,7 @@ class OpenRouteServiceAdapter(ProviderAdapter[RouteQuery, RouteCandidate]):
         """
         code = error.get("code") if isinstance(error, dict) else None
         message = error.get("message") if isinstance(error, dict) else str(error)
-        if code in (_NO_ROUTABLE_POINT, _ROUTE_NOT_FOUND):
+        if code in (_NO_ROUTABLE_POINT, _ROUTE_NOT_FOUND, 2004):
             return ProviderError(
                 ProviderErrorCode.OUTSIDE_COVERAGE,
                 self.provider_id,

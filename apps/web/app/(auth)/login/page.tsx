@@ -24,25 +24,25 @@ export default async function LoginPage({
         />
         <div className="login-message">
           <h1 id="login-visual-title">
-            Travel safer,
+            เดินทางปลอดภัย
             <br />
-            wherever you go.
+            มั่นใจในทุกการเดินทาง
           </h1>
-          <p>Real-time guidance for every journey.</p>
+          <p>คำแนะนำและข้อมูลความปลอดภัยแบบเรียลไทม์สำหรับทุกเส้นทางของคุณ</p>
         </div>
         <Image
           className="login-mascot"
           src="/assets/login/decorations/login-mascot-welcome.png"
           width={510}
           height={610}
-          alt="Smart Travel Assistant elephant guide waving"
+          alt="มาสคอตผู้ช่วยการเดินทาง"
           priority
         />
       </section>
 
       <section className="login-panel" aria-labelledby="login-title">
-        <div className="language-label" aria-label="Current language: English">
-          <span aria-hidden="true">◎</span> English
+        <div className="language-label" aria-label="ภาษาปัจจุบัน: ภาษาไทย">
+          <span aria-hidden="true">◎</span> ภาษาไทย (TH)
         </div>
         <Image
           className="login-logo"
@@ -54,15 +54,15 @@ export default async function LoginPage({
         />
         <div className="login-card">
           <span className="availability-pill login-availability">
-            <span aria-hidden="true" /> {available ? "Secure sign-in" : "Sign-in unavailable"}
+            <span aria-hidden="true" /> {available ? "เข้าสู่ระบบอย่างปลอดภัย" : "ระบบล็อกอินปิดชั่วคราว"}
           </span>
-          <h2 id="login-title">Welcome back</h2>
+          <h2 id="login-title">ยินดีต้อนรับ (Welcome)</h2>
           <p>
             {available
-              ? "Sign in to access your profile and trips."
-              : "Sign-in is currently unavailable. Emergency help remains accessible."}
+              ? "เข้าสู่ระบบเพื่อจัดการโปรไฟล์และวางแผนทริปท่องเที่ยวของคุณ"
+              : "ระบบล็อกอินปิดปรับปรุงชั่วคราว คุณยังสามารถเข้าใช้ศูนย์ช่วยเหลือฉุกเฉินได้"}
           </p>
-          {params.error && <p role="alert">Sign-in could not be completed. Please try again.</p>}
+          {params.error && <p role="alert">ไม่สามารถเข้าสู่ระบบได้ กรุณาลองใหม่อีกครั้ง</p>}
           <form
             action={async () => {
               "use server";
@@ -70,24 +70,25 @@ export default async function LoginPage({
             }}
           >
             <button className="login-outline-action" type="submit" disabled={!available}>
-              Sign in with Keycloak
+              เข้าสู่ระบบด้วย Keycloak (Sign in)
             </button>
           </form>
           <div className="login-divider" aria-hidden="true">
             <span />
-            <em>or</em>
+            <em>หรือ</em>
             <span />
           </div>
           <Link className="login-outline-action" href="/trips/new">
-            Continue to trip planning
+            วางแผนการเดินทางทันที (Trip Planner)
           </Link>
         </div>
         <Link className="login-emergency-link" href="/emergency">
           <Image src="/assets/icons/sos-siren.png" width={30} height={30} alt="" />
-          Need urgent help? <strong>Open Emergency Center</strong>
+          ต้องการความช่วยเหลือเร่งด่วน? <strong>เปิดศูนย์ช่วยเหลือฉุกเฉิน</strong>
           <span aria-hidden="true">→</span>
         </Link>
       </section>
     </main>
   );
 }
+

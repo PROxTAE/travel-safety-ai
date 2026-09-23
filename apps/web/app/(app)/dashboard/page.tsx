@@ -1,11 +1,5 @@
-import { RoutePlaceholder } from "@/components/ui/route-placeholder";
+import { DashboardView } from "@/features/dashboard/dashboard-view";
 
 export default function DashboardPage() {
-  return (
-    <RoutePlaceholder
-      title="Travel overview"
-      description="Your sourced weather, transport and safety recommendation will appear here."
-      iconSrc="/assets/branding/app-logo-mark.png"
-    />
-  );
+  return <DashboardView />;
 }

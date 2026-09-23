@@ -92,6 +92,7 @@ services:
     image: smart-travel-web:dev
     build:
       target: development
+    user: "root"
     ports: ["3000:3000"]
     environment:
       NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
@@ -102,9 +103,15 @@ services:
       AUTH_KEYCLOAK_ID: web
       AUTH_KEYCLOAK_ISSUER: http://keycloak.localhost:8080/realms/smart-travel
       AUTH_KEYCLOAK_INTERNAL_ORIGIN: http://keycloak:8080
+      NEXT_PUBLIC_MAP_TILE_URL: ${NEXT_PUBLIC_MAP_TILE_URL:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}
+      NEXT_PUBLIC_MAP_TILE_TOKEN: ${NEXT_PUBLIC_MAP_TILE_TOKEN:-eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjIzYzc4NTg1NzMwODQ1YWRiNDI4MjZkZDEwNTEyZmM0IiwiaCI6Im11cm11cjY0In0=}
+      NEXT_PUBLIC_MAP_TILE_ATTRIBUTION: ${NEXT_PUBLIC_MAP_TILE_ATTRIBUTION:-© OpenStreetMap contributors | Powered by OpenRouteService}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.6-flash}
     volumes:
       - ./apps/web:/app
       - web-node-modules:/app/node_modules
+      - web-next:/app/.next
     command: ["pnpm", "dev", "--hostname", "0.0.0.0"]
 
   risk-knowledge:
@@ -113,7 +120,10 @@ services:
       - ./services/risk-knowledge/app:/app/app:ro
       - ./services/risk-knowledge/governance:/app/governance:ro
       - ./services/risk-knowledge/knowledge:/app/knowledge:ro
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8004", "--reload", "--no-server-header", "--no-access-log"]
+    command:
+      - sh
+      - -c
+      - alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8004 --reload --no-server-header --no-access-log
 
   decision-engine:
     ports: ["8005:8005"]
@@ -146,6 +156,21 @@ services:
       - -c
       - alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8006 --reload
 
+  agent:
+    image: smart-travel-agent:dev
+    build:
+      target: dev
+    ports: ["8001:8001"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-smart_travel}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-smart_travel}
+      TEST_DATABASE_URL: postgresql://${POSTGRES_USER:-smart_travel}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-smart_travel}
+    volumes:
+      - ./services/agent/app:/app/app:ro
+      - ./services/agent/tests:/app/tests:ro
+      - ./services/agent/migrations:/app/migrations:ro
+      - ./services/agent/pyproject.toml:/app/pyproject.toml:ro
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+
   #
   # external-data:
   #   ports: ["8002:8002"]
@@ -163,3 +188,4 @@ services:
 volumes:
   api-dev-cache:
   web-node-modules:
+  web-next:

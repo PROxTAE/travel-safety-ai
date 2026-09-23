@@ -46,6 +46,7 @@ class DataQuality(BaseModel):
 
     status: Literal["FRESH", "STALE", "UNAVAILABLE", "CONFLICTING", "PARTIAL"]
     score: float | None = Field(default=None, ge=0, le=1)
+    score_version: str | None = None
     flags: list[str] = Field(default_factory=list)
     coverage: float | None = Field(default=None, ge=0, le=1)
     completeness: float | None = Field(default=None, ge=0, le=1)

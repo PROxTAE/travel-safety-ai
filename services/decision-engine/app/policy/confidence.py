@@ -27,6 +27,8 @@ def evidence_confidence(payload: DecisionRequest, assessment: RiskAssessment) ->
 
 
 def near_threshold(assessment: RiskAssessment, policy: Policy) -> bool:
+    if assessment.score is None:
+        return False
     return (
         abs(assessment.score - policy.thresholds.high_risk_score)
         <= policy.thresholds.threshold_margin

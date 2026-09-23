@@ -133,7 +133,7 @@ providers:
       directions: /v2/directions/{profile}/geojson
       pois: /pois
     health:
-      url: https://api.openrouteservice.org/v2/health
+      url: https://api.openrouteservice.org
       method: GET
       expect_status: 200
       notes: health probe is keyless; routing calls are not

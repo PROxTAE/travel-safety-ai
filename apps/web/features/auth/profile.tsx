@@ -19,14 +19,15 @@ export function Profile() {
     return <ErrorState error={profile.error} retry={() => void profile.refetch()} />;
   return (
     <span className="profile-details">
-      <strong>Hello, {profile.data.data.display_name || "Traveler"}!</strong>
+      <strong>สวัสดี, {profile.data.data.display_name || "นักเดินทาง"}!</strong>
       <button
         className="sign-out-button"
         type="button"
         onClick={() => void signOut({ callbackUrl: "/login" })}
+        aria-label="ออกจากระบบ (Sign out)"
       >
         <span aria-hidden="true">↪</span>
-        <span className="sign-out-label">Sign out</span>
+        <span className="sign-out-label">ออกจากระบบ</span>
       </button>
     </span>
   );

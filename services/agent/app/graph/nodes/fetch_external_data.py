@@ -1,15 +1,74 @@
-"""`fetch_external_data` node.
-
-Not implemented until Phase 3 (`feat/03-tool-registry`) adds the typed
-`external_data.query_context@1` client and Phase 4 (`feat/03-orchestration-path`) wires it in here.
-Raising instead of returning a fabricated `observations.external_context_ref` is deliberate: the
-plan forbids this scaffold from ever exposing a demo/fake result.
-"""
+"""`fetch_external_data` node."""
 
 from __future__ import annotations
 
-from app.graph.nodes._stub import not_implemented_node
+import json
+from datetime import timedelta
+from uuid import uuid4
 
-fetch_external_data = not_implemented_node(
-    "fetch_external_data", "external_data.query_context@1 is not wired yet (Phase 3/4)"
-)
+from app.graph.state import AgentState, GraphStage
+from app.settings import get_settings
+from app.tools.clients.external_data import ExternalDataClient
+
+
+async def fetch_external_data(state: AgentState) -> dict[str, object]:
+    settings = get_settings()
+    client = ExternalDataClient(settings)
+
+    req = state.input.travel_request
+    orig_coords = req.origin.coordinates.coordinates
+    dest_coords = req.destination.coordinates.coordinates
+    mode_str = req.travel_modes[0].value if req.travel_modes else "CAR"
+    start_dt = req.departure_time
+    end_dt = req.return_time or (start_dt + timedelta(hours=6))
+
+    query_payload = {
+        "waypoints": [[orig_coords[0], orig_coords[1]], [dest_coords[0], dest_coords[1]]],
+        "mode": mode_str,
+        "start": start_dt.isoformat(),
+        "end": end_dt.isoformat(),
+        "language": req.locale[:2] if req.locale else "th",
+        "alternatives": 2,
+        "deadline_seconds": 25.0,
+    }
+
+    traceparent = f"00-{uuid4().hex}-{uuid4().hex[:16]}-01"
+
+    try:
+        data_resp, record = await client.query_context(
+            query_payload,
+            request_id=state.identity.request_id,
+            correlation_id=state.identity.correlation_id,
+            traceparent=traceparent,
+        )
+        ext_data = data_resp.get("data", {})
+        degraded = data_resp.get("meta", {}).get("degraded_services", [])
+    except Exception as exc:
+        ext_data = {
+            "weather": [],
+            "disaster_events": [],
+            "routes": [],
+            "transport": [],
+            "places": [],
+        }
+        degraded = [{"service": "external-data", "reason": str(exc)}]
+
+    obs = state.observations.model_copy(
+        update={"external_context_ref": json.dumps(ext_data)}
+    )
+    quality = state.quality.model_copy(
+        update={
+            "degraded_services": [str(d) for d in degraded] if degraded else []
+        }
+    )
+
+    return {
+        "observations": obs,
+        "quality": quality,
+        "plan": state.plan.model_copy(
+            update={"current_stage": GraphStage.FETCHING_EXTERNAL_DATA}
+        ),
+        "control_patch": {
+            "tool_call_count": state.control.tool_call_count + 1
+        },
+    }

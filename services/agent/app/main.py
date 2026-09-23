@@ -22,7 +22,12 @@ from redis.asyncio import Redis
 
 from app import __version__
 from app.api.internal import router as internal_runs_router
-from app.checkpoints.postgres import RunsRepository, agent_checkpointer, apply_migrations
+from app.checkpoints.postgres import (
+    RunsRepository,
+    agent_checkpointer,
+    apply_migrations,
+    normalize_conn_string,
+)
 from app.graph.builder import build_graph, graph_checksum
 from app.progress.publisher import ProgressPublisher
 from app.runtime import AppRuntime
@@ -42,11 +47,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
             if resolved.database_url is not None:
                 try:
-                    await apply_migrations(resolved.database_url)
+                    norm_url = normalize_conn_string(resolved.database_url)
+                    await apply_migrations(norm_url)
                     checkpointer = await stack.enter_async_context(
-                        agent_checkpointer(resolved.database_url)
+                        agent_checkpointer(norm_url)
                     )
-                    pool = AsyncConnectionPool(resolved.database_url, min_size=1, max_size=5)
+                    pool = AsyncConnectionPool(norm_url, min_size=1, max_size=5)
                     await stack.enter_async_context(pool)
                     runs_repo = RunsRepository(pool)
                 except OSError as exc:

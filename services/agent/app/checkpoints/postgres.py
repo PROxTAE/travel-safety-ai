@@ -28,9 +28,19 @@ from app.settings import Settings
 MIGRATIONS_PATH = Path(__file__).resolve().parents[2] / "migrations"
 
 
+def normalize_conn_string(conn_string: str) -> str:
+    """Strip SQLAlchemy dialect prefix if present so psycopg accepts it."""
+    if conn_string.startswith("postgresql+psycopg://"):
+        return "postgresql://" + conn_string[len("postgresql+psycopg://") :]
+    if conn_string.startswith("postgresql+asyncpg://"):
+        return "postgresql://" + conn_string[len("postgresql+asyncpg://") :]
+    return conn_string
+
+
 async def apply_migrations(conn_string: str, migrations_path: Path = MIGRATIONS_PATH) -> None:
     """Apply local SQL migrations once, in lexical order, inside one transaction each."""
-    async with await psycopg.AsyncConnection.connect(conn_string, autocommit=True) as connection:
+    normalized = normalize_conn_string(conn_string)
+    async with await psycopg.AsyncConnection.connect(normalized, autocommit=True) as connection:
         await connection.execute("CREATE SCHEMA IF NOT EXISTS agent")
         await connection.execute(
             """
@@ -62,8 +72,9 @@ async def agent_checkpointer(conn_string: str) -> AsyncIterator[AsyncPostgresSav
     Held open for the life of the process, per `AsyncPostgresSaver.from_conn_string`'s own
     contract — callers use this as the app's lifespan context, not per-request.
     """
+    normalized = normalize_conn_string(conn_string)
     async with AsyncPostgresSaver.from_conn_string(
-        conn_string, serde=agent_checkpoint_serde()
+        normalized, serde=agent_checkpoint_serde()
     ) as saver:
         await saver.setup()
         yield saver

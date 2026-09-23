@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     data_integration_base_url: str = "http://data-integration:8003"
     risk_knowledge_base_url: str = "http://risk-knowledge:8004"
     decision_engine_base_url: str = "http://decision-engine:8005"
-    recommendation_base_url: str | None = None
+    recommendation_base_url: str = "http://recommendation:8006"
 
     # -- Budgets and stop conditions (values from the plan) ------------------------------------
     max_agent_steps: int = Field(default=12, ge=1)

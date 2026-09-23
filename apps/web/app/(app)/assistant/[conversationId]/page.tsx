@@ -1,11 +1,10 @@
-import { RoutePlaceholder } from "@/components/ui/route-placeholder";
+import { AssistantView } from "@/features/conversations/assistant-view";
 
-export default function AssistantPage() {
-  return (
-    <RoutePlaceholder
-      title="Travel Assistant"
-      description="Start a real conversation with current trip context and cited guidance."
-      iconSrc="/assets/icons/ai-assistant.png"
-    />
-  );
+export default async function AssistantConversationPage({
+  params,
+}: {
+  params: Promise<{ conversationId: string }>;
+}) {
+  const { conversationId } = await params;
+  return <AssistantView conversationId={conversationId} />;
 }

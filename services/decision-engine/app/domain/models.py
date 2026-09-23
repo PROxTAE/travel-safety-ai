@@ -76,7 +76,7 @@ class RiskAssessment(BaseModel):
     snapshot_id: UUID
     route_id: UUID
     risk_level: RiskLevel
-    score: float = Field(ge=0, le=1)
+    score: float | None = Field(default=None, ge=0, le=1)
     uncertainty: float | None = Field(default=None, ge=0, le=1)
     reason_codes: list[str] = []
     quality: Quality

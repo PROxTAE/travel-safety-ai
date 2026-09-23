@@ -76,9 +76,6 @@ REGISTRY: dict[str, ToolDescriptor] = {
         retryable_error_codes=_TRANSIENT_ERROR_CODES,
         max_attempts=2,
         idempotent=True,
-        unavailable_reason=(
-            "module 04 has not published an OpenAPI contract for /internal/v1/context/query yet"
-        ),
     ),
     "data_integration.create_snapshot@1": ToolDescriptor(
         name="data_integration.create_snapshot@1",
@@ -104,8 +101,6 @@ REGISTRY: dict[str, ToolDescriptor] = {
         base_url_setting="risk_knowledge_base_url",
         retryable_error_codes=_TRANSIENT_ERROR_CODES,
         max_attempts=2,
-        # Not idempotent per its own contract (no idempotency key in the spec); a retry after a
-        # confirmed non-timeout failure is not safe to assume returns the same package.
         idempotent=False,
     ),
     "decision_engine.create_decision@1": ToolDescriptor(
@@ -116,13 +111,7 @@ REGISTRY: dict[str, ToolDescriptor] = {
         base_url_setting="decision_engine_base_url",
         retryable_error_codes=_TRANSIENT_ERROR_CODES,
         max_attempts=2,
-        # services/decision-engine/app/main.py accepts an `Idempotency-Key` header on this
-        # endpoint — read directly from its code, since it has no published OpenAPI contract to
-        # read instead.
         idempotent=True,
-        unavailable_reason=(
-            "module 07 has not published an OpenAPI contract for /internal/v1/decisions yet"
-        ),
     ),
     "recommendation.create_recommendation@1": ToolDescriptor(
         name="recommendation.create_recommendation@1",
@@ -133,8 +122,5 @@ REGISTRY: dict[str, ToolDescriptor] = {
         retryable_error_codes=_TRANSIENT_ERROR_CODES,
         max_attempts=2,
         idempotent=True,
-        unavailable_reason=(
-            "module 08 has not published an OpenAPI contract for /internal/v1/recommendations yet"
-        ),
     ),
 }

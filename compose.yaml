@@ -179,6 +179,7 @@ services:
       context: ./apps/web
       target: runtime
     profiles: [app]
+    env_file: .env
     healthcheck:
       test:
         [
@@ -207,6 +208,8 @@ services:
       POSTGRES_PASSWORD: ${RISK_KNOWLEDGE_DB_PASSWORD:-}
       QDRANT_URL: http://qdrant:6333
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
+      DATA_INTEGRATION_URL: http://data-integration:8003
+      DATA_INTEGRATION_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
       RISK_KNOWLEDGE_REQUIRE_ARTIFACT_SIGNATURE: ${RISK_KNOWLEDGE_REQUIRE_ARTIFACT_SIGNATURE:-true}
       RISK_KNOWLEDGE_ARTIFACT_PUBLIC_KEY_PATH: ${RISK_KNOWLEDGE_ARTIFACT_PUBLIC_KEY_PATH:-}
       RISK_KNOWLEDGE_ACTIVE_MODEL_NAME: ${RISK_KNOWLEDGE_ACTIVE_MODEL_NAME:-route-risk-baseline}
@@ -330,25 +333,38 @@ services:
       start_period: 20s
     restart: unless-stopped
 
-  # ตัวอย่าง service ของ module (เจ้าของคัดลอกไปเพิ่มใน PR ของตัวเอง แล้วลบคอมเมนต์นี้ออก)
-  #
-  # external-data:
-  #   build:
-  #     context: ./services/external-data
-  #     target: runtime
-  #   profiles: [app]
-  #   env_file: .env
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health/live', timeout=3)"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 10
-  #     start_period: 20s
-  #   restart: unless-stopped
-  # ---------------------------------------------------------------------------
+  agent:
+    image: smart-travel-agent:runtime
+    build:
+      context: ./services/agent
+      target: runtime
+    profiles: [app]
+    env_file: .env
+    environment:
+      SERVICE_NAME: agent
+      PORT: 8001
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-smart_travel}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-smart_travel}
+      REDIS_URL: redis://redis:6379/0
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-}
+      EXTERNAL_DATA_BASE_URL: http://external-data:8002
+      DATA_INTEGRATION_BASE_URL: http://data-integration:8003
+      RISK_KNOWLEDGE_BASE_URL: http://risk-knowledge:8004
+      DECISION_ENGINE_BASE_URL: http://decision-engine:8005
+      RECOMMENDATION_BASE_URL: http://recommendation:8006
+      CONTRACT_VERSION: ${CONTRACT_VERSION:-1.0.0}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health/live', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
 
 volumes:
   postgres-data:

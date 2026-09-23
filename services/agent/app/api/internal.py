@@ -231,13 +231,22 @@ async def get_run(
     row = await runtime.runs.get(request_id)
     if row is None:
         raise HTTPException(status_code=404, detail="NOT_FOUND")
+    final_state = row.get("final_state") or {}
+    result = final_state.get("result", {})
+    quality = final_state.get("quality", {})
+    control = final_state.get("control", {})
+    errors = control.get("errors", [])
     return {
         "request_id": str(request_id),
         "status": row["status"],
         "graph_version": row["graph_version"],
-        # Already a redacted AgentState (no chain-of-thought, no raw provider payload) — see
-        # app/graph/state.py's own module docstring for why that is true by construction.
-        "state": row["final_state"],
+        "recommendation_id": result.get("recommendation_id"),
+        "degraded_services": quality.get("degraded_services", []),
+        "stage": control.get("stage"),
+        "percent": 100 if row["status"] in (RunStatus.COMPLETED.value, RunStatus.PARTIAL.value) else (control.get("step_count", 0) * 20),
+        "error_code": errors[-1] if errors else None,
+        "error_message": "Assessment failed" if row["status"] == RunStatus.FAILED.value else None,
+        "state": final_state,
     }
 
 

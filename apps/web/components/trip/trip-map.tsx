@@ -10,12 +10,15 @@ import type { components } from "@/lib/api/generated/public-api";
 
 type Schema = components["schemas"];
 
-function mapStyle(): StyleSpecification {
+export function getMapStyle(): StyleSpecification {
   const configured = process.env.NEXT_PUBLIC_MAP_TILE_URL;
   const token = process.env.NEXT_PUBLIC_MAP_TILE_TOKEN ?? "";
-  const attribution = process.env.NEXT_PUBLIC_MAP_TILE_ATTRIBUTION ?? "Map data provider";
-  const tile = configured?.replace("{token}", encodeURIComponent(token));
-  if (tile)
+  const attribution =
+    process.env.NEXT_PUBLIC_MAP_TILE_ATTRIBUTION ||
+    "© OpenStreetMap contributors";
+
+  if (configured) {
+    const tile = configured.replace("{token}", encodeURIComponent(token));
     return {
       version: 8,
       sources: {
@@ -23,21 +26,23 @@ function mapStyle(): StyleSpecification {
       },
       layers: [{ id: "base", type: "raster", source: "base" }],
     };
+  }
+
+  // Development fallback. Deployments should set a tile URL whose usage policy
+  // permits their expected traffic and provide its required attribution.
   return {
     version: 8,
     sources: {
-      illustratedBase: {
-        type: "image",
-        url: "/assets/illustrations/global-map-background.png",
-        coordinates: [
-          [-180, 85],
-          [180, 85],
-          [180, -85],
-          [-180, -85],
+      base: {
+        type: "raster",
+        tiles: [
+          "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
         ],
+        tileSize: 256,
+        attribution,
       },
     },
-    layers: [{ id: "illustrated-base", type: "raster", source: "illustratedBase" }],
+    layers: [{ id: "base", type: "raster", source: "base" }],
   };
 }
 
@@ -58,12 +63,12 @@ export function TripMap({
     if (!container.current || map.current) return;
     map.current = new maplibregl.Map({
       container: container.current,
-      style: mapStyle(),
-      center: [0, 0],
-      zoom: 0.35,
+      style: getMapStyle(),
+      center: [0, 20],
+      zoom: 1.3,
       attributionControl: {},
     });
-    map.current.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-left");
+    map.current.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-left");
     return () => {
       map.current?.remove();
       map.current = null;
@@ -132,11 +137,6 @@ export function TripMap({
   return (
     <div className="trip-map-shell">
       <div ref={container} className="trip-map" aria-label="Interactive trip route map" />
-      {!process.env.NEXT_PUBLIC_MAP_TILE_URL && (
-        <p className="map-unavailable-note">
-          Illustrated base map. Live provider coordinates and route geometry remain interactive.
-        </p>
-      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ from app.domain.models import (
     DecisionReason,
     DecisionRequest,
     DecisionResult,
+    RiskAssessment,
     RiskLevel,
 )
 from app.policy.confidence import evidence_confidence
@@ -36,6 +37,18 @@ class Evaluation:
     escalation_reasons: list[str]
     selected_route_id: UUID | None
     limitations: list[dict[str, str | None]]
+
+
+def _score(a: RiskAssessment | None) -> float:
+    if a is None or a.score is None:
+        if a and a.risk_level == RiskLevel.HIGH:
+            return 0.85
+        elif a and a.risk_level == RiskLevel.MEDIUM:
+            return 0.45
+        elif a and a.risk_level == RiskLevel.LOW:
+            return 0.15
+        return 0.0
+    return a.score
 
 
 def validate_consistency(payload: DecisionRequest) -> list[str]:
@@ -79,44 +92,50 @@ def _policy_rule_trace(policy: Policy, matched_rule: str | None = None) -> list[
     return _trace(rules)
 
 
-def evaluate(payload: DecisionRequest, policy: Policy) -> Evaluation:
-    errors = validate_consistency(payload)
-    by_route = {item.route_id: item for item in payload.assessments}
-    usable_routes = [
-        route
-        for route in payload.route_candidates
-        if not route.closed and route.route_id in by_route
-    ]
-    critical_alerts = [
-        alert
-        for alert in payload.official_alerts
-        if alert.official and alert.active and alert.intersects_route and alert.closure
-    ]
-    focus = (
-        by_route.get(payload.selected_route_id)
-        if payload.selected_route_id
-        else max(by_route.values(), key=lambda item: item.score, default=None)
-    )
-    confidence = evidence_confidence(payload, focus) if focus else 0.0
-    escalation = escalation_reasons(payload, focus, errors, confidence, policy)
+def limitation_notices(
+    payload: DecisionRequest, focus: RiskAssessment | None, policy: Policy
+) -> list[dict[str, str | None]]:
     limitations: list[dict[str, str | None]] = []
     if payload.quality_summary.status != "FRESH":
         limitations.append(
             {
-                "code": "STALE_EVIDENCE_USED"
-                if payload.quality_summary.status == "STALE"
-                else "CONFLICTING_SOURCES",
+                "code": (
+                    "STALE_EVIDENCE_USED"
+                    if payload.quality_summary.status == "STALE"
+                    else "CONFLICTING_SOURCES"
+                ),
                 "text": "Evidence quality requires review before travel.",
             }
         )
+    return limitations
+
+
+def evaluate(payload: DecisionRequest, policy: Policy) -> Evaluation:
+    """Evaluate decision policy using explicit, deterministic precedence."""
+    errors = validate_consistency(payload)
+    usable_routes = [route for route in payload.route_candidates if not route.closed]
+    by_route = {assessment.route_id: assessment for assessment in payload.assessments}
+    focus = (
+        by_route.get(payload.selected_route_id)
+        if payload.selected_route_id in by_route
+        else (payload.assessments[0] if payload.assessments else None)
+    )
+    confidence = evidence_confidence(payload, focus) if focus else 0.0
+    critical_alerts = [
+        alert
+        for alert in payload.official_alerts
+        if alert.active and (alert.closure or alert.intersects_route)
+    ]
+    escalation = escalation_reasons(payload, focus, errors, confidence, policy)
+    limitations = limitation_notices(payload, focus, policy)
 
     if critical_alerts:
         return Evaluation(
             ActionCode.AVOID,
             RiskLevel.HIGH,
-            1.0,
-            ["R001_OFFICIAL_CLOSURE"],
-            _policy_rule_trace(policy, "R001_OFFICIAL_CLOSURE"),
+            min(confidence, 0.5),
+            ["R001_OFFICIAL_HAZARD_OVERRIDE"],
+            _trace([("R001_OFFICIAL_HAZARD_OVERRIDE", 0, True)]),
             [
                 DecisionReason(
                     code="OFFICIAL_CLOSURE",
@@ -156,7 +175,7 @@ def evaluate(payload: DecisionRequest, policy: Policy) -> Evaluation:
         return Evaluation(
             ActionCode.AVOID,
             RiskLevel.HIGH
-            if focus.score >= policy.thresholds.high_risk_score
+            if _score(focus) >= policy.thresholds.high_risk_score
             else RiskLevel.UNKNOWN,
             min(confidence, 0.25),
             ["R000_INPUT_INCONSISTENCY"],
@@ -181,14 +200,14 @@ def evaluate(payload: DecisionRequest, policy: Policy) -> Evaluation:
             route
             for route in usable_routes
             if route.route_id != focus.route_id
-            and by_route[route.route_id].score
-            <= focus.score - policy.thresholds.materially_safer_delta
+            and _score(by_route.get(route.route_id))
+            <= _score(focus) - policy.thresholds.materially_safer_delta
             and evidence_confidence(payload, by_route[route.route_id])
             >= policy.thresholds.alternative_min_quality
         ),
         None,
     )
-    if focus.score >= policy.thresholds.high_risk_score and safer is None:
+    if _score(focus) >= policy.thresholds.high_risk_score and safer is None:
         action = ActionCode.AVOID
         rule = "R002_HIGH_RISK_NO_SAFE_ROUTE"
         risk_level = RiskLevel.HIGH
@@ -213,7 +232,7 @@ def evaluate(payload: DecisionRequest, policy: Policy) -> Evaluation:
             (route for route in usable_routes if route.route_id == focus.route_id), None
         )
         delayed = (
-            focus.score >= policy.thresholds.delay_risk_score
+            _score(focus) >= policy.thresholds.delay_risk_score
             and "LONG_EXPOSURE_WINDOW" in focus.reason_codes
             and selected_route is not None
             and selected_route.duration_seconds is not None

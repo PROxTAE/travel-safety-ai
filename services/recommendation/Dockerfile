@@ -20,16 +20,19 @@ COPY emergency-directory ./emergency-directory
 COPY tests ./tests
 RUN UV_COMPILE_BYTECODE=0 uv sync --frozen
 
-FROM builder AS test
+FROM builder AS dev
 
 ENV PATH=/app/.venv/bin:$PATH \
     REPOSITORY_ROOT=/workspace
 
 RUN UV_COMPILE_BYTECODE=0 uv sync --frozen
 COPY tests ./tests
-COPY --from=contracts . /workspace/packages/contracts
+COPY migrations ./migrations
 
 CMD ["pytest", "-q"]
+
+FROM dev AS test
+COPY --from=contracts . /workspace/packages/contracts
 
 FROM python:3.12.14-slim-trixie AS runtime
 

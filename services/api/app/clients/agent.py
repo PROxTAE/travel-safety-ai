@@ -178,11 +178,21 @@ class AgentClient:
         if response.status_code >= 400:
             # A 4xx here is our bug or a contract drift, never the traveller's: we built this body
             # from a trip we had already validated.
+            validation_paths = []
+            if response.status_code == 422:
+                try:
+                    validation_paths = [
+                        ".".join(str(part) for part in item.get("loc", []))
+                        for item in response.json().get("detail", [])
+                    ]
+                except (ValueError, TypeError, AttributeError):
+                    pass
             logger.error(
                 "dependency_rejected_request",
                 event_type="dependency",
                 dependency=DEPENDENCY,
                 status=response.status_code,
+                validation_paths=validation_paths,
             )
             raise AgentRejectedRequest(response.status_code, self._error_code(response))
 
@@ -328,7 +338,7 @@ class AgentClient:
         """
         try:
             body = response.json()
-            data = body["data"]
+            data = body.get("data", body)
         except (ValueError, KeyError, TypeError) as exc:
             logger.error(
                 "dependency_schema_mismatch",
@@ -340,7 +350,7 @@ class AgentClient:
                 DEPENDENCY, message="Safety assessment is unavailable."
             ) from exc
 
-        if not isinstance(data, dict):
+        if not isinstance(data, dict) or not isinstance(data.get("request_id"), str) or not isinstance(data.get("status"), str):
             logger.error(
                 "dependency_schema_mismatch",
                 event_type="dependency",

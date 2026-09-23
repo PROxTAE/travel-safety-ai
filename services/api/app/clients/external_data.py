@@ -36,6 +36,7 @@ logger = get_logger(__name__)
 DEPENDENCY = "external-data"
 
 GEOCODE_PATH = "/internal/v1/geocode/search"
+WEATHER_PATH = "/internal/v1/weather/query"
 DISASTERS_PATH = "/internal/v1/disasters/query"
 PLACES_PATH = "/internal/v1/places/nearby"
 
@@ -298,6 +299,80 @@ class ExternalDataClient:
             ) from exc
 
         return events, degraded_list
+
+    async def weather_query(
+        self,
+        *,
+        samples: list[dict[str, Any]],
+        start: Any | None = None,
+        end: Any | None = None,
+    ) -> tuple[list[dict[str, Any]], list[DegradedService]]:
+        """Query weather forecasts from module 04's Open-Meteo adapter."""
+        if self._settings.internal_service_token is None:
+            logger.error(
+                "internal_service_token_missing",
+                event_type="configuration",
+                dependency=DEPENDENCY,
+            )
+            raise DependencyUnavailable(
+                DEPENDENCY,
+                message="Weather query is not available.",
+            )
+
+        url = f"{self._settings.external_data_service_url.rstrip('/')}{WEATHER_PATH}"
+        validate_outbound_url(url, self._settings)
+        payload: dict[str, Any] = {"samples": samples}
+        if start is not None:
+            payload["start"] = start.isoformat() if hasattr(start, "isoformat") else str(start)
+        if end is not None:
+            payload["end"] = end.isoformat() if hasattr(end, "isoformat") else str(end)
+
+        try:
+            response = await self._client.post(url, json=payload, headers=self._headers)
+        except httpx.TimeoutException as exc:
+            logger.warning(
+                "dependency_timeout",
+                event_type="dependency",
+                dependency=DEPENDENCY,
+                path=WEATHER_PATH,
+            )
+            raise DependencyTimeout(
+                DEPENDENCY, message="Weather query did not answer in time."
+            ) from exc
+        except httpx.HTTPError as exc:
+            logger.warning(
+                "dependency_unreachable",
+                event_type="dependency",
+                dependency=DEPENDENCY,
+                path=WEATHER_PATH,
+                error_type=type(exc).__name__,
+            )
+            raise DependencyUnavailable(DEPENDENCY, message="Weather query is unavailable.") from exc
+
+        if response.status_code >= 400:
+            logger.error(
+                "dependency_rejected_request",
+                event_type="dependency",
+                dependency=DEPENDENCY,
+                status=response.status_code,
+            )
+            raise DependencyUnavailable(DEPENDENCY, message="Weather query is unavailable.")
+
+        try:
+            body = response.json()
+            forecasts = body.get("data", {}).get("forecasts", [])
+            meta = body.get("meta", {})
+            degraded_raw = meta.get("degraded_services", [])
+            degraded_list: list[DegradedService] = []
+            if isinstance(degraded_raw, list):
+                for item in degraded_raw:
+                    if isinstance(item, dict):
+                        degraded_list.append(DegradedService.model_validate(item))
+            return forecasts, degraded_list
+        except (ValueError, KeyError, TypeError) as exc:
+            raise DependencyUnavailable(
+                DEPENDENCY, message="Weather query returned an unexpected response."
+            ) from exc
 
     async def places_nearby(
         self,

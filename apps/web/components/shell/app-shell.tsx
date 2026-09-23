@@ -32,6 +32,7 @@ export function AppShell({
                   className="nav-link"
                   href={item.href}
                   data-active={isActive(pathname, item.href)}
+                  aria-label={item.enLabel}
                 >
                   <span className="nav-icon" aria-hidden="true">
                     <Image src={item.icon} width={34} height={34} alt="" />
@@ -43,9 +44,9 @@ export function AppShell({
           </ul>
         </nav>
         <p className="sidebar-tagline" aria-hidden="true">
-          Travel safer.
+          เดินทางปลอดภัย
           <br />
-          Go further.
+          ไปได้ไกลกว่า
         </p>
       </aside>
       <main className="app-main">
@@ -66,9 +67,9 @@ export function AppShell({
             <span className="profile-copy">
               {profile || (
                 <>
-                  <strong>Hello, Traveler!</strong>
+                  <strong>สวัสดี, นักเดินทาง!</strong>
                   <br />
-                  Explore the world safely
+                  ท่องเที่ยวปลอดภัย มั่นใจทุกเส้นทาง
                 </>
               )}
             </span>
@@ -98,7 +99,7 @@ export function AppShell({
                     key={item.href}
                     href={item.href}
                     data-active={isActive(pathname, item.href)}
-                    aria-label={item.label}
+                    aria-label={item.enLabel}
                   >
                     <Image src={item.icon} width={30} height={30} alt="" aria-hidden="true" />
                     <span className="mobile-nav-label">{item.label}</span>

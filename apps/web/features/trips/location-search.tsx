@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from "react";
 import type { components } from "@/lib/api/generated/public-api";
 import { api } from "@/lib/api/client";
 import { ErrorState } from "@/components/ui/data-states";
+import { IconMapPin, IconCheck } from "@/components/ui/icons";
 
 type Location = components["schemas"]["LocationRef"];
 
@@ -67,7 +68,9 @@ export function LocationSearch({
     <div className="location-search">
       <label htmlFor={id}>{label}</label>
       <div className="location-input-wrap">
-        <span aria-hidden="true">📍</span>
+        <span aria-hidden="true" style={{ display: "inline-flex", alignItems: "center" }}>
+          <IconMapPin width={18} height={18} />
+        </span>
         <input
           id={id}
           value={query}
@@ -77,7 +80,7 @@ export function LocationSearch({
           aria-controls={`${id}-results`}
           aria-activedescendant={active >= 0 ? `${id}-result-${active}` : undefined}
           autoComplete="off"
-          placeholder={`Search ${label.toLowerCase()}`}
+          placeholder={`Search ${label.toLowerCase()} (พิมพ์ค้นหาสถานที่)`}
           onChange={(event) => {
             setSelectedName("");
             setQuery(event.target.value);
@@ -118,13 +121,13 @@ export function LocationSearch({
           </button>
         )}
       </div>
-      {loading && <span className="location-note">Searching real geocoding…</span>}
+      {loading && <span className="location-note">กำลังค้นหาพิกัดจริง (Searching geocoding)…</span>}
       {error && <ErrorState error={error} />}
       {!loading &&
         query.trim().length >= 2 &&
         !error &&
         !results.length &&
-        query !== selectedName && <span className="location-note">No matching places found.</span>}
+        query !== selectedName && <span className="location-note">ไม่พบสถานที่ที่ตรงกัน (No matching places)</span>}
       {results.length > 0 && (
         <ul id={`${id}-results`} role="listbox" className="location-results">
           {results.map((location, index) => (
@@ -148,14 +151,18 @@ export function LocationSearch({
       )}
       {value && (
         <div className="location-confirmation" data-confirmed={value.confirmed_by_user}>
-          <span>
-            {value.confirmed_by_user
-              ? "✓ Pin confirmed"
-              : "Check the pin on the map before continuing."}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            {value.confirmed_by_user ? (
+              <>
+                <IconCheck width={16} height={16} /> ยืนยันหมุดพิกัดแล้ว (Pin confirmed)
+              </>
+            ) : (
+              "โปรดตรวจสอบหมุดบนแผนที่ก่อนดำเนินการต่อ"
+            )}
           </span>
           {!value.confirmed_by_user && (
             <button type="button" onClick={() => onChange({ ...value, confirmed_by_user: true })}>
-              Confirm this pin
+              ยืนยันหมุดนี้ (Confirm pin)
             </button>
           )}
         </div>
@@ -163,3 +170,4 @@ export function LocationSearch({
     </div>
   );
 }
+
