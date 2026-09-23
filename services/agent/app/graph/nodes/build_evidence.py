@@ -39,8 +39,7 @@ async def build_evidence(state: AgentState) -> dict[str, object]:
             traceparent=traceparent,
         )
         ev_data = resp.data
-    except Exception as exc:
-        print(f"[build_evidence error] {type(exc).__name__}: {exc}")
+    except Exception:
         return {
             "control_patch": {
                 "status": RunStatus.FAILED,

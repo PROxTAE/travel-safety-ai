@@ -101,17 +101,83 @@ def _parse_and_validate_bbox(bbox_str: str) -> tuple[float, float, float, float]
 
 
 REGIONAL_WEATHER_CENTERS = [
-    {"name": "Bangkok", "title": "Bangkok Metropolitan Area", "latitude": 13.7563, "longitude": 100.5018, "sample_id": "bkk"},
-    {"name": "Chiang Mai", "title": "Northern Highlands (Chiang Mai)", "latitude": 18.7883, "longitude": 98.9853, "sample_id": "cnx"},
-    {"name": "Phuket", "title": "Andaman Coast (Phuket)", "latitude": 7.8804, "longitude": 98.3923, "sample_id": "hkt"},
-    {"name": "Khon Kaen", "title": "Central Isan Plateau (Khon Kaen)", "latitude": 16.4322, "longitude": 102.8236, "sample_id": "kkn"},
-    {"name": "Rayong", "title": "Eastern Coastal Region (Rayong)", "latitude": 12.6814, "longitude": 101.2816, "sample_id": "ryg"},
-    {"name": "Hat Yai", "title": "Southern Border Corridor (Hat Yai)", "latitude": 7.0084, "longitude": 100.4747, "sample_id": "hdy"},
-    {"name": "Nakhon Ratchasima", "title": "Lower Isan Gateway (Korat)", "latitude": 14.9799, "longitude": 102.0978, "sample_id": "nak"},
-    {"name": "Surat Thani", "title": "Gulf Coast Corridor (Surat Thani)", "latitude": 9.1382, "longitude": 99.3331, "sample_id": "urt"},
-    {"name": "Ubon Ratchathani", "title": "Eastern Isan Border (Ubon)", "latitude": 15.2287, "longitude": 104.8587, "sample_id": "ubp"},
-    {"name": "Kanchanaburi", "title": "Western Mountain Range (Kanchanaburi)", "latitude": 14.0228, "longitude": 99.5328, "sample_id": "kan"},
-    {"name": "Phitsanulok", "title": "Lower Northern Crossroads (Phitsanulok)", "latitude": 16.8211, "longitude": 100.2659, "sample_id": "phs"},
+    {
+        "name": "Bangkok",
+        "title": "Bangkok Metropolitan Area",
+        "latitude": 13.7563,
+        "longitude": 100.5018,
+        "sample_id": "bkk",
+    },
+    {
+        "name": "Chiang Mai",
+        "title": "Northern Highlands (Chiang Mai)",
+        "latitude": 18.7883,
+        "longitude": 98.9853,
+        "sample_id": "cnx",
+    },
+    {
+        "name": "Phuket",
+        "title": "Andaman Coast (Phuket)",
+        "latitude": 7.8804,
+        "longitude": 98.3923,
+        "sample_id": "hkt",
+    },
+    {
+        "name": "Khon Kaen",
+        "title": "Central Isan Plateau (Khon Kaen)",
+        "latitude": 16.4322,
+        "longitude": 102.8236,
+        "sample_id": "kkn",
+    },
+    {
+        "name": "Rayong",
+        "title": "Eastern Coastal Region (Rayong)",
+        "latitude": 12.6814,
+        "longitude": 101.2816,
+        "sample_id": "ryg",
+    },
+    {
+        "name": "Hat Yai",
+        "title": "Southern Border Corridor (Hat Yai)",
+        "latitude": 7.0084,
+        "longitude": 100.4747,
+        "sample_id": "hdy",
+    },
+    {
+        "name": "Nakhon Ratchasima",
+        "title": "Lower Isan Gateway (Korat)",
+        "latitude": 14.9799,
+        "longitude": 102.0978,
+        "sample_id": "nak",
+    },
+    {
+        "name": "Surat Thani",
+        "title": "Gulf Coast Corridor (Surat Thani)",
+        "latitude": 9.1382,
+        "longitude": 99.3331,
+        "sample_id": "urt",
+    },
+    {
+        "name": "Ubon Ratchathani",
+        "title": "Eastern Isan Border (Ubon)",
+        "latitude": 15.2287,
+        "longitude": 104.8587,
+        "sample_id": "ubp",
+    },
+    {
+        "name": "Kanchanaburi",
+        "title": "Western Mountain Range (Kanchanaburi)",
+        "latitude": 14.0228,
+        "longitude": 99.5328,
+        "sample_id": "kan",
+    },
+    {
+        "name": "Phitsanulok",
+        "title": "Lower Northern Crossroads (Phitsanulok)",
+        "latitude": 16.8211,
+        "longitude": 100.2659,
+        "sample_id": "phs",
+    },
 ]
 
 REGIONAL_TRANSIT_EVENTS = [
@@ -120,7 +186,10 @@ REGIONAL_TRANSIT_EVENTS = [
         "layer": "TRANSPORT",
         "event_type": "TRANSPORT_CLOSURE",
         "title": "SRT Northern Railway Corridor (Bangkok - Chiang Mai)",
-        "description": "State Railway of Thailand Northern Line passenger service operating on regular schedule. Track upgrading between Phitsanulok and Den Chai.",
+        "description": (
+            "State Railway of Thailand Northern Line passenger service operating on regular"
+            " schedule. Track upgrading between Phitsanulok and Den Chai."
+        ),
         "severity": "MODERATE",
         "geometry": {"type": "Point", "coordinates": [100.2659, 16.8211]},
         "official": True,
@@ -135,7 +204,10 @@ REGIONAL_TRANSIT_EVENTS = [
         "layer": "TRANSPORT",
         "event_type": "TRANSPORT_CLOSURE",
         "title": "SRT Southern Railway Corridor (Bangkok - Hua Hin - Hat Yai)",
-        "description": "Double-track railway corridor active. Coastal express trains operational with localized seasonal monsoon speed advisories.",
+        "description": (
+            "Double-track railway corridor active. Coastal express trains operational with"
+            " localized seasonal monsoon speed advisories."
+        ),
         "severity": "INFO",
         "geometry": {"type": "Point", "coordinates": [99.9576, 12.5703]},
         "official": True,
@@ -150,7 +222,10 @@ REGIONAL_TRANSIT_EVENTS = [
         "layer": "TRANSPORT",
         "event_type": "TRANSPORT_CLOSURE",
         "title": "SRT Northeastern Railway Corridor (Korat - Khon Kaen - Nong Khai)",
-        "description": "Northeastern freight and passenger rail corridor. High-speed rail construction adjacent to section Saraburi - Nakhon Ratchasima.",
+        "description": (
+            "Northeastern freight and passenger rail corridor. High-speed rail construction"
+            " adjacent to section Saraburi - Nakhon Ratchasima."
+        ),
         "severity": "INFO",
         "geometry": {"type": "Point", "coordinates": [102.0978, 14.9799]},
         "official": True,
@@ -165,7 +240,10 @@ REGIONAL_TRANSIT_EVENTS = [
         "layer": "TRANSPORT",
         "event_type": "TRANSPORT_CLOSURE",
         "title": "Bangkok Mass Transit Rail Network (BTS / MRT / ARL)",
-        "description": "All metropolitan rapid transit lines operating under normal peak service frequency. Real-time passenger density monitoring active.",
+        "description": (
+            "All metropolitan rapid transit lines operating under normal peak service"
+            " frequency. Real-time passenger density monitoring active."
+        ),
         "severity": "INFO",
         "geometry": {"type": "Point", "coordinates": [100.5350, 13.7460]},
         "official": True,
@@ -180,7 +258,10 @@ REGIONAL_TRANSIT_EVENTS = [
         "layer": "TRANSPORT",
         "event_type": "TRANSPORT_CLOSURE",
         "title": "Eastern Economic Corridor (EEC) High-Speed Transit Rail Link",
-        "description": "Three-Airport High-Speed Rail corridor works ongoing. Road diversions and rail speed restrictions around Chonburi and Chachoengsao.",
+        "description": (
+            "Three-Airport High-Speed Rail corridor works ongoing. Road diversions and"
+            " rail speed restrictions around Chonburi and Chachoengsao."
+        ),
         "severity": "MODERATE",
         "geometry": {"type": "Point", "coordinates": [100.9850, 13.3611]},
         "official": True,
@@ -198,7 +279,10 @@ OFFICIAL_ADVISORIES = [
         "layer": "OFFICIAL_ALERT",
         "event_type": "STORM",
         "title": "Thai Meteorological Dept (TMD) Monsoon & Maritime Advisory",
-        "description": "Southwest monsoon prevailing over Andaman Sea, Thailand, and Gulf of Thailand. Small craft advisory in effect for open sea areas.",
+        "description": (
+            "Southwest monsoon prevailing over Andaman Sea, Thailand, and Gulf of Thailand."
+            " Small craft advisory in effect for open sea areas."
+        ),
         "severity": "MODERATE",
         "geometry": {"type": "Point", "coordinates": [99.8000, 10.5000]},
         "official": True,
@@ -213,7 +297,10 @@ OFFICIAL_ADVISORIES = [
         "layer": "OFFICIAL_ALERT",
         "event_type": "FLOOD",
         "title": "DDPM Thailand National Disaster Monitoring & Preparedness Alert",
-        "description": "Department of Disaster Prevention and Mitigation (DDPM) regional center monitoring river basins and hill slopes for flood vulnerability.",
+        "description": (
+            "Department of Disaster Prevention and Mitigation (DDPM) regional center"
+            " monitoring river basins and hill slopes for flood vulnerability."
+        ),
         "severity": "MODERATE",
         "geometry": {"type": "Point", "coordinates": [100.1000, 15.5000]},
         "official": True,
@@ -360,7 +447,11 @@ async def query_safety_events(
             logger.warning("weather_query_failed", exc=str(exc))
 
     # 2. DISASTER LAYER: Fetch real canonical hazards from Module 04 disaster aggregators
-    if "DISASTER" in target_layers or "WEATHER" in target_layers or "OFFICIAL_ALERT" in target_layers:
+    if (
+        "DISASTER" in target_layers
+        or "WEATHER" in target_layers
+        or "OFFICIAL_ALERT" in target_layers
+    ):
         try:
             # Notice: Do not pass start=at so currently ongoing active disasters are not dropped
             events_raw, degraded_d = await client.disasters_query(bbox=parsed_bbox)
@@ -369,11 +460,39 @@ async def query_safety_events(
             def classify_disaster_layer(event_type: str, official: bool) -> list[SafetyLayer]:
                 t = event_type.upper()
                 res: list[SafetyLayer] = []
-                if any(w in t for w in ("CYCLONE", "STORM", "FLOOD", "RAIN", "WIND", "TEMPERATURE", "WEATHER", "TYPHOON", "HURRICANE")):
+                if any(
+                    w in t
+                    for w in (
+                        "CYCLONE",
+                        "STORM",
+                        "FLOOD",
+                        "RAIN",
+                        "WIND",
+                        "TEMPERATURE",
+                        "WEATHER",
+                        "TYPHOON",
+                        "HURRICANE",
+                    )
+                ):
                     res.append("WEATHER")
-                if any(w in t for w in ("EARTHQUAKE", "VOLCANO", "WILDFIRE", "LANDSLIDE", "TSUNAMI", "FLOOD", "CYCLONE", "STORM", "DISASTER")):
+                if any(
+                    w in t
+                    for w in (
+                        "EARTHQUAKE",
+                        "VOLCANO",
+                        "WILDFIRE",
+                        "LANDSLIDE",
+                        "TSUNAMI",
+                        "FLOOD",
+                        "CYCLONE",
+                        "STORM",
+                        "DISASTER",
+                    )
+                ):
                     res.append("DISASTER")
-                if any(w in t for w in ("CLOSURE", "TRANSIT", "DELAY", "ROAD", "ACCIDENT", "TRANSPORT")):
+                if any(
+                    w in t for w in ("CLOSURE", "TRANSIT", "DELAY", "ROAD", "ACCIDENT", "TRANSPORT")
+                ):
                     res.append("TRANSPORT")
                 if official or any(w in t for w in ("ADVISORY", "WARNING", "ALERT", "EVACUATION")):
                     res.append("OFFICIAL_ALERT")
@@ -383,14 +502,20 @@ async def query_safety_events(
 
             for item in events_raw:
                 authority = item.get("source", {}).get("authority", "UNKNOWN")
-                is_official = authority in ("OFFICIAL", "GOVERNMENT", "UN", "METEOROLOGICAL_AGENCY", "INTERGOVERNMENTAL")
+                is_official = authority in (
+                    "OFFICIAL",
+                    "GOVERNMENT",
+                    "UN",
+                    "METEOROLOGICAL_AGENCY",
+                    "INTERGOVERNMENTAL",
+                )
                 event_type = item.get("event_type", "HAZARD")
                 matched_layers = classify_disaster_layer(event_type, is_official)
 
                 selected_layer: SafetyLayer | None = None
-                for l in matched_layers:
-                    if l in target_layers:
-                        selected_layer = l
+                for layer in matched_layers:
+                    if layer in target_layers:
+                        selected_layer = layer
                         break
 
                 if not selected_layer:
@@ -424,51 +549,54 @@ async def query_safety_events(
     if "TRANSPORT" in target_layers:
         for transit in REGIONAL_TRANSIT_EVENTS:
             coords = transit["geometry"]["coordinates"]
-            if in_viewport(coords[0], coords[1]) or (90.0 <= coords[0] <= 110.0 and 5.0 <= coords[1] <= 22.0):
-                if transit["event_id"] not in seen_ids:
-                    seen_ids.add(transit["event_id"])
-                    safety_events.append(
-                        SafetyEventModel(
-                            event_id=transit["event_id"],
-                            layer="TRANSPORT",
-                            event_type=transit["event_type"],
-                            title=transit["title"],
-                            severity=transit["severity"],
-                            geometry=transit["geometry"],
-                            official=transit["official"],
-                            valid_from=None,
-                            valid_to=None,
-                            detail_url=transit["source"]["url"],
-                            quality={"status": "FRESH"},
-                            source=transit["source"],
-                        )
+            if (
+                in_viewport(coords[0], coords[1])
+                or (90.0 <= coords[0] <= 110.0 and 5.0 <= coords[1] <= 22.0)
+            ) and transit["event_id"] not in seen_ids:
+                seen_ids.add(transit["event_id"])
+                safety_events.append(
+                    SafetyEventModel(
+                        event_id=transit["event_id"],
+                        layer="TRANSPORT",
+                        event_type=transit["event_type"],
+                        title=transit["title"],
+                        severity=transit["severity"],
+                        geometry=transit["geometry"],
+                        official=transit["official"],
+                        valid_from=None,
+                        valid_to=None,
+                        detail_url=transit["source"]["url"],
+                        quality={"status": "FRESH"},
+                        source=transit["source"],
                     )
+                )
 
     # 4. OFFICIAL ADVISORIES LAYER: Official warnings & government alerts
     if "OFFICIAL_ALERT" in target_layers:
         for adv in OFFICIAL_ADVISORIES:
             coords = adv["geometry"]["coordinates"]
-            if in_viewport(coords[0], coords[1]) or (90.0 <= coords[0] <= 110.0 and 5.0 <= coords[1] <= 22.0):
-                if adv["event_id"] not in seen_ids:
-                    seen_ids.add(adv["event_id"])
-                    safety_events.append(
-                        SafetyEventModel(
-                            event_id=adv["event_id"],
-                            layer="OFFICIAL_ALERT",
-                            event_type=adv["event_type"],
-                            title=adv["title"],
-                            severity=adv["severity"],
-                            geometry=adv["geometry"],
-                            official=adv["official"],
-                            valid_from=None,
-                            valid_to=None,
-                            detail_url=adv["source"]["url"],
-                            quality={"status": "FRESH"},
-                            source=adv["source"],
-                        )
+            if (
+                in_viewport(coords[0], coords[1])
+                or (90.0 <= coords[0] <= 110.0 and 5.0 <= coords[1] <= 22.0)
+            ) and adv["event_id"] not in seen_ids:
+                seen_ids.add(adv["event_id"])
+                safety_events.append(
+                    SafetyEventModel(
+                        event_id=adv["event_id"],
+                        layer="OFFICIAL_ALERT",
+                        event_type=adv["event_type"],
+                        title=adv["title"],
+                        severity=adv["severity"],
+                        geometry=adv["geometry"],
+                        official=adv["official"],
+                        valid_from=None,
+                        valid_to=None,
+                        detail_url=adv["source"]["url"],
+                        quality={"status": "FRESH"},
+                        source=adv["source"],
                     )
+                )
 
     paged_events = safety_events[:limit]
     page = PageMeta(cursor=None, next_cursor=None, has_more=False)
     return list_response(request, paged_events, page=page, degraded_services=all_degraded)
-

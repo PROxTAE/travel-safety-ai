@@ -24,6 +24,7 @@ to gain by retrying inside one call.
 
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
 import httpx
@@ -180,13 +181,11 @@ class AgentClient:
             # from a trip we had already validated.
             validation_paths = []
             if response.status_code == 422:
-                try:
+                with contextlib.suppress(ValueError, TypeError, AttributeError):
                     validation_paths = [
                         ".".join(str(part) for part in item.get("loc", []))
                         for item in response.json().get("detail", [])
                     ]
-                except (ValueError, TypeError, AttributeError):
-                    pass
             logger.error(
                 "dependency_rejected_request",
                 event_type="dependency",
@@ -350,7 +349,11 @@ class AgentClient:
                 DEPENDENCY, message="Safety assessment is unavailable."
             ) from exc
 
-        if not isinstance(data, dict) or not isinstance(data.get("request_id"), str) or not isinstance(data.get("status"), str):
+        if (
+            not isinstance(data, dict)
+            or not isinstance(data.get("request_id"), str)
+            or not isinstance(data.get("status"), str)
+        ):
             logger.error(
                 "dependency_schema_mismatch",
                 event_type="dependency",

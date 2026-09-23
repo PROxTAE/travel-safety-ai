@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 from datetime import UTC, datetime, timedelta
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from app.graph.state import AgentState, GraphStage, RunStatus
 from app.settings import get_settings
@@ -26,10 +27,8 @@ async def integrate_data(state: AgentState) -> dict[str, object]:
 
     ext_data = {}
     if state.observations.external_context_ref:
-        try:
+        with contextlib.suppress(Exception):
             ext_data = json.loads(state.observations.external_context_ref)
-        except Exception:
-            pass
 
     req = state.input.travel_request
     now = datetime.now(UTC)
@@ -74,7 +73,8 @@ async def integrate_data(state: AgentState) -> dict[str, object]:
             s_dict = dict(s)
             c_hash = s_dict.get("content_hash", "")
             if not (isinstance(c_hash, str) and c_hash.startswith("sha256:") and len(c_hash) == 71):
-                s_dict["content_hash"] = "sha256:" + hashlib.sha256(str(s_dict).encode()).hexdigest()
+                h_val = hashlib.sha256(str(s_dict).encode()).hexdigest()
+                s_dict["content_hash"] = f"sha256:{h_val}"
             obs = s_dict.get("observed_at")
             fet = s_dict.get("fetched_at")
             if obs == fet or not obs:
@@ -97,7 +97,8 @@ async def integrate_data(state: AgentState) -> dict[str, object]:
             provider_route_id=r0.get("provider_route_id") or "openrouteservice",
             label="RECOMMENDED",
             mode=r0.get("mode") or (req.travel_modes[0].value if req.travel_modes else "CAR"),
-            geometry=r0.get("geometry") or {
+            geometry=r0.get("geometry")
+            or {
                 "type": "LineString",
                 "coordinates": [
                     [orig_coords[0], orig_coords[1]],
@@ -166,8 +167,7 @@ async def integrate_data(state: AgentState) -> dict[str, object]:
             traceparent=traceparent,
         )
         snapshot_id = snap_resp.data.snapshot_id
-    except Exception as exc:
-        print(f"[integrate_data error] {type(exc).__name__}: {exc}")
+    except Exception:
         return {
             "control_patch": {
                 "status": RunStatus.FAILED,
@@ -178,10 +178,6 @@ async def integrate_data(state: AgentState) -> dict[str, object]:
     obs = state.observations.model_copy(update={"snapshot_id": snapshot_id})
     return {
         "observations": obs,
-        "plan": state.plan.model_copy(
-            update={"current_stage": GraphStage.INTEGRATING_DATA}
-        ),
-        "control_patch": {
-            "tool_call_count": state.control.tool_call_count + 1
-        },
+        "plan": state.plan.model_copy(update={"current_stage": GraphStage.INTEGRATING_DATA}),
+        "control_patch": {"tool_call_count": state.control.tool_call_count + 1},
     }

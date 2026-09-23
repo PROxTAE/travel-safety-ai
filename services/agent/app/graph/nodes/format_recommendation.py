@@ -44,7 +44,9 @@ async def format_recommendation(state: AgentState) -> dict[str, object]:
                 "license": "ODbL",
                 "attribution": "© OpenStreetMap contributors",
                 "fetched_at": req.departure_time.isoformat(),
-                "content_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+                "content_hash": (
+                    "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+                ),
                 "schema_version": "1.0.0",
             }
         ]
@@ -69,9 +71,7 @@ async def format_recommendation(state: AgentState) -> dict[str, object]:
         "request_id": str(state.identity.request_id),
         "trip_id": str(state.identity.trip_id),
         "conversation_id": (
-            str(state.identity.conversation_id)
-            if state.identity.conversation_id
-            else None
+            str(state.identity.conversation_id) if state.identity.conversation_id else None
         ),
         "decision": decision,
         "context": context,
@@ -92,10 +92,11 @@ async def format_recommendation(state: AgentState) -> dict[str, object]:
             if isinstance(rec_resp, dict)
             else getattr(rec_resp, "data", {})
         )
-        rec_id_str = data["recommendation_id"] if isinstance(data, dict) else str(data.recommendation_id)
+        rec_id_str = (
+            data["recommendation_id"] if isinstance(data, dict) else str(data.recommendation_id)
+        )
         rec_id = UUID(rec_id_str)
-    except Exception as exc:
-        print(f"[format_recommendation error] {type(exc).__name__}: {exc}")
+    except Exception:
         return {
             "control_patch": {
                 "status": RunStatus.FAILED,
@@ -106,8 +107,6 @@ async def format_recommendation(state: AgentState) -> dict[str, object]:
     result = state.result.model_copy(update={"recommendation_id": rec_id})
     return {
         "result": result,
-        "plan": state.plan.model_copy(
-            update={"current_stage": GraphStage.FORMATTING_RESPONSE}
-        ),
+        "plan": state.plan.model_copy(update={"current_stage": GraphStage.FORMATTING_RESPONSE}),
         "control_patch": {"tool_call_count": state.control.tool_call_count + 1},
     }

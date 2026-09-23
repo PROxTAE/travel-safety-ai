@@ -347,7 +347,9 @@ class ExternalDataClient:
                 path=WEATHER_PATH,
                 error_type=type(exc).__name__,
             )
-            raise DependencyUnavailable(DEPENDENCY, message="Weather query is unavailable.") from exc
+            raise DependencyUnavailable(
+                DEPENDENCY, message="Weather query is unavailable."
+            ) from exc
 
         if response.status_code >= 400:
             logger.error(

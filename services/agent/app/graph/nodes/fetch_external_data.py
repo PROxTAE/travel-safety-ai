@@ -53,22 +53,14 @@ async def fetch_external_data(state: AgentState) -> dict[str, object]:
         }
         degraded = [{"service": "external-data", "reason": str(exc)}]
 
-    obs = state.observations.model_copy(
-        update={"external_context_ref": json.dumps(ext_data)}
-    )
+    obs = state.observations.model_copy(update={"external_context_ref": json.dumps(ext_data)})
     quality = state.quality.model_copy(
-        update={
-            "degraded_services": [str(d) for d in degraded] if degraded else []
-        }
+        update={"degraded_services": [str(d) for d in degraded] if degraded else []}
     )
 
     return {
         "observations": obs,
         "quality": quality,
-        "plan": state.plan.model_copy(
-            update={"current_stage": GraphStage.FETCHING_EXTERNAL_DATA}
-        ),
-        "control_patch": {
-            "tool_call_count": state.control.tool_call_count + 1
-        },
+        "plan": state.plan.model_copy(update={"current_stage": GraphStage.FETCHING_EXTERNAL_DATA}),
+        "control_patch": {"tool_call_count": state.control.tool_call_count + 1},
     }

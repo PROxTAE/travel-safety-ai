@@ -73,8 +73,7 @@ async def make_decision(state: AgentState) -> dict[str, object]:
         )
         dec_data = dec_resp if isinstance(dec_resp, dict) else dec_resp.model_dump(mode="json")
         decision_id = UUID(dec_data["decision_id"])
-    except Exception as exc:
-        print(f"[make_decision error] {type(exc).__name__}: {exc}")
+    except Exception:
         return {
             "control_patch": {
                 "status": RunStatus.FAILED,
@@ -86,9 +85,7 @@ async def make_decision(state: AgentState) -> dict[str, object]:
         "evidence": ev_data,
         "decision": dec_data,
     }
-    obs = state.observations.model_copy(
-        update={"evidence_package_ref": json.dumps(combined)}
-    )
+    obs = state.observations.model_copy(update={"evidence_package_ref": json.dumps(combined)})
     result = state.result.model_copy(update={"decision_id": decision_id})
     return {
         "observations": obs,

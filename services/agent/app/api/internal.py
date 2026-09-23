@@ -243,7 +243,11 @@ async def get_run(
         "recommendation_id": result.get("recommendation_id"),
         "degraded_services": quality.get("degraded_services", []),
         "stage": control.get("stage"),
-        "percent": 100 if row["status"] in (RunStatus.COMPLETED.value, RunStatus.PARTIAL.value) else (control.get("step_count", 0) * 20),
+        "percent": (
+            100
+            if row["status"] in (RunStatus.COMPLETED.value, RunStatus.PARTIAL.value)
+            else (control.get("step_count", 0) * 20)
+        ),
         "error_code": errors[-1] if errors else None,
         "error_message": "Assessment failed" if row["status"] == RunStatus.FAILED.value else None,
         "state": final_state,

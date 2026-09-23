@@ -239,10 +239,20 @@ async def start(
                 "travel_request": {
                     key: value
                     for key, value in payload.items()
-                    if key in {
-                        "trip_id", "conversation_id", "origin", "destination",
-                        "departure_time", "return_time", "timezone", "travel_modes",
-                        "preferences", "question", "locale", "live_location_consent_id",
+                    if key
+                    in {
+                        "trip_id",
+                        "conversation_id",
+                        "origin",
+                        "destination",
+                        "departure_time",
+                        "return_time",
+                        "timezone",
+                        "travel_modes",
+                        "preferences",
+                        "question",
+                        "locale",
+                        "live_location_consent_id",
                     }
                 }
                 | {"request_id": str(row.id)},
@@ -307,7 +317,9 @@ async def start(
             row,
             status=reported,
             error_code="INTERNAL_ERROR" if reported == "FAILED" else None,
-            error_message="The assessment pipeline could not be completed." if reported == "FAILED" else None,
+            error_message="The assessment pipeline could not be completed."
+            if reported == "FAILED"
+            else None,
         )
         await session.flush()
         if machine.is_terminal(row.status):
@@ -334,7 +346,10 @@ async def reconcile(
     Every failure to reach the agent leaves the stored state alone. A run whose progress cannot be
     refreshed is still a run whose last known progress is true.
     """
-    if (machine.is_terminal(row.status) and (row.status not in {"COMPLETED", "PARTIAL"} or row.recommendation_id is not None)) or row.agent_run_id is None:
+    if (
+        machine.is_terminal(row.status)
+        and (row.status not in {"COMPLETED", "PARTIAL"} or row.recommendation_id is not None)
+    ) or row.agent_run_id is None:
         return row
 
     try:

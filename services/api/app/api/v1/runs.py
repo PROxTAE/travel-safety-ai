@@ -224,10 +224,13 @@ async def _events(
     started = datetime.now(UTC)
     last_id = resume_from
     # XREAD must return before the shared Redis client's socket timeout.
-    block_ms = max(250, min(
-        int(settings.sse_heartbeat_seconds * 1000),
-        int(settings.redis_timeout_seconds * 800),
-    ))
+    block_ms = max(
+        250,
+        min(
+            int(settings.sse_heartbeat_seconds * 1000),
+            int(settings.redis_timeout_seconds * 800),
+        ),
+    )
 
     try:
         while True:

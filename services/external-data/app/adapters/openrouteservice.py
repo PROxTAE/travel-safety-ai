@@ -23,6 +23,7 @@ captured from the live API on 2026-09-20. Four things this adapter absorbs:
 
 from __future__ import annotations
 
+import math
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -63,11 +64,10 @@ _INVALID_PARAMETER_VALUE = 2003
 _ROUTE_NOT_FOUND = 2009
 
 
-import math
+ORS_SUPPORTED_LANGUAGES = frozenset(
+    {"en", "de", "cn", "es", "ru", "dk", "fr", "it", "ja", "nl", "pt", "tr", "gr", "zh-cn"}
+)
 
-ORS_SUPPORTED_LANGUAGES = frozenset({
-    "en", "de", "cn", "es", "ru", "dk", "fr", "it", "ja", "nl", "pt", "tr", "gr", "zh-cn"
-})
 
 def _haversine_distance_m(p1: tuple[float, float], p2: tuple[float, float]) -> float:
     lon1, lat1 = p1

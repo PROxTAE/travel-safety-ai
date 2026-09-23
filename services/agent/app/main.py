@@ -49,9 +49,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 try:
                     norm_url = normalize_conn_string(resolved.database_url)
                     await apply_migrations(norm_url)
-                    checkpointer = await stack.enter_async_context(
-                        agent_checkpointer(norm_url)
-                    )
+                    checkpointer = await stack.enter_async_context(agent_checkpointer(norm_url))
                     pool = AsyncConnectionPool(norm_url, min_size=1, max_size=5)
                     await stack.enter_async_context(pool)
                     runs_repo = RunsRepository(pool)

@@ -164,14 +164,19 @@ class ToolClientBase:
             if response.status_code >= 400:
                 error_code = self._parse_error_code(response)
                 retryable = error_code in self._descriptor.retryable_error_codes
+                err_detail = response.text[:200]
                 raise ToolCallError(
                     error_code,
                     retryable,
-                    f"{self._descriptor.name} returned HTTP {response.status_code}: {response.text[:200]}",
+                    f"{self._descriptor.name} returned HTTP {response.status_code}: {err_detail}",
                 )
 
             try:
-                if response_model is dict or response_model is Any or issubclass(type(response_model), type) and response_model == dict:
+                if (
+                    response_model is dict
+                    or response_model is Any
+                    or (isinstance(response_model, type) and issubclass(response_model, dict))
+                ):
                     return response.json()
                 if hasattr(response_model, "model_validate_json"):
                     return response_model.model_validate_json(response.content)
