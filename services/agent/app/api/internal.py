@@ -23,7 +23,7 @@ a cancelled run is observable only by polling `GET /internal/v1/runs/{id}`, not 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -231,11 +231,11 @@ async def get_run(
     row = await runtime.runs.get(request_id)
     if row is None:
         raise HTTPException(status_code=404, detail="NOT_FOUND")
-    final_state = row.get("final_state") or {}
-    result = final_state.get("result", {})
-    quality = final_state.get("quality", {})
-    control = final_state.get("control", {})
-    errors = control.get("errors", [])
+    final_state: dict[str, Any] = cast(dict[str, Any], row.get("final_state") or {})
+    result: dict[str, Any] = cast(dict[str, Any], final_state.get("result", {}))
+    quality: dict[str, Any] = cast(dict[str, Any], final_state.get("quality", {}))
+    control: dict[str, Any] = cast(dict[str, Any], final_state.get("control", {}))
+    errors = cast(list[str], control.get("errors", []))
     return {
         "request_id": str(request_id),
         "status": row["status"],

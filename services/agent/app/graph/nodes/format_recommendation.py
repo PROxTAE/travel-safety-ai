@@ -51,12 +51,9 @@ async def format_recommendation(state: AgentState) -> dict[str, object]:
             }
         ]
 
-    degraded_list = []
-    for ds in state.quality.degraded_services:
-        if isinstance(ds, dict):
-            degraded_list.append(ds)
-        elif isinstance(ds, str):
-            degraded_list.append({"service": ds, "reason": "UNAVAILABLE"})
+    degraded_list = [
+        {"service": ds, "reason": "UNAVAILABLE"} for ds in state.quality.degraded_services
+    ]
 
     context = {
         "routes": evidence.get("routes", []),

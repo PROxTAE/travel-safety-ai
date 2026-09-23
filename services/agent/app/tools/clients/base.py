@@ -132,8 +132,8 @@ class ToolClientBase:
     async def _post(
         self,
         path: str,
-        payload: BaseModel | dict,
-        response_model: type[ResponseT] | Any = dict,
+        payload: BaseModel | dict[str, Any],
+        response_model: Any = dict,
         *,
         request_id: UUID,
         correlation_id: UUID,
@@ -194,7 +194,7 @@ class ToolClientBase:
         )
 
         try:
-            parsed: ResponseT = await retrying(attempt)
+            parsed: Any = await retrying(attempt)
         except ToolCallError as exc:
             duration_ms = int((time.monotonic() - started) * 1000)
             record = ToolCallRecord(

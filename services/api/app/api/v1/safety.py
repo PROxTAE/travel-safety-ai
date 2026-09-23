@@ -6,7 +6,7 @@ Proxies canonical hazards from module 04 with bounding-box and layer filtering.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, Query, Request
 
@@ -17,7 +17,7 @@ from app.errors.codes import FieldErrorCode
 from app.errors.exceptions import FieldError, ValidationFailed
 from app.observability.logging import get_logger
 from app.schemas.envelope import ListResponse, PageMeta
-from app.schemas.safety import SafetyEventModel, SafetyLayer
+from app.schemas.safety import DisasterEventType, SafetyEventModel, SafetyLayer, Severity
 
 logger = get_logger(__name__)
 
@@ -100,7 +100,7 @@ def _parse_and_validate_bbox(bbox_str: str) -> tuple[float, float, float, float]
     return west, south, east, north
 
 
-REGIONAL_WEATHER_CENTERS = [
+REGIONAL_WEATHER_CENTERS: list[dict[str, Any]] = [
     {
         "name": "Bangkok",
         "title": "Bangkok Metropolitan Area",
@@ -180,7 +180,7 @@ REGIONAL_WEATHER_CENTERS = [
     },
 ]
 
-REGIONAL_TRANSIT_EVENTS = [
+REGIONAL_TRANSIT_EVENTS: list[dict[str, Any]] = [
     {
         "event_id": "transit-srt-north-1",
         "layer": "TRANSPORT",
@@ -273,7 +273,7 @@ REGIONAL_TRANSIT_EVENTS = [
     },
 ]
 
-OFFICIAL_ADVISORIES = [
+OFFICIAL_ADVISORIES: list[dict[str, Any]] = [
     {
         "event_id": "official-tmd-monsoon-watch",
         "layer": "OFFICIAL_ALERT",
@@ -360,7 +360,9 @@ async def query_safety_events(
     # 1. WEATHER LAYER: Fetch real regional weather data from Module 04 Open-Meteo adapter
     if "WEATHER" in target_layers or "OFFICIAL_ALERT" in target_layers:
         centers_in_view = [
-            c for c in REGIONAL_WEATHER_CENTERS if in_viewport(c["longitude"], c["latitude"])
+            c
+            for c in REGIONAL_WEATHER_CENTERS
+            if in_viewport(float(c["longitude"]), float(c["latitude"]))
         ]
         if not centers_in_view:
             centers_in_view = REGIONAL_WEATHER_CENTERS[:6]
@@ -386,6 +388,9 @@ async def query_safety_events(
                 temp = latest_forecast.get("temperature_c", 28.0)
                 precip = latest_forecast.get("precipitation_mm", 0.0)
                 wind = latest_forecast.get("wind_speed_kmh", 10.0)
+
+                sev: Severity
+                ev_type: DisasterEventType
 
                 # Classify based on WMO standard weather code and conditions
                 if code in (95, 96, 99):
@@ -429,7 +434,10 @@ async def query_safety_events(
                             severity=sev,
                             geometry={
                                 "type": "Point",
-                                "coordinates": [center["longitude"], center["latitude"]],
+                                "coordinates": [
+                                    float(center["longitude"]),
+                                    float(center["latitude"]),
+                                ],
                             },
                             official=True,
                             valid_from=latest_forecast.get("valid_at"),
@@ -500,6 +508,28 @@ async def query_safety_events(
                     res.append("DISASTER")
                 return res
 
+            valid_disaster_types: set[str] = {
+                "EARTHQUAKE",
+                "CYCLONE",
+                "STORM",
+                "FLOOD",
+                "WILDFIRE",
+                "VOLCANO",
+                "LANDSLIDE",
+                "EXTREME_TEMPERATURE",
+                "HEALTH",
+                "TRANSPORT_CLOSURE",
+                "OTHER",
+            }
+            valid_severities: set[str] = {
+                "INFO",
+                "MINOR",
+                "MODERATE",
+                "SEVERE",
+                "EXTREME",
+                "UNKNOWN",
+            }
+
             for item in events_raw:
                 authority = item.get("source", {}).get("authority", "UNKNOWN")
                 is_official = authority in (
@@ -509,8 +539,8 @@ async def query_safety_events(
                     "METEOROLOGICAL_AGENCY",
                     "INTERGOVERNMENTAL",
                 )
-                event_type = item.get("event_type", "HAZARD")
-                matched_layers = classify_disaster_layer(event_type, is_official)
+                raw_ev_type = str(item.get("event_type", "HAZARD")).upper()
+                matched_layers = classify_disaster_layer(raw_ev_type, is_official)
 
                 selected_layer: SafetyLayer | None = None
                 for layer in matched_layers:
@@ -521,25 +551,39 @@ async def query_safety_events(
                 if not selected_layer:
                     continue
 
-                event_id = item["event_id"]
+                event_id = str(item["event_id"])
                 if event_id in seen_ids:
                     continue
                 seen_ids.add(event_id)
+
+                typed_ev_type: DisasterEventType = cast(
+                    DisasterEventType,
+                    raw_ev_type if raw_ev_type in valid_disaster_types else "OTHER",
+                )
+                raw_sev = str(item.get("severity", "MODERATE")).upper()
+                typed_sev: Severity = cast(
+                    Severity,
+                    raw_sev if raw_sev in valid_severities else "UNKNOWN",
+                )
 
                 safety_events.append(
                     SafetyEventModel(
                         event_id=event_id,
                         layer=selected_layer,
-                        event_type=event_type,
-                        title=item.get("title") or f"{event_type.capitalize()} Alert",
-                        severity=item.get("severity") or "MODERATE",
-                        geometry=item["geometry"],
+                        event_type=typed_ev_type,
+                        title=str(item.get("title") or f"{raw_ev_type.capitalize()} Alert"),
+                        severity=typed_sev,
+                        geometry=cast(dict[str, Any], item.get("geometry", {})),
                         official=is_official,
                         valid_from=item.get("effective_at") or item.get("observed_at"),
                         valid_to=item.get("expires_at"),
-                        detail_url=item.get("source", {}).get("url"),
-                        quality=item.get("quality", {}),
-                        source=item.get("source", {}),
+                        detail_url=(
+                            item.get("source", {}).get("url")
+                            if isinstance(item.get("source"), dict)
+                            else None
+                        ),
+                        quality=cast(dict[str, Any], item.get("quality", {})),
+                        source=cast(dict[str, Any], item.get("source", {})),
                     )
                 )
         except Exception as exc:
@@ -548,52 +592,52 @@ async def query_safety_events(
     # 3. TRANSPORT LAYER: Regional train lines, transit corridors, and railway status
     if "TRANSPORT" in target_layers:
         for transit in REGIONAL_TRANSIT_EVENTS:
-            coords = transit["geometry"]["coordinates"]
+            coords = cast(list[float], transit["geometry"]["coordinates"])
+            lon_t, lat_t = float(coords[0]), float(coords[1])
             if (
-                in_viewport(coords[0], coords[1])
-                or (90.0 <= coords[0] <= 110.0 and 5.0 <= coords[1] <= 22.0)
-            ) and transit["event_id"] not in seen_ids:
-                seen_ids.add(transit["event_id"])
+                in_viewport(lon_t, lat_t) or (90.0 <= lon_t <= 110.0 and 5.0 <= lat_t <= 22.0)
+            ) and str(transit["event_id"]) not in seen_ids:
+                seen_ids.add(str(transit["event_id"]))
                 safety_events.append(
                     SafetyEventModel(
-                        event_id=transit["event_id"],
+                        event_id=str(transit["event_id"]),
                         layer="TRANSPORT",
-                        event_type=transit["event_type"],
-                        title=transit["title"],
-                        severity=transit["severity"],
-                        geometry=transit["geometry"],
-                        official=transit["official"],
+                        event_type=cast(DisasterEventType, transit["event_type"]),
+                        title=str(transit["title"]),
+                        severity=cast(Severity, transit["severity"]),
+                        geometry=cast(dict[str, Any], transit["geometry"]),
+                        official=bool(transit["official"]),
                         valid_from=None,
                         valid_to=None,
-                        detail_url=transit["source"]["url"],
+                        detail_url=str(transit["source"]["url"]),
                         quality={"status": "FRESH"},
-                        source=transit["source"],
+                        source=cast(dict[str, Any], transit["source"]),
                     )
                 )
 
     # 4. OFFICIAL ADVISORIES LAYER: Official warnings & government alerts
     if "OFFICIAL_ALERT" in target_layers:
         for adv in OFFICIAL_ADVISORIES:
-            coords = adv["geometry"]["coordinates"]
+            coords = cast(list[float], adv["geometry"]["coordinates"])
+            lon_a, lat_a = float(coords[0]), float(coords[1])
             if (
-                in_viewport(coords[0], coords[1])
-                or (90.0 <= coords[0] <= 110.0 and 5.0 <= coords[1] <= 22.0)
-            ) and adv["event_id"] not in seen_ids:
-                seen_ids.add(adv["event_id"])
+                in_viewport(lon_a, lat_a) or (90.0 <= lon_a <= 110.0 and 5.0 <= lat_a <= 22.0)
+            ) and str(adv["event_id"]) not in seen_ids:
+                seen_ids.add(str(adv["event_id"]))
                 safety_events.append(
                     SafetyEventModel(
-                        event_id=adv["event_id"],
+                        event_id=str(adv["event_id"]),
                         layer="OFFICIAL_ALERT",
-                        event_type=adv["event_type"],
-                        title=adv["title"],
-                        severity=adv["severity"],
-                        geometry=adv["geometry"],
-                        official=adv["official"],
+                        event_type=cast(DisasterEventType, adv["event_type"]),
+                        title=str(adv["title"]),
+                        severity=cast(Severity, adv["severity"]),
+                        geometry=cast(dict[str, Any], adv["geometry"]),
+                        official=bool(adv["official"]),
                         valid_from=None,
                         valid_to=None,
-                        detail_url=adv["source"]["url"],
+                        detail_url=str(adv["source"]["url"]),
                         quality={"status": "FRESH"},
-                        source=adv["source"],
+                        source=cast(dict[str, Any], adv["source"]),
                     )
                 )
 
